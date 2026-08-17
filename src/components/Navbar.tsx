@@ -1,11 +1,19 @@
-import { GreenButton, OutlineButton } from './Button'
+import { useState } from 'react'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 
 interface NavbarProps {
   loggedIn: boolean
-  onToggleLogin: () => void
+  onLogout: () => void
 }
 
-export default function Navbar({ loggedIn, onToggleLogin }: NavbarProps) {
+export default function Navbar({ loggedIn, onLogout }: NavbarProps) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const navigate = useNavigate()
+  const links = [
+    ['홈', '/'],
+    ['행사·체험', '/events'],
+    ['지역 미션', '/missions'],
+  ]
   return (
     <nav style={{
       position: 'sticky',
@@ -26,7 +34,7 @@ export default function Navbar({ loggedIn, onToggleLogin }: NavbarProps) {
         justifyContent: 'space-between',
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+        <Link to="/" className="brand">
           <div style={{
             width: 28, height: 28, borderRadius: 7,
             background: 'var(--green)',
@@ -37,48 +45,35 @@ export default function Navbar({ loggedIn, onToggleLogin }: NavbarProps) {
           <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', fontFamily: 'Outfit, sans-serif' }}>
             Local Stamp
           </span>
-        </div>
+        </Link>
 
         {/* Center nav links — logged out only */}
-        {!loggedIn && (
-          <div style={{ display: 'flex', gap: 32 }}>
-            {['홈', '행사·체험', '지역 미션'].map(item => (
-              <span
-                key={item}
-                style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-sub)', cursor: 'pointer', transition: 'color 0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-sub)')}
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="primary-nav">
+          {links.map(([label, to]) => (
+            <NavLink key={to} to={to} className={({ isActive }) => isActive ? 'active' : ''}>{label}</NavLink>
+          ))}
+        </div>
 
         {/* Right actions */}
         {loggedIn ? (
-          <button
-            onClick={onToggleLogin}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              fontSize: 13, fontWeight: 500, color: 'var(--text)',
-              background: 'var(--surface)', border: '1px solid var(--border-2)',
-              borderRadius: 999, padding: '7px 16px',
-              cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'background 0.15s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface)')}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l2.5 2.5" />
-            </svg>
-            내 예약 · 내 계정
-          </button>
+          <div className="account-menu-wrap">
+            <button className="account-trigger" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen}>
+              <span>김</span> 내 예약 · 내 계정
+            </button>
+            {menuOpen && (
+              <div className="account-menu">
+                <div className="account-menu-user"><b>김 방문자 계정</b><small>김해시 지역 회원</small></div>
+                {[
+                  ['내 예약', '/reservations'], ['내 방문 후기', '/reviews/new'], ['내 스탬프북', '/stampbook'], ['내 지역 미션', '/missions'], ['쿠폰함', '/coupons'],
+                ].map(([label, to]) => <Link key={to} to={to} onClick={() => setMenuOpen(false)}>{label}</Link>)}
+                <button onClick={() => { onLogout(); setMenuOpen(false); navigate('/') }}>로그아웃</button>
+              </div>
+            )}
+          </div>
         ) : (
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <OutlineButton onClick={onToggleLogin}>로그인</OutlineButton>
-            <GreenButton onClick={onToggleLogin}>회원가입</GreenButton>
+          <div className="guest-actions">
+            <Link className="button-outline" to="/login">로그인</Link>
+            <Link className="button-primary button-small" to="/signup">회원가입</Link>
           </div>
         )}
       </div>

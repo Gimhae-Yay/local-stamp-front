@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Badge, { type BadgeType } from './Badge'
 
 export interface Experience {
@@ -32,10 +33,12 @@ function PlaceholderImage() {
 
 export default function ExperienceCard({ exp }: { exp: Experience }) {
   const [hovered, setHovered] = useState(false)
+  const navigate = useNavigate()
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => navigate(`/events/${exp.id === 1 ? 'gaya-culture' : exp.id === 2 ? 'daeseong-tomb' : exp.id === 3 ? 'nakdong-eco' : exp.id === 4 ? 'buncheong-class' : exp.id === 5 ? 'bonghwang-walk' : 'gaya-night'}`)}
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',

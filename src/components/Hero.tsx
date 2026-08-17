@@ -1,4 +1,5 @@
 import { GreenButton } from './Button'
+import { useNavigate } from 'react-router-dom'
 
 function HowToCard() {
   const steps = [
@@ -43,16 +44,18 @@ interface HeroProps {
   filter: string
   setFilter: (v: string) => void
   onLogin: () => void
+  onOpenRegion: () => void
 }
 
-export default function Hero({ loggedIn, filter, setFilter }: HeroProps) {
+export default function Hero({ loggedIn, filter, setFilter, onOpenRegion }: HeroProps) {
+  const navigate = useNavigate()
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px 32px' }}>
       {/* Top row */}
       <div style={{ display: 'flex', gap: 40, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         {/* Left */}
         <div style={{ flex: 1, minWidth: 280 }}>
-          <button style={{
+          <button onClick={onOpenRegion} style={{
             display: 'inline-flex', alignItems: 'center', gap: 5,
             background: 'var(--surface)', border: '1px solid var(--border-2)',
             borderRadius: 999, padding: '5px 14px',
@@ -76,7 +79,7 @@ export default function Hero({ loggedIn, filter, setFilter }: HeroProps) {
             진행 중이거나 곧 시작하는 지역 행사·체험을 둘러보고,<br />
             원하는 회차에서 무료 예약을 시작할 수 있습니다.
           </p>
-          <GreenButton>
+          <GreenButton onClick={() => navigate('/events')}>
             행사·체험 둘러보기
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M9 18l6-6-6-6" />

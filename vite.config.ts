@@ -3,7 +3,11 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
-import siteConfiguration from './.figma/make/site.json'
+const siteConfiguration = {
+  title: 'Local Stamp',
+  description: '지역 행사와 체험을 찾아 예약하는 Local Stamp',
+  language: 'ko',
+}
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
