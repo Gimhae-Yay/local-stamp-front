@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output and local tooling caches
+dist/
+.vite/
+*.tsbuildinfo
+
+# Local environment files (keep an explicitly committed .env.example if added)
+.env
+.env.local
+.env.*.local
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Codex local workspace settings
+.codex/
+
+# OS files
+.DS_Store
+Thumbs.db
