@@ -1,4 +1,5 @@
 import { GreenButton } from './Button'
+import { useNavigate } from 'react-router-dom'
 
 const dashedBorder: React.CSSProperties = {
   background: 'var(--surface)',
@@ -6,6 +7,7 @@ const dashedBorder: React.CSSProperties = {
 }
 
 export default function ActivitySection() {
+  const navigate = useNavigate()
   return (
     <section style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px 56px' }}>
       {/* Section header */}
@@ -20,7 +22,7 @@ export default function ActivitySection() {
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>내 지역 혜택 · P1</p>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700 }}>김해 문화 한 바퀴</h3>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <span onClick={() => navigate('/missions')} style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
               혜택 보기 ›
             </span>
           </div>
@@ -32,7 +34,7 @@ export default function ActivitySection() {
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>방문 후기</p>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700 }}>후기 작성 가능 1건</h3>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <span onClick={() => navigate('/reviews/new')} style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
               후기 작성 ›
             </span>
           </div>
@@ -47,7 +49,7 @@ export default function ActivitySection() {
             <p style={{ fontSize: 12, color: 'var(--text-sub)', lineHeight: 1.7 }}>오늘 14:00–16:00</p>
             <p style={{ fontSize: 12, color: 'var(--text-sub)' }}>체크인 13:30부터 · 2명</p>
           </div>
-          <GreenButton large fullWidth>
+          <GreenButton large fullWidth onClick={() => navigate('/reservations/r20260813')}>
             체크인 QR 제시
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M9 18l6-6-6-6" />
@@ -65,8 +67,9 @@ export default function ActivitySection() {
             <div
               key={item.label}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'opacity 0.15s' }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
-              onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+            onClick={() => navigate('/reservations')}
             >
               <div>
                 <p style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</p>
@@ -75,7 +78,7 @@ export default function ActivitySection() {
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)', whiteSpace: 'nowrap' }}>{item.count} ›</span>
             </div>
           ))}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, cursor: 'pointer', color: 'var(--text-sub)', fontSize: 13 }}>
+          <div onClick={() => navigate('/reservations')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, cursor: 'pointer', color: 'var(--text-sub)', fontSize: 13 }}>
             내 예약 전체 보기
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M9 18l6-6-6-6" />
