@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { getPublicRegions, type PublicRegion } from '../api/public'
+import { getPublicRegions, hasAccessToken, logoutFromServer, type PublicRegion } from '../api/public'
 import Navbar from './Navbar'
 import RegionDialog from './RegionDialog'
 
@@ -9,7 +9,7 @@ interface AppState {
   region: string
   regionId: string | null
   login: () => void
-  logout: () => void
+  logout: () => Promise<void>
   openRegionDialog: () => void
 }
 
@@ -22,7 +22,7 @@ export function useAppState() {
 }
 
 export default function AppLayout() {
-  const [loggedIn, setLoggedIn] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(() => hasAccessToken())
   const [region, setRegion] = useState<PublicRegion | null>(null)
   const [regions, setRegions] = useState<PublicRegion[]>([])
   const [regionsLoading, setRegionsLoading] = useState(true)
@@ -62,7 +62,15 @@ export default function AppLayout() {
     region: region?.name ?? '지역',
     regionId: region?.regionId ?? null,
     login: () => setLoggedIn(true),
-    logout: () => setLoggedIn(false),
+    logout: async () => {
+      try {
+        await logoutFromServer()
+      } catch {
+        // The local login state must still be cleared when the logout endpoint is unavailable.
+      } finally {
+        setLoggedIn(false)
+      }
+    },
     openRegionDialog: () => setRegionDialogOpen(true),
   }
 

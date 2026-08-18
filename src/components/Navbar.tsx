@@ -3,7 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 
 interface NavbarProps {
   loggedIn: boolean
-  onLogout: () => void
+  onLogout: () => Promise<void>
 }
 
 export default function Navbar({ loggedIn, onLogout }: NavbarProps) {
@@ -66,7 +66,7 @@ export default function Navbar({ loggedIn, onLogout }: NavbarProps) {
                 {[
                   ['내 예약', '/reservations'], ['내 방문 후기', '/reviews/new'], ['내 스탬프북', '/stampbook'], ['내 지역 미션', '/missions'], ['쿠폰함', '/coupons'],
                 ].map(([label, to]) => <Link key={to} to={to} onClick={() => setMenuOpen(false)}>{label}</Link>)}
-                <button onClick={() => { onLogout(); setMenuOpen(false); navigate('/') }}>로그아웃</button>
+                <button onClick={async () => { setMenuOpen(false); await onLogout(); navigate('/') }}>로그아웃</button>
               </div>
             )}
           </div>

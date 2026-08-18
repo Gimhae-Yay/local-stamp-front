@@ -280,6 +280,12 @@ export interface MyReservationQr {
   checkinClosesAt: string
 }
 
+export interface LoginResult {
+  userId: string
+  roles: string[]
+  accessToken: string
+}
+
 interface ApiResponse<T> {
   statusCode: number
   code: string
@@ -288,53 +294,142 @@ interface ApiResponse<T> {
 }
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '')
+const accessTokenStorageKey = 'accessToken'
+let refreshAccessTokenPromise: Promise<string> | null = null
 
-async function get<T>(path: string, signal?: AbortSignal, accessToken?: string): Promise<T> {
+class ApiRequestError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: string) {
+    super(message)
+    this.name = 'ApiRequestError'
+  }
+}
+
+function requireApiBaseUrl() {
   if (!apiBaseUrl) {
     throw new Error('VITE_API_BASE_URL 환경 변수를 설정해 주세요.')
   }
+  return apiBaseUrl
+}
 
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+export function storeAccessToken(accessToken: string) {
+  window.sessionStorage.setItem(accessTokenStorageKey, accessToken)
+}
+
+export function clearAccessToken() {
+  window.sessionStorage.removeItem(accessTokenStorageKey)
+}
+
+export function hasAccessToken() {
+  return Boolean(window.sessionStorage.getItem(accessTokenStorageKey))
+}
+
+function redirectToLogin() {
+  clearAccessToken()
+  if (window.location.pathname !== '/login') {
+    window.location.assign('/login')
+  }
+}
+
+async function refreshAccessToken() {
+  if (!refreshAccessTokenPromise) {
+    refreshAccessTokenPromise = (async () => {
+      const response = await fetch(`${requireApiBaseUrl()}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        credentials: 'include',
+      })
+      const body = await response.json().catch(() => null) as ApiResponse<{ accessToken: string }> | null
+
+      if (!response.ok || !body) {
+        const error = new ApiRequestError(body?.message ?? '토큰을 갱신하지 못했습니다.', response.status, body?.code)
+        if (response.status === 401) redirectToLogin()
+        throw error
+      }
+
+      storeAccessToken(body.data.accessToken)
+      return body.data.accessToken
+    })().finally(() => {
+      refreshAccessTokenPromise = null
+    })
+  }
+
+  return refreshAccessTokenPromise
+}
+
+async function request<T>(
+  path: string,
+  {
+    method = 'GET',
+    requestBody,
+    signal,
+    accessToken,
+    headers = {},
+    retryAfterRefresh = true,
+  }: {
+    method?: 'GET' | 'POST'
+    requestBody?: unknown
+    signal?: AbortSignal
+    accessToken?: string
+    headers?: Record<string, string>
+    retryAfterRefresh?: boolean
+  } = {},
+): Promise<T> {
+  const response = await fetch(`${requireApiBaseUrl()}${path}`, {
+    method,
     headers: {
       Accept: 'application/json',
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(requestBody !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...headers,
     },
+    body: requestBody === undefined ? undefined : JSON.stringify(requestBody),
+    credentials: 'include',
     signal,
   })
   const body = await response.json().catch(() => null) as ApiResponse<T> | null
 
+  if (response.status === 401 && accessToken && retryAfterRefresh) {
+    const refreshedAccessToken = await refreshAccessToken()
+    return request<T>(path, { method, requestBody, signal, accessToken: refreshedAccessToken, headers, retryAfterRefresh: false })
+  }
+
   if (!response.ok || !body) {
-    throw new Error(body?.message ?? '요청을 처리하지 못했습니다.')
+    throw new ApiRequestError(body?.message ?? '요청을 처리하지 못했습니다.', response.status, body?.code)
   }
 
   return body.data
 }
 
+async function get<T>(path: string, signal?: AbortSignal, accessToken?: string): Promise<T> {
+  return request<T>(path, { signal, accessToken })
+}
+
 async function post<T>(
   path: string,
-  { requestBody, accessToken, headers = {} }: { requestBody?: unknown; accessToken: string; headers?: Record<string, string> },
+  { requestBody, accessToken, headers = {} }: { requestBody?: unknown; accessToken?: string; headers?: Record<string, string> } = {},
 ): Promise<T> {
-  if (!apiBaseUrl) {
-    throw new Error('VITE_API_BASE_URL 환경 변수를 설정해 주세요.')
+  return request<T>(path, { method: 'POST', requestBody, accessToken, headers })
+}
+
+export function loginWithEmail({ email, password }: { email: string; password: string }) {
+  return post<LoginResult>('/api/v1/auth/login', { requestBody: { email, password } })
+}
+
+export async function logoutFromServer() {
+  const pendingRefresh = refreshAccessTokenPromise
+  if (pendingRefresh) {
+    try {
+      await pendingRefresh
+    } catch {
+      // Refresh failure already clears an invalid Refresh Token cookie on the server.
+    }
   }
 
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-      ...(requestBody !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...headers,
-    },
-    body: requestBody === undefined ? undefined : JSON.stringify(requestBody),
-  })
-  const body = await response.json().catch(() => null) as ApiResponse<T> | null
-
-  if (!response.ok || !body) {
-    throw new Error(body?.message ?? '요청을 처리하지 못했습니다.')
+  try {
+    await post<void>('/api/v1/auth/logout')
+  } finally {
+    clearAccessToken()
   }
-
-  return body.data
 }
 
 export function getPublicRegions(signal?: AbortSignal) {
