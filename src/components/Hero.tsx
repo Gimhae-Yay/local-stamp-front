@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 function HowToCard() {
   const steps = [
     '지역의 행사·체험을 둘러봐요.',
-    '원하는 회차를 무료로 예약해요.',
+    '원하는 회차를 예약해요.',
     '현장에서 QR로 체크인해요.',
   ]
   return (
@@ -40,14 +40,14 @@ function HowToCard() {
 }
 
 interface HeroProps {
+  region: string
   loggedIn: boolean
   filter: string
   setFilter: (v: string) => void
-  onLogin: () => void
   onOpenRegion: () => void
 }
 
-export default function Hero({ loggedIn, filter, setFilter, onOpenRegion }: HeroProps) {
+export default function Hero({ region, loggedIn, filter, setFilter, onOpenRegion }: HeroProps) {
   const navigate = useNavigate()
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px 32px' }}>
@@ -66,18 +66,18 @@ export default function Hero({ loggedIn, filter, setFilter, onOpenRegion }: Hero
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
               <circle cx="12" cy="9" r="2.5" />
             </svg>
-            김해시
+            {region}
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M6 9l6 6 6-6" />
             </svg>
           </button>
 
           <h1 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.2, color: 'var(--text)', marginBottom: 14 }}>
-            김해에서 할 일을<br />찾아보세요.
+            {region}에서 할 일을<br />찾아보세요.
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-sub)', lineHeight: 1.7, marginBottom: 28 }}>
-            진행 중이거나 곧 시작하는 지역 행사·체험을 둘러보고,<br />
-            원하는 회차에서 무료 예약을 시작할 수 있습니다.
+            지역 행사·체험을 둘러보고,<br />
+            원하는 회차의 예약을 시작할 수 있습니다.
           </p>
           <GreenButton onClick={() => navigate('/events')}>
             행사·체험 둘러보기
@@ -94,22 +94,19 @@ export default function Hero({ loggedIn, filter, setFilter, onOpenRegion }: Hero
           <div style={{ flex: '0 0 auto', paddingTop: 48 }}>
             <p style={{ fontSize: 14, color: 'var(--text-sub)', lineHeight: 1.8, textAlign: 'right', maxWidth: 260 }}>
               행사·체험을 비교하고 원하는 회차를 선택해<br />
-              무료 예약을 진행할 수 있습니다.
+              예약을 진행할 수 있습니다.
             </p>
           </div>
         )}
       </div>
 
-      {/* Search bar */}
+      {/* Content filter */}
       <div style={{
         background: 'var(--surface)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', padding: '14px 16px',
         display: 'flex', alignItems: 'center', gap: 12, marginTop: 32,
       }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
-          <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-        </svg>
-        <span style={{ flex: 1, fontSize: 14, color: 'var(--text-muted)' }}>김해시 행사·체험</span>
+        <span style={{ flex: 1, fontSize: 14, color: 'var(--text-muted)' }}>{region} 행사·체험</span>
         <div style={{ display: 'flex', gap: 8 }}>
           {['전체', '예약 가능'].map(label => (
             <button

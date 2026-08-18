@@ -1,11 +1,12 @@
 import { createContext, useContext, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Navbar from './Navbar'
-import RegionDialog from './RegionDialog'
+import RegionDialog, { type RegionOption } from './RegionDialog'
 
 interface AppState {
   loggedIn: boolean
   region: string
+  regionId: string
   login: () => void
   logout: () => void
   openRegionDialog: () => void
@@ -21,11 +22,12 @@ export function useAppState() {
 
 export default function AppLayout() {
   const [loggedIn, setLoggedIn] = useState(false)
-  const [region, setRegion] = useState('김해시')
+  const [region, setRegion] = useState<RegionOption>({ regionId: '1', regionCode: 'GIMHAE', name: '김해시' })
   const [regionDialogOpen, setRegionDialogOpen] = useState(false)
   const state: AppState = {
     loggedIn,
-    region,
+    region: region.name,
+    regionId: region.regionId,
     login: () => setLoggedIn(true),
     logout: () => setLoggedIn(false),
     openRegionDialog: () => setRegionDialogOpen(true),
@@ -36,7 +38,7 @@ export default function AppLayout() {
       <div className="app-shell">
         <Navbar loggedIn={loggedIn} onLogout={state.logout} />
         <main><Outlet /></main>
-        {regionDialogOpen && <RegionDialog region={region} onSelect={setRegion} onClose={() => setRegionDialogOpen(false)} />}
+        {regionDialogOpen && <RegionDialog regionId={region.regionId} onSelect={setRegion} onClose={() => setRegionDialogOpen(false)} />}
       </div>
     </AppStateContext.Provider>
   )

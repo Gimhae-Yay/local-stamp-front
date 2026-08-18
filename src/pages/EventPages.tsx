@@ -1,30 +1,25 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import EventCard from '../components/EventCard'
 import { Breadcrumbs, InfoRow, Notice, PageHeader, PlaceholderImage, StatusPill } from '../components/PageElements'
 import { events, getEvent } from '../data/events'
 import { useAppState } from '../components/AppLayout'
 
-const filters = ['전체', '진행 중', '곧 시작', '예약 가능만'] as const
+const filters = ['전체', '예약 가능만'] as const
 
 export function EventsPage() {
   const { region, openRegionDialog } = useAppState()
   const [params, setParams] = useSearchParams()
   const filter = params.get('filter') ?? '전체'
   const page = Number(params.get('page') ?? 1)
-  const filtered = useMemo(() => events.filter((event) => {
-    if (filter === '진행 중') return event.status === '진행 중'
-    if (filter === '곧 시작') return event.status === '곧 시작'
-    if (filter === '예약 가능만') return event.reservationStatus === '예약 가능'
-    return true
-  }), [filter])
+  const filtered = useMemo(() => events.filter((event) => filter !== '예약 가능만' || event.reservationStatus === '예약 가능'), [filter])
   const pageEvents = filtered.slice((page - 1) * 6, page * 6)
   const changeFilter = (next: string) => setParams(next === '전체' ? {} : { filter: next })
   const setPage = (next: number) => setParams({ ...(filter === '전체' ? {} : { filter }), page: String(next) })
 
   return (
     <section className="page-container">
-      <PageHeader title={`${region} 전체 행사·체험`} description="진행 중이거나 곧 시작하는 행사·체험을 확인하고, 남은 자리와 예약 가능 여부를 비교해 보세요." action={<button className="region-button" onClick={openRegionDialog}>✦ {region} · 지역 변경</button>}>
+      <PageHeader title={`${region} 전체 행사·체험`} description="행사·체험의 기본 정보와 예약 가능 여부를 확인해 보세요." action={<button className="region-button" onClick={openRegionDialog}>✦ {region} · 지역 변경</button>}>
         <Breadcrumbs items={[{ label: '홈', to: '/' }, { label: `${region} 행사·체험` }]} />
       </PageHeader>
       <div className="filter-row">
@@ -47,10 +42,10 @@ export function EventDetailPage() {
     <section className="page-container detail-page">
       <Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '김해시 행사·체험', to: '/events' }, { label: event.title }]} />
       <PlaceholderImage tall />
-      <div className="detail-status"><StatusPill>{event.status}</StatusPill><StatusPill>{event.reservationStatus}</StatusPill></div>
+      <div className="detail-status"><StatusPill tone={event.reservationStatus === '예약 가능' ? 'green' : 'gray'}>{event.reservationStatus}</StatusPill></div>
       <h1>{event.title}</h1>
       <p className="detail-lede">{event.description}</p>
-      <div className="event-summary"><b>전체 일정</b> 8월 1일 ~ 8월 31일 <i /> <b>총 회차</b> 6회</div>
+      <div className="event-summary"><b>남은 회차</b> 6회</div>
       <section className="detail-section"><h2>행사·체험 소개</h2><p>가야 왕국의 역사와 문화를 쉽고 재미있게 만나보세요. 전시 해설을 듣고 유물 모형을 활용한 체험을 진행합니다. 가족과 친구, 혼자 방문한 분도 편안하게 참여할 수 있습니다.</p></section>
       <section className="detail-section"><h2>이용 안내</h2><div className="info-grid">
         <div><span>위치</span><b>{event.location}<br />{event.address}</b></div><div><span>운영 시간</span><b>매주 토·일<br />10:00–16:00</b></div>
@@ -77,7 +72,7 @@ export function ReviewsPage() {
     <PageHeader title={`${event.title} 후기`} description="체험에 참여한 인증 방문자의 후기를 확인하세요." action={<Link className="button-outline" to={loggedIn ? '/reviews/new' : '/login'}>후기 작성하기</Link>}>
       <Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '김해시 행사·체험', to: '/events' }, { label: event.title, to: `/events/${event.id}` }, { label: '방문 후기' }]} />
     </PageHeader>
-    <div className="review-summary"><b>방문 후기 16개</b><span><strong>4.8</strong> ★★★★★</span></div>
+    <div className="review-summary"><b>방문 후기 16개</b></div>
     <div className="review-list">{reviewItems.map(([visitor, stars, content, date]) => <article key={date}><div><b>{visitor}</b><span>{stars}</span></div><p>{content}</p><time>{date}</time></article>)}</div>
     <div className="pagination" aria-label="후기 목록 페이지"><button className="current">1</button><button>2</button><button>3</button></div>
   </section>

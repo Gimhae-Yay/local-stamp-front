@@ -1,16 +1,22 @@
 import { useState } from 'react'
 
-const regions = [
-  ['김해시', '경상남도'],
-  ['동해시', '강원특별자치도'],
-  ['강릉시', '강원특별자치도'],
-  ['고양시', '경기도'],
-  ['수원시', '경기도'],
+export interface RegionOption {
+  regionId: string
+  regionCode: string
+  name: string
+}
+
+const regions: RegionOption[] = [
+  { regionId: '1', regionCode: 'GIMHAE', name: '김해시' },
+  { regionId: '2', regionCode: 'DONGHAE', name: '동해시' },
+  { regionId: '3', regionCode: 'GANGNEUNG', name: '강릉시' },
+  { regionId: '4', regionCode: 'GOYANG', name: '고양시' },
+  { regionId: '5', regionCode: 'SUWON', name: '수원시' },
 ]
 
-export default function RegionDialog({ region, onSelect, onClose }: { region: string; onSelect: (region: string) => void; onClose: () => void }) {
+export default function RegionDialog({ regionId, onSelect, onClose }: { regionId: string; onSelect: (region: RegionOption) => void; onClose: () => void }) {
   const [query, setQuery] = useState('')
-  const visibleRegions = regions.filter(([name]) => name.includes(query))
+  const visibleRegions = regions.filter((region) => region.name.includes(query))
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="region-dialog" role="dialog" aria-modal="true" aria-labelledby="region-title" onMouseDown={(event) => event.stopPropagation()}>
@@ -24,15 +30,15 @@ export default function RegionDialog({ region, onSelect, onClose }: { region: st
         </label>
         <p className="dialog-section-label">서비스 지역</p>
         <div className="region-options">
-          {visibleRegions.map(([name, province]) => (
+          {visibleRegions.map((region) => (
             <button
-              key={name}
-              className={`region-option${name === region ? ' selected' : ''}`}
-              onClick={() => { onSelect(name); onClose() }}
+              key={region.regionId}
+              className={`region-option${region.regionId === regionId ? ' selected' : ''}`}
+              onClick={() => { onSelect(region); onClose() }}
             >
               <span className="region-mark">✦</span>
-              <span><strong>{name}</strong><small>{province}</small></span>
-              {name === region && <b>✓</b>}
+              <span><strong>{region.name}</strong></span>
+              {region.regionId === regionId && <b>✓</b>}
             </button>
           ))}
         </div>
