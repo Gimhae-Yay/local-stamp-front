@@ -121,6 +121,56 @@ export interface MyMissionParticipationPage {
   totalPages: number
 }
 
+export type StampbookStatus = 'PUBLISHED' | 'ENDED'
+export type MyStampbookProgressStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'ENDED_INCOMPLETE'
+
+export interface MyStampbookCompletionReward {
+  couponPolicyId: string
+  stampbookRewardGrantId: string
+}
+
+export interface MyStampbookProgress {
+  status: MyStampbookProgressStatus
+  earnedCount: number
+  targetCount: number
+  completedAt: string | null
+  lastEarnedAt?: string | null
+  completionReward: MyStampbookCompletionReward | null
+}
+
+export interface MyStampbook {
+  stampbookId: string
+  title: string
+  regionId: string
+  status: StampbookStatus
+  publishedAt: string
+  progress: MyStampbookProgress
+}
+
+export interface MyStampbookDetail {
+  stampbook: Omit<MyStampbook, 'progress'> & {
+    endedAt: string | null
+    targetContents: Array<{
+      contentId: string
+      title: string
+      earned: boolean
+      earnedAt: string | null
+    }>
+  }
+  progress: MyStampbookProgress
+}
+
+export interface MyStampbookEarning {
+  stampEarnId: string
+  visitId: string
+  content: {
+    contentId: string
+    title: string
+  }
+  visitedAt: string
+  earnedAt: string
+}
+
 export interface PublicContentSession {
   sessionId: string
   startsAt: string
@@ -367,6 +417,18 @@ export function getMyMissionParticipations(
   })
 
   return get<MyMissionParticipationPage>(`/api/v1/me/mission-participations?${query.toString()}`, signal, accessToken)
+}
+
+export function getMyStampbooks(accessToken: string, signal?: AbortSignal) {
+  return get<{ stampbooks: MyStampbook[] }>('/api/v1/me/stampbooks', signal, accessToken)
+}
+
+export function getMyStampbookDetail(stampbookId: string, accessToken: string, signal?: AbortSignal) {
+  return get<MyStampbookDetail>(`/api/v1/me/stampbooks/${stampbookId}`, signal, accessToken)
+}
+
+export function getMyStampbookEarnings(stampbookId: string, accessToken: string, signal?: AbortSignal) {
+  return get<{ stampbookId: string; earnings: MyStampbookEarning[] }>(`/api/v1/me/stampbooks/${stampbookId}/earnings`, signal, accessToken)
 }
 
 export function getMyReservationQr(reservationId: string, accessToken: string, signal?: AbortSignal) {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { createVisitReview, getMyCouponUsageHistory, getMyCoupons, getMyMissionParticipations, getMyReservations, type CouponIssueSourceType, type CouponStatus, type MissionParticipationStatus, type MyCoupon, type MyCouponUsageHistoryItem, type MyMissionParticipation, type MyReservationSummary } from '../api/public'
+import { createVisitReview, getMyCouponUsageHistory, getMyCoupons, getMyMissionParticipations, getMyReservations, getMyStampbookDetail, getMyStampbookEarnings, getMyStampbooks, type CouponIssueSourceType, type CouponStatus, type MissionParticipationStatus, type MyCoupon, type MyCouponUsageHistoryItem, type MyMissionParticipation, type MyReservationSummary, type MyStampbook, type MyStampbookDetail, type MyStampbookEarning, type MyStampbookProgressStatus } from '../api/public'
 import { Breadcrumbs, Notice, PageHeader, StatusPill } from '../components/PageElements'
 import { useAppState } from '../components/AppLayout'
 
@@ -93,6 +93,40 @@ function missionParticipationDate(mission: MyMissionParticipation) {
 }
 
 const MISSION_PAGE_SIZE = 5
+
+const stampbookDateFormatter = new Intl.DateTimeFormat('ko-KR', {
+  month: 'numeric',
+  day: 'numeric',
+  timeZone: 'Asia/Seoul',
+})
+const stampbookDateTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
+  month: 'numeric',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  timeZone: 'Asia/Seoul',
+})
+
+function stampbookProgressStatusLabel(status: MyStampbookProgressStatus) {
+  return ({ NOT_STARTED: '시작 전', IN_PROGRESS: '진행 중', COMPLETED: '완료', ENDED_INCOMPLETE: '미완료 종료' })[status]
+}
+
+function stampbookProgressStatusTone(status: MyStampbookProgressStatus) {
+  return ({ NOT_STARTED: 'gray', IN_PROGRESS: 'green', COMPLETED: 'blue', ENDED_INCOMPLETE: 'gray' })[status] as const
+}
+
+function stampbookPublicationLabel(status: MyStampbook['status']) {
+  return status === 'PUBLISHED' ? '공개 중' : '종료'
+}
+
+function stampbookTargetStatus(earned: boolean, earnedAt: string | null) {
+  return earned ? `적립 완료${earnedAt ? ` · ${stampbookDateFormatter.format(new Date(earnedAt))}` : ''}` : '방문하면 적립'
+}
+
+function stampbookEarningSub(earning: MyStampbookEarning) {
+  return `방문 ${stampbookDateTimeFormatter.format(new Date(earning.visitedAt))} · 적립 ${stampbookDateTimeFormatter.format(new Date(earning.earnedAt))}`
+}
 
 export function ReviewPage() {
   const navigate = useNavigate()
@@ -352,10 +386,93 @@ export function MissionsPage() {
 function Mission({ mission }: { mission: MyMissionParticipation }) { return <article className="mission-card"><div className="mission-count"><small>진행도</small><b>{mission.progressCount} / {mission.requiredCount}</b><span>미션 조건</span></div><div><StatusPill tone={missionParticipationStatusTone(mission.status)}>{missionParticipationStatusLabel(mission.status)}</StatusPill><h2>{mission.title}</h2><p>{missionProgressDescription(mission)}</p><small>{missionParticipationDate(mission)}</small><b className="mission-end">{mission.rewardClaimed ? '보상 수령 완료' : mission.status === 'COMPLETED' ? '보상 미수령' : '진행 중'}</b></div></article> }
 
 export function StampbookPage() {
-  const { region, openRegionDialog } = useAppState()
-  const [selected, setSelected] = useState('김해 문화 한 바퀴')
-  const books = [['김해 문화 한 바퀴', '진행 중', '3 / 4개 적립'], ['김해 로컬 산책', '시작 전', '0 / 3개 적립'], ['가야 역사 산책', '종료', '2 / 4개 적립']]
-  return <section className="page-container narrow-page"><PageHeader title="내 스탬프북" description="방문으로 적립한 스탬프와 대상 콘텐츠를 확인하세요." action={<button className="region-button" onClick={openRegionDialog}>✦ {region} · 지역 변경</button>}><Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '내 스탬프북' }]} /></PageHeader>
-    <div className="stamp-layout"><aside><h3>내 스탬프북 3개</h3>{books.map(([title, status, count]) => <button key={title} onClick={() => setSelected(title)} className={selected === title ? 'selected' : ''}><span>{title}<small>스탬프북 #101 · 공개 중</small><b>{count}</b></span><StatusPill tone={status === '진행 중' ? 'green' : 'gray'}>{status}</StatusPill></button>)}</aside><section className="stamp-detail"><div className="stamp-title"><div><small>스탬프북 #101 · 김해시</small><h2>{selected}</h2></div><StatusPill>진행 중</StatusPill></div><div className="stamp-progress"><span>현재 적립</span><b>3 / 4</b></div><div className="stamp-circles">{['가야문화', '대성동', '낙동강', '다음 방문'].map((item, index) => <div key={item} className={index < 3 ? 'complete' : ''}><b>{index < 3 ? '✓' : '+'}</b><span>{item}</span></div>)}</div><div className="stamp-items">{[['김해 가야문화 체험', '적립 완료 · 8. 06.'], ['대성동고분박물관 해설', '적립 완료 · 8. 09.'], ['낙동강 생태 탐방', '적립 완료 · 8. 12.'], ['봉리단길 로컬 산책', '방문하면 적립']].map(([title, status]) => <p key={title}><span>{title}</span><b>{status}</b></p>)}</div><Notice>안내&nbsp; 대상 콘텐츠마다 유효한 방문 기록으로 스탬프가 한 번만 적립됩니다.</Notice></section></div><section className="recent-stamps"><h2>최근 스탬프 적립 이력</h2><div><HistoryItem symbol="✓" title="낙동강 생태 탐방" sub="방문 8. 12. 13:48 · 적립 14:02" date="" /><HistoryItem symbol="✓" title="대성동고분박물관 해설" sub="방문 8. 09. 10:51 · 적립 11:03" date="" /></div></section>
+  const [stampbooks, setStampbooks] = useState<MyStampbook[]>([])
+  const [selectedStampbookId, setSelectedStampbookId] = useState<string | null>(null)
+  const [selectedStampbook, setSelectedStampbook] = useState<MyStampbookDetail | null>(null)
+  const [earnings, setEarnings] = useState<MyStampbookEarning[]>([])
+  const [isListLoading, setIsListLoading] = useState(true)
+  const [isDetailLoading, setIsDetailLoading] = useState(false)
+  const [listErrorMessage, setListErrorMessage] = useState<string | null>(null)
+  const [detailErrorMessage, setDetailErrorMessage] = useState<string | null>(null)
+  const [listRequestVersion, setListRequestVersion] = useState(0)
+  const [detailRequestVersion, setDetailRequestVersion] = useState(0)
+
+  useEffect(() => {
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setStampbooks([])
+      setSelectedStampbookId(null)
+      setListErrorMessage('로그인 정보가 없어 내 스탬프북을 조회할 수 없습니다. 다시 로그인해 주세요.')
+      setIsListLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setIsListLoading(true)
+    setListErrorMessage(null)
+    getMyStampbooks(accessToken, controller.signal)
+      .then(({ stampbooks: myStampbooks }) => {
+        if (controller.signal.aborted) return
+        setStampbooks(myStampbooks)
+        setSelectedStampbookId((currentStampbookId) => currentStampbookId && myStampbooks.some((stampbook) => stampbook.stampbookId === currentStampbookId)
+          ? currentStampbookId
+          : myStampbooks[0]?.stampbookId ?? null)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setListErrorMessage(error instanceof Error ? error.message : '내 스탬프북을 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsListLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [listRequestVersion])
+
+  useEffect(() => {
+    if (!selectedStampbookId) {
+      setSelectedStampbook(null)
+      setEarnings([])
+      setDetailErrorMessage(null)
+      setIsDetailLoading(false)
+      return
+    }
+
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setSelectedStampbook(null)
+      setEarnings([])
+      setDetailErrorMessage('로그인 정보가 없어 스탬프북 상세를 조회할 수 없습니다. 다시 로그인해 주세요.')
+      setIsDetailLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setSelectedStampbook(null)
+    setEarnings([])
+    setIsDetailLoading(true)
+    setDetailErrorMessage(null)
+    Promise.all([
+      getMyStampbookDetail(selectedStampbookId, accessToken, controller.signal),
+      getMyStampbookEarnings(selectedStampbookId, accessToken, controller.signal),
+    ])
+      .then(([stampbookDetail, stampbookEarnings]) => {
+        if (controller.signal.aborted) return
+        setSelectedStampbook(stampbookDetail)
+        setEarnings(stampbookEarnings.earnings)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setDetailErrorMessage(error instanceof Error ? error.message : '스탬프북 상세를 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsDetailLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [detailRequestVersion, selectedStampbookId])
+
+  return <section className="page-container narrow-page"><PageHeader title="내 스탬프북" description="방문으로 적립한 스탬프와 대상 콘텐츠를 확인하세요."><Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '내 스탬프북' }]} /></PageHeader>
+    {isListLoading && <p className="empty-page">내 스탬프북을 불러오는 중입니다.</p>}{!isListLoading && listErrorMessage && <div className="empty-page"><p>{listErrorMessage}</p><button className="text-link-button" type="button" onClick={() => setListRequestVersion((version) => version + 1)}>다시 시도</button></div>}{!isListLoading && !listErrorMessage && stampbooks.length === 0 && <p className="empty-page">참여 중인 스탬프북이 없습니다.</p>}{!isListLoading && !listErrorMessage && stampbooks.length > 0 && <><div className="stamp-layout"><aside><h3>내 스탬프북 {stampbooks.length}개</h3>{stampbooks.map((stampbook) => <button key={stampbook.stampbookId} type="button" onClick={() => setSelectedStampbookId(stampbook.stampbookId)} className={selectedStampbookId === stampbook.stampbookId ? 'selected' : ''}><span>{stampbook.title}<small>스탬프북 #{stampbook.stampbookId} · {stampbookPublicationLabel(stampbook.status)}</small><b>{stampbook.progress.earnedCount} / {stampbook.progress.targetCount}개 적립</b></span><StatusPill tone={stampbookProgressStatusTone(stampbook.progress.status)}>{stampbookProgressStatusLabel(stampbook.progress.status)}</StatusPill></button>)}</aside><section className="stamp-detail">{isDetailLoading && <p className="stamp-detail-state">스탬프북 상세를 불러오는 중입니다.</p>}{!isDetailLoading && detailErrorMessage && <div className="stamp-detail-state"><p>{detailErrorMessage}</p><button className="text-link-button" type="button" onClick={() => setDetailRequestVersion((version) => version + 1)}>다시 시도</button></div>}{!isDetailLoading && !detailErrorMessage && selectedStampbook && <><div className="stamp-title"><div><small>스탬프북 #{selectedStampbook.stampbook.stampbookId}</small><h2>{selectedStampbook.stampbook.title}</h2></div><StatusPill tone={stampbookProgressStatusTone(selectedStampbook.progress.status)}>{stampbookProgressStatusLabel(selectedStampbook.progress.status)}</StatusPill></div><div className="stamp-progress"><span>현재 적립</span><b>{selectedStampbook.progress.earnedCount} / {selectedStampbook.progress.targetCount}</b></div><div className="stamp-circles">{selectedStampbook.stampbook.targetContents.map((content) => <div key={content.contentId} className={content.earned ? 'complete' : ''}><b>{content.earned ? '✓' : '+'}</b><span>{content.title}</span></div>)}</div><div className="stamp-items">{selectedStampbook.stampbook.targetContents.map((content) => <p key={content.contentId}><span>{content.title}</span><b>{stampbookTargetStatus(content.earned, content.earnedAt)}</b></p>)}</div><Notice>안내&nbsp; 대상 콘텐츠마다 유효한 방문 기록으로 스탬프가 한 번만 적립됩니다.</Notice></>}</section></div>{!isDetailLoading && !detailErrorMessage && selectedStampbook && <section className="recent-stamps"><h2>최근 스탬프 적립 이력</h2>{earnings.length > 0 ? <div>{earnings.map((earning) => <HistoryItem key={earning.stampEarnId} symbol="✓" title={earning.content.title} sub={stampbookEarningSub(earning)} date="" />)}</div> : <p className="stamp-earnings-empty">아직 적립된 스탬프가 없습니다.</p>}</section>}</>}
   </section>
 }
