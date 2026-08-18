@@ -147,6 +147,15 @@ export interface MyReservationSummary {
   }
 }
 
+export interface MyReservationQr {
+  reservationId: number
+  sessionId: number
+  qrToken: string
+  issuedAt: string
+  expiresAt: string
+  checkinClosesAt: string
+}
+
 interface ApiResponse<T> {
   statusCode: number
   code: string
@@ -258,6 +267,10 @@ export function getMyReservation(reservationId: string, accessToken: string, sig
 
 export function getMyReservations(accessToken: string, signal?: AbortSignal) {
   return get<{ reservations: MyReservationSummary[] }>('/api/v1/me/reservations', signal, accessToken)
+}
+
+export function getMyReservationQr(reservationId: string, accessToken: string, signal?: AbortSignal) {
+  return get<MyReservationQr>(`/api/v1/me/reservations/${reservationId}/qr`, signal, accessToken)
 }
 
 export function getPublicContentReviews(

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { confirmReservationHold, createReservationHold, getMyReservation, getMyReservations, getPublicContent, getPublicContentSessions, getPublicSessionReservationInfo, type MyReservationDetail, type MyReservationSummary, type PublicContentDetail, type PublicContentSession, type PublicSessionReservationInfo } from '../api/public'
+import { QRCodeSVG } from 'qrcode.react'
+import { confirmReservationHold, createReservationHold, getMyReservation, getMyReservationQr, getMyReservations, getPublicContent, getPublicContentSessions, getPublicSessionReservationInfo, type MyReservationDetail, type MyReservationQr, type MyReservationSummary, type PublicContentDetail, type PublicContentSession, type PublicSessionReservationInfo } from '../api/public'
 import { Breadcrumbs, InfoRow, Notice, PageHeader, StatusPill } from '../components/PageElements'
-import { getEvent } from '../data/events'
 
 const bookingId = 'r20260813'
 
@@ -66,6 +66,10 @@ function reservationStatusTone(status: MyReservationSummary['status']) {
 
 function isUpcomingReservation(reservation: MyReservationSummary) {
   return reservation.status === 'CONFIRMED' && reservation.session.status === 'SCHEDULED'
+}
+
+function sessionStatusLabel(status: MyReservationDetail['session']['status']) {
+  return ({ SCHEDULED: '운영 예정', COMPLETED: '운영 종료', CANCELLED: '회차 취소' })[status]
 }
 
 function ReservationCrumbs({ eventTitle, current }: { eventTitle?: string; current: string }) {
@@ -404,10 +408,119 @@ function ReservationCard({ reservation }: { reservation: MyReservationSummary })
 }
 
 export function ReservationDetailPage() {
-  const [qrOpen, setQrOpen] = useState(false)
-  return <section className="page-container narrow-page"><ReservationCrumbs eventTitle="김해 가야문화 체험" current="예약 상세" />
-    <div className="detail-heading"><h1>김해 가야문화 체험</h1><StatusPill>예약 확정</StatusPill></div>
-    <div className="confirmation-grid"><section><h2>예약 내용</h2><h3>김해 가야문화 체험</h3><InfoRow label="행사 일정">2026년 8월 13일(목) 14:00–16:00</InfoRow><InfoRow label="회차 상태">운영 예정</InfoRow><InfoRow label="체크인 시간">2026년 8월 13일(목) 13:30–16:00</InfoRow><InfoRow label="체크인">아직 안 함</InfoRow><InfoRow label="예약 번호">R20260730A7K3M9Q2W5XZ</InfoRow><Link className="text-danger-link" to={`/reservations/${bookingId}/cancel`}>예약 취소</Link></section><section><h2>체크인 QR</h2><div className="qr-panel">{qrOpen ? <div className="fake-qr" aria-label="체크인 QR 코드">▦</div> : <><StatusPill>현재 체크인 가능</StatusPill><p>현장 담당자에게 제시할 QR을 불러오세요.</p><button className="button-primary" onClick={() => setQrOpen(true)}>체크인 QR 불러오기</button></>}</div></section></div>
+  const { reservationId } = useParams()
+  const [reservationDetail, setReservationDetail] = useState<MyReservationDetail | null>(null)
+  const [content, setContent] = useState<PublicContentDetail | null>(null)
+  const [qr, setQr] = useState<MyReservationQr | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isQrLoading, setIsQrLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [qrErrorMessage, setQrErrorMessage] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+  const qrRequestControllerRef = useRef<AbortController | null>(null)
+  const qrRequestVersionRef = useRef(0)
+
+  useEffect(() => {
+    qrRequestVersionRef.current += 1
+    qrRequestControllerRef.current?.abort()
+    if (!reservationId) {
+      setReservationDetail(null)
+      setContent(null)
+      setQr(null)
+      setIsQrLoading(false)
+      setErrorMessage('예약 정보를 찾을 수 없습니다.')
+      setIsLoading(false)
+      return
+    }
+
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setReservationDetail(null)
+      setContent(null)
+      setQr(null)
+      setIsQrLoading(false)
+      setErrorMessage('로그인 정보가 없어 예약을 조회할 수 없습니다. 다시 로그인해 주세요.')
+      setIsLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setReservationDetail(null)
+    setContent(null)
+    setQr(null)
+    setQrErrorMessage(null)
+    setIsQrLoading(false)
+    setIsLoading(true)
+    setErrorMessage(null)
+    getMyReservation(reservationId, accessToken, controller.signal)
+      .then(async (myReservation) => {
+        const publicContent = await getPublicContent(myReservation.session.contentId, controller.signal)
+        if (controller.signal.aborted) return
+        setReservationDetail(myReservation)
+        setContent(publicContent)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setErrorMessage(error instanceof Error ? error.message : '예약 정보를 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    return () => {
+      controller.abort()
+      qrRequestControllerRef.current?.abort()
+    }
+  }, [requestVersion, reservationId])
+
+  const loadQr = async () => {
+    if (!reservationDetail || isQrLoading) return
+
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setQrErrorMessage('로그인 정보가 없어 QR을 불러올 수 없습니다. 다시 로그인해 주세요.')
+      return
+    }
+
+    qrRequestControllerRef.current?.abort()
+    const controller = new AbortController()
+    qrRequestControllerRef.current = controller
+    const qrRequestVersion = qrRequestVersionRef.current
+    setIsQrLoading(true)
+    setQrErrorMessage(null)
+    try {
+      const issuedQr = await getMyReservationQr(
+        reservationDetail.reservation.reservationId,
+        accessToken,
+        controller.signal,
+      )
+      if (controller.signal.aborted || qrRequestVersion !== qrRequestVersionRef.current) return
+      setQr(issuedQr)
+    } catch (error: unknown) {
+      if (controller.signal.aborted || qrRequestVersion !== qrRequestVersionRef.current) return
+      setQrErrorMessage(error instanceof Error ? error.message : '체크인 QR을 불러오지 못했습니다.')
+    } finally {
+      if (qrRequestControllerRef.current === controller) {
+        qrRequestControllerRef.current = null
+      }
+      if (!controller.signal.aborted && qrRequestVersion === qrRequestVersionRef.current) {
+        setIsQrLoading(false)
+      }
+    }
+  }
+
+  if (isLoading) {
+    return <section className="page-container empty-page"><p>예약 정보를 불러오는 중입니다.</p></section>
+  }
+
+  if (errorMessage || !reservationDetail || !content) {
+    return <section className="page-container empty-page"><p>{errorMessage ?? '예약 정보를 찾을 수 없습니다.'}</p><Link className="button-outline" to="/reservations">내 예약으로 이동</Link>{reservationId && <button className="text-link-button" type="button" onClick={() => setRequestVersion((version) => version + 1)}>다시 시도</button>}</section>
+  }
+
+  const { reservation, session, checkIn } = reservationDetail
+  return <section className="page-container narrow-page"><ReservationCrumbs eventTitle={content.title} current="예약 상세" />
+    <div className="detail-heading"><h1>{content.title}</h1><StatusPill tone={reservationStatusTone(reservation.status)}>{reservationStatusLabel(reservation.status)}</StatusPill></div>
+    <div className="confirmation-grid"><section><h2>예약 내용</h2><h3>{content.title}</h3><InfoRow label="행사 일정">{formatSessionSchedule(session.startsAt, session.endsAt)}</InfoRow><InfoRow label="회차 상태">{sessionStatusLabel(session.status)}</InfoRow><InfoRow label="체크인 시간">{formatSessionSchedule(session.checkinOpenAt, session.checkinCloseAt)}</InfoRow><InfoRow label="체크인">{checkIn.checkedIn && checkIn.checkedAt ? `완료 (${formatDateTime(checkIn.checkedAt)})` : '아직 안 함'}</InfoRow><InfoRow label="예약 인원">{reservation.quantity}명</InfoRow><InfoRow label="예약 번호">{reservation.reservationNo}</InfoRow>{reservation.status === 'CONFIRMED' && <Link className="text-danger-link" to={`/reservations/${reservation.reservationId}/cancel`}>예약 취소</Link>}</section><section><h2>체크인 QR</h2><div className="qr-panel">{qr ? <><QRCodeSVG value={qr.qrToken} size={155} title="체크인 QR 코드" /><p>QR은 {formatDateTime(qr.expiresAt)}까지 유효합니다.</p></> : <p>현장 담당자에게 제시할 QR을 불러오세요.</p>}{qrErrorMessage && <Notice tone="red">{qrErrorMessage}</Notice>}<button className="button-primary" type="button" disabled={isQrLoading} onClick={loadQr}>{isQrLoading ? '체크인 QR을 불러오는 중입니다.' : qr ? '새 QR 불러오기' : '체크인 QR 불러오기'}</button></div></section></div>
   </section>
 }
 
