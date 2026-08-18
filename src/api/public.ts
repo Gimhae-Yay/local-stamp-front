@@ -99,6 +99,28 @@ export interface MyCouponUsageHistoryItem {
   reversedAt: string | null
 }
 
+export type MissionParticipationStatus = 'IN_PROGRESS' | 'COMPLETED' | 'ENDED_INCOMPLETE'
+
+export interface MyMissionParticipation {
+  participationId: string
+  missionId: string
+  title: string
+  status: MissionParticipationStatus
+  progressCount: number
+  requiredCount: number
+  rewardClaimed: boolean
+  joinedAt: string
+  completedAt: string | null
+}
+
+export interface MyMissionParticipationPage {
+  content: MyMissionParticipation[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
 export interface PublicContentSession {
   sessionId: string
   startsAt: string
@@ -331,6 +353,20 @@ export function getMyCouponUsageHistory(couponId: string, accessToken: string, s
     signal,
     accessToken,
   )
+}
+
+export function getMyMissionParticipations(
+  status: MissionParticipationStatus,
+  accessToken: string,
+  { page = 0, size = 5, signal }: { page?: number; size?: number; signal?: AbortSignal } = {},
+) {
+  const query = new URLSearchParams({
+    status,
+    page: String(page),
+    size: String(size),
+  })
+
+  return get<MyMissionParticipationPage>(`/api/v1/me/mission-participations?${query.toString()}`, signal, accessToken)
 }
 
 export function getMyReservationQr(reservationId: string, accessToken: string, signal?: AbortSignal) {

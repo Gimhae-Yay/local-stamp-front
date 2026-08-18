@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { createVisitReview, getMyCouponUsageHistory, getMyCoupons, getMyReservations, type CouponIssueSourceType, type CouponStatus, type MyCoupon, type MyCouponUsageHistoryItem, type MyReservationSummary } from '../api/public'
+import { createVisitReview, getMyCouponUsageHistory, getMyCoupons, getMyMissionParticipations, getMyReservations, type CouponIssueSourceType, type CouponStatus, type MissionParticipationStatus, type MyCoupon, type MyCouponUsageHistoryItem, type MyMissionParticipation, type MyReservationSummary } from '../api/public'
 import { Breadcrumbs, Notice, PageHeader, StatusPill } from '../components/PageElements'
 import { useAppState } from '../components/AppLayout'
 
@@ -64,6 +64,35 @@ function usageHistoryDate(history: MyCouponUsageHistoryItem) {
   const dateTime = history.status === 'REVERSED' && history.reversedAt ? history.reversedAt : history.confirmedAt
   return `${history.status === 'REVERSED' ? '복구' : '사용'} ${couponDateTimeFormatter.format(new Date(dateTime))}`
 }
+
+const missionDateFormatter = new Intl.DateTimeFormat('ko-KR', {
+  month: 'long',
+  day: 'numeric',
+  timeZone: 'Asia/Seoul',
+})
+
+function missionParticipationStatusLabel(status: MissionParticipationStatus) {
+  return ({ IN_PROGRESS: '참여 중', COMPLETED: '완료', ENDED_INCOMPLETE: '미완료 종료' })[status]
+}
+
+function missionParticipationStatusTone(status: MissionParticipationStatus) {
+  return ({ IN_PROGRESS: 'green', COMPLETED: 'blue', ENDED_INCOMPLETE: 'gray' })[status] as const
+}
+
+function missionProgressDescription(mission: MyMissionParticipation) {
+  if (mission.status === 'COMPLETED') return '미션 조건을 모두 달성했습니다.'
+  if (mission.status === 'ENDED_INCOMPLETE') return '미션이 완료되지 않은 채 종료되었습니다.'
+  return `완료까지 ${Math.max(mission.requiredCount - mission.progressCount, 0)}개 남았어요.`
+}
+
+function missionParticipationDate(mission: MyMissionParticipation) {
+  if (mission.status === 'COMPLETED' && mission.completedAt) {
+    return `완료 ${missionDateFormatter.format(new Date(mission.completedAt))}`
+  }
+  return `참여 ${missionDateFormatter.format(new Date(mission.joinedAt))}`
+}
+
+const MISSION_PAGE_SIZE = 5
 
 export function ReviewPage() {
   const navigate = useNavigate()
@@ -251,12 +280,76 @@ function HistoryItem({ symbol, title, sub, date }: { symbol: string; title: stri
 
 export function MissionsPage() {
   const { region, openRegionDialog } = useAppState()
+  const [activeTab, setActiveTab] = useState<'inProgress' | 'completed'>('inProgress')
+  const [inProgressMissions, setInProgressMissions] = useState<MyMissionParticipation[]>([])
+  const [completedMissions, setCompletedMissions] = useState<MyMissionParticipation[]>([])
+  const [inProgressMissionCount, setInProgressMissionCount] = useState(0)
+  const [completedMissionCount, setCompletedMissionCount] = useState(0)
+  const [inProgressMissionPage, setInProgressMissionPage] = useState(0)
+  const [completedMissionPage, setCompletedMissionPage] = useState(0)
+  const [inProgressMissionTotalPages, setInProgressMissionTotalPages] = useState(0)
+  const [completedMissionTotalPages, setCompletedMissionTotalPages] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+
+  useEffect(() => {
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setInProgressMissions([])
+      setCompletedMissions([])
+      setInProgressMissionCount(0)
+      setCompletedMissionCount(0)
+      setInProgressMissionTotalPages(0)
+      setCompletedMissionTotalPages(0)
+      setErrorMessage('로그인 정보가 없어 내 미션을 조회할 수 없습니다. 다시 로그인해 주세요.')
+      setIsLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setIsLoading(true)
+    setErrorMessage(null)
+    Promise.all([
+      getMyMissionParticipations('IN_PROGRESS', accessToken, { page: inProgressMissionPage, size: MISSION_PAGE_SIZE, signal: controller.signal }),
+      getMyMissionParticipations('COMPLETED', accessToken, { page: completedMissionPage, size: MISSION_PAGE_SIZE, signal: controller.signal }),
+    ])
+      .then(([inProgressPage, completedPage]) => {
+        if (controller.signal.aborted) return
+        setInProgressMissions(inProgressPage.content)
+        setCompletedMissions(completedPage.content)
+        setInProgressMissionCount(inProgressPage.totalElements)
+        setCompletedMissionCount(completedPage.totalElements)
+        setInProgressMissionTotalPages(inProgressPage.totalPages)
+        setCompletedMissionTotalPages(completedPage.totalPages)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setErrorMessage(error instanceof Error ? error.message : '내 미션을 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [completedMissionPage, inProgressMissionPage, requestVersion])
+
+  const missions = activeTab === 'inProgress' ? inProgressMissions : completedMissions
+  const currentMissionPage = activeTab === 'inProgress' ? inProgressMissionPage : completedMissionPage
+  const missionTotalPages = activeTab === 'inProgress' ? inProgressMissionTotalPages : completedMissionTotalPages
+
+  const moveMissionPage = (nextPage: number) => {
+    if (nextPage < 0 || nextPage >= missionTotalPages) return
+    if (activeTab === 'inProgress') setInProgressMissionPage(nextPage)
+    else setCompletedMissionPage(nextPage)
+  }
+
   return <section className="page-container narrow-page"><PageHeader title="내 지역 미션" description="참여한 미션의 진행도와 완료 보상을 확인하세요." action={<button className="region-button" onClick={openRegionDialog}>✦ {region} · 지역 변경</button>}><Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '내 지역 미션' }]} /></PageHeader>
-    <div className="tab-row"><button className="active">진행 중 <b>2</b></button><button>완료 <b>1</b></button></div><div className="mission-list"><Mission count="2 / 3" title="김해 문화 한 바퀴" details="김해 가야문화 체험 · 대성동고분박물관 해설 · 낙동강 생태 탐방" date="8. 31. 종료" /><Mission count="1 / 3" title="김해에서 세 번 만나기" details="김해시의 행사·체험을 서로 다른 유형 방문으로 채워 보세요." date="9. 15. 종료" /></div><Notice>안내&nbsp; 완료 보상은 미션이 종료되기 전까지만 수령할 수 있습니다.</Notice>
+    <div className="tab-row"><button className={activeTab === 'inProgress' ? 'active' : ''} type="button" onClick={() => setActiveTab('inProgress')}>진행 중 <b>{inProgressMissionCount}</b></button><button className={activeTab === 'completed' ? 'active' : ''} type="button" onClick={() => setActiveTab('completed')}>완료 <b>{completedMissionCount}</b></button></div>{isLoading && <p className="empty-page">내 미션을 불러오는 중입니다.</p>}{!isLoading && errorMessage && <div className="empty-page"><p>{errorMessage}</p><button className="text-link-button" type="button" onClick={() => setRequestVersion((version) => version + 1)}>다시 시도</button></div>}{!isLoading && !errorMessage && <>{missions.length > 0 ? <div className="mission-list">{missions.map((mission) => <Mission key={mission.participationId} mission={mission} />)}</div> : <p className="empty-page">{activeTab === 'inProgress' ? '진행 중인 미션이 없습니다.' : '완료한 미션이 없습니다.'}</p>}{missionTotalPages > 1 && <div className="pagination" aria-label="내 미션 목록 페이지"><button type="button" onClick={() => moveMissionPage(currentMissionPage - 1)} disabled={currentMissionPage === 0}>이전</button><button type="button" className="current" disabled>{currentMissionPage + 1} / {missionTotalPages}</button><button type="button" onClick={() => moveMissionPage(currentMissionPage + 1)} disabled={currentMissionPage + 1 >= missionTotalPages}>다음</button></div>}</>}<Notice>안내&nbsp; 완료 보상은 미션이 종료되기 전까지만 수령할 수 있습니다.</Notice>
   </section>
 }
 
-function Mission({ count, title, details, date }: { count: string; title: string; details: string; date: string }) { return <article className="mission-card"><div className="mission-count"><small>CONTENT_SET</small><b>{count}</b><span>콘텐츠 방문</span></div><div><StatusPill>참여 중</StatusPill><h2>{title}</h2><p>{details}</p><small>참여일 2026. 08. 07.</small><b className="mission-end">{date}</b></div><Link className="button-outline" to="/stampbook">미션 상세</Link></article> }
+function Mission({ mission }: { mission: MyMissionParticipation }) { return <article className="mission-card"><div className="mission-count"><small>진행도</small><b>{mission.progressCount} / {mission.requiredCount}</b><span>미션 조건</span></div><div><StatusPill tone={missionParticipationStatusTone(mission.status)}>{missionParticipationStatusLabel(mission.status)}</StatusPill><h2>{mission.title}</h2><p>{missionProgressDescription(mission)}</p><small>{missionParticipationDate(mission)}</small><b className="mission-end">{mission.rewardClaimed ? '보상 수령 완료' : mission.status === 'COMPLETED' ? '보상 미수령' : '진행 중'}</b></div></article> }
 
 export function StampbookPage() {
   const { region, openRegionDialog } = useAppState()
