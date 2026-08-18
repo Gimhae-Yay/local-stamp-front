@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { confirmReservationHold, createReservationHold, getMyReservation, getMyReservationQr, getMyReservations, getPublicContent, getPublicContentSessions, getPublicSessionReservationInfo, type MyReservationDetail, type MyReservationQr, type MyReservationSummary, type PublicContentDetail, type PublicContentSession, type PublicSessionReservationInfo } from '../api/public'
+import { cancelMyReservation, confirmReservationHold, createReservationHold, getMyReservation, getMyReservationQr, getMyReservations, getPublicContent, getPublicContentSessions, getPublicSessionReservationInfo, type MyReservationCancellation, type MyReservationDetail, type MyReservationQr, type MyReservationSummary, type PublicContentDetail, type PublicContentSession, type PublicSessionReservationInfo } from '../api/public'
 import { Breadcrumbs, InfoRow, Notice, PageHeader, StatusPill } from '../components/PageElements'
 
 const bookingId = 'r20260813'
@@ -70,6 +70,10 @@ function isUpcomingReservation(reservation: MyReservationSummary) {
 
 function sessionStatusLabel(status: MyReservationDetail['session']['status']) {
   return ({ SCHEDULED: '운영 예정', COMPLETED: '운영 종료', CANCELLED: '회차 취소' })[status]
+}
+
+function cancellationReasonLabel(reason: string | null) {
+  return reason === 'USER_REQUEST' ? '사용자 요청' : reason ?? '확인할 수 없음'
 }
 
 function ReservationCrumbs({ eventTitle, current }: { eventTitle?: string; current: string }) {
@@ -525,9 +529,89 @@ export function ReservationDetailPage() {
 }
 
 export function CancelReservationPage() {
-  const [done, setDone] = useState(false)
-  return <section className="page-container narrow-page"><ReservationCrumbs eventTitle="김해 가야문화 체험" current="예약 취소" /><PageHeader title="예약을 취소하시겠어요?" description="취소한 예약은 되돌릴 수 없습니다." />
-    <div className="confirmation-grid"><section><h2>취소할 예약</h2><h3>김해 가야문화 체험</h3><InfoRow label="예약 상태">예약 확정</InfoRow><InfoRow label="행사 일정">2026년 8월 13일(목) 14:00–16:00</InfoRow><InfoRow label="예약 번호">R20260730A7K3M9Q2W5XZ</InfoRow></section><section><h2>취소 전 확인</h2>{done ? <div className="cancel-done"><span>✓</span><h3>예약이 취소되었습니다.</h3><p>취소한 예약은 내 예약에서 계속 확인할 수 있습니다.</p><InfoRow label="예약 상태">취소 완료</InfoRow><InfoRow label="취소 사유">사용자 요청</InfoRow><InfoRow label="정원 복구">처리 완료</InfoRow><Link className="button-primary" to="/reservations">내 예약으로 돌아가기</Link></div> : <><Notice tone="red"><b>예약 전체가 취소됩니다.</b><br />행사 시작 전의 확정 예약만 취소할 수 있습니다.<ul><li>일부 인원만 취소하거나 인원을 변경할 수 없습니다.</li><li>취소가 완료되면 확보한 자리가 한 번 복구됩니다.</li></ul></Notice><div className="cancel-actions"><Link className="button-outline" to={`/reservations/${bookingId}`}>예약 상세로 돌아가기</Link><button className="button-danger" onClick={() => setDone(true)}>예약 전체 취소하기</button></div></>}</section></div>
+  const { reservationId } = useParams()
+  const [reservationDetail, setReservationDetail] = useState<MyReservationDetail | null>(null)
+  const [cancellation, setCancellation] = useState<MyReservationCancellation | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isCancelling, setIsCancelling] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [cancelErrorMessage, setCancelErrorMessage] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+
+  useEffect(() => {
+    if (!reservationId) {
+      setReservationDetail(null)
+      setCancellation(null)
+      setErrorMessage('예약 정보를 찾을 수 없습니다.')
+      setIsLoading(false)
+      return
+    }
+
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setReservationDetail(null)
+      setCancellation(null)
+      setErrorMessage('로그인 정보가 없어 예약을 조회할 수 없습니다. 다시 로그인해 주세요.')
+      setIsLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setReservationDetail(null)
+    setCancellation(null)
+    setCancelErrorMessage(null)
+    setErrorMessage(null)
+    setIsLoading(true)
+    getMyReservation(reservationId, accessToken, controller.signal)
+      .then((myReservation) => {
+        if (controller.signal.aborted) return
+        setReservationDetail(myReservation)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setErrorMessage(error instanceof Error ? error.message : '예약 정보를 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [requestVersion, reservationId])
+
+  const cancelReservation = async () => {
+    if (!reservationDetail || isCancelling) return
+
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setCancelErrorMessage('로그인 정보가 없어 예약을 취소할 수 없습니다. 다시 로그인해 주세요.')
+      return
+    }
+
+    setIsCancelling(true)
+    setCancelErrorMessage(null)
+    try {
+      const result = await cancelMyReservation(reservationDetail.reservation.reservationId, accessToken)
+      setCancellation(result)
+    } catch (error: unknown) {
+      setCancelErrorMessage(error instanceof Error ? error.message : '예약을 취소하지 못했습니다.')
+    } finally {
+      setIsCancelling(false)
+    }
+  }
+
+  if (isLoading) {
+    return <section className="page-container empty-page"><p>예약 정보를 불러오는 중입니다.</p></section>
+  }
+
+  if (errorMessage || !reservationDetail) {
+    return <section className="page-container empty-page"><p>{errorMessage ?? '예약 정보를 찾을 수 없습니다.'}</p><Link className="button-outline" to="/reservations">내 예약으로 이동</Link>{reservationId && <button className="text-link-button" type="button" onClick={() => setRequestVersion((version) => version + 1)}>다시 시도</button>}</section>
+  }
+
+  const { reservation, session, content } = reservationDetail
+  const isCancelled = reservation.status === 'CANCELLED' || cancellation?.status === 'CANCELLED'
+  const cancelledAt = cancellation?.cancelledAt ?? reservation.cancelledAt
+  return <section className="page-container narrow-page"><ReservationCrumbs eventTitle={content.title} current="예약 취소" /><PageHeader title={isCancelled ? '예약이 취소되었습니다.' : '예약을 취소하시겠어요?'} description={isCancelled ? '취소한 예약은 내 예약에서 계속 확인할 수 있습니다.' : '취소한 예약은 되돌릴 수 없습니다.'} />
+    <div className="confirmation-grid"><section><h2>취소할 예약</h2><h3>{content.title}</h3><InfoRow label="예약 상태">{reservationStatusLabel(isCancelled ? 'CANCELLED' : reservation.status)}</InfoRow><InfoRow label="행사 일정">{formatSessionSchedule(session.startsAt, session.endsAt)}</InfoRow><InfoRow label="예약 인원">{reservation.quantity}명</InfoRow><InfoRow label="예약 번호">{reservation.reservationNo}</InfoRow></section><section><h2>{isCancelled ? '취소 결과' : '취소 전 확인'}</h2>{isCancelled ? <div className="cancel-done"><span>✓</span><h3>예약이 취소되었습니다.</h3><InfoRow label="취소 사유">{cancellationReasonLabel(cancellation?.cancellationReason ?? reservation.cancellationReason)}</InfoRow>{cancelledAt && <InfoRow label="취소 시각">{formatDateTime(cancelledAt)}</InfoRow>}{cancellation && <InfoRow label="정원 복구 시각">{cancellation.capacityReleasedAt ? formatDateTime(cancellation.capacityReleasedAt) : '정원 복구 없음'}</InfoRow>}<Link className="button-primary" to="/reservations">내 예약으로 돌아가기</Link></div> : reservation.status === 'CONFIRMED' ? <><Notice tone="red"><b>예약 전체가 취소됩니다.</b><br />행사 시작 전의 확정 예약만 취소할 수 있습니다.<ul><li>일부 인원만 취소하거나 인원을 변경할 수 없습니다.</li><li>취소가 완료되면 확보한 자리가 한 번 복구됩니다.</li></ul></Notice>{cancelErrorMessage && <Notice tone="red">{cancelErrorMessage}</Notice>}<div className="cancel-actions"><Link className="button-outline" to={`/reservations/${reservation.reservationId}`}>예약 상세로 돌아가기</Link><button className="button-danger" type="button" disabled={isCancelling} onClick={cancelReservation}>{isCancelling ? '예약을 취소하는 중입니다.' : '예약 전체 취소하기'}</button></div></> : <><Notice tone="red">현재 예약 상태에서는 취소할 수 없습니다.</Notice><Link className="button-outline" to={`/reservations/${reservation.reservationId}`}>예약 상세로 돌아가기</Link></>}</section></div>
   </section>
 }
 

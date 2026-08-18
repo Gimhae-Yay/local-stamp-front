@@ -117,11 +117,26 @@ export interface MyReservationDetail {
     checkinOpenAt: string
     checkinCloseAt: string
   }
+  content: {
+    contentId: string
+    title: string
+    locationText: string
+  }
   checkIn: {
     checkedIn: boolean
     checkedAt: string | null
     visitId: string | null
   }
+}
+
+export interface MyReservationCancellation {
+  reservationId: string
+  reservationStatus: 'CANCELLED'
+  sessionId: string
+  status: 'CANCELLED'
+  cancellationReason: string
+  cancelledAt: string
+  capacityReleasedAt: string | null
 }
 
 export interface MyReservationSummary {
@@ -271,6 +286,10 @@ export function getMyReservations(accessToken: string, signal?: AbortSignal) {
 
 export function getMyReservationQr(reservationId: string, accessToken: string, signal?: AbortSignal) {
   return get<MyReservationQr>(`/api/v1/me/reservations/${reservationId}/qr`, signal, accessToken)
+}
+
+export function cancelMyReservation(reservationId: string, accessToken: string) {
+  return post<MyReservationCancellation>(`/api/v1/me/reservations/${reservationId}/cancel`, { accessToken })
 }
 
 export function getPublicContentReviews(
