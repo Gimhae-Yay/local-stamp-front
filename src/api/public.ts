@@ -78,6 +78,25 @@ export interface ReservationHold {
   createdAt: string
 }
 
+export interface PublicSessionReservationInfo {
+  sessionId: string
+  contentId: string
+  startsAt: string
+  endsAt: string
+  price: number
+  remainingCapacity: number
+  reservable: boolean
+}
+
+export interface ReservationConfirmation {
+  reservationId: string
+  reservationNo: string
+  holdId: string
+  sessionId: string
+  status: 'CONFIRMED' | 'CANCELLED' | 'CHECKED_IN' | 'EXPIRED'
+  confirmedAt: string
+}
+
 interface ApiResponse<T> {
   statusCode: number
   code: string
@@ -105,7 +124,10 @@ async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   return body.data
 }
 
-async function post<T>(path: string, requestBody: unknown, accessToken: string): Promise<T> {
+async function post<T>(
+  path: string,
+  { requestBody, accessToken, headers = {} }: { requestBody?: unknown; accessToken: string; headers?: Record<string, string> },
+): Promise<T> {
   if (!apiBaseUrl) {
     throw new Error('VITE_API_BASE_URL 환경 변수를 설정해 주세요.')
   }
@@ -115,9 +137,10 @@ async function post<T>(path: string, requestBody: unknown, accessToken: string):
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      ...(requestBody !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...headers,
     },
-    body: JSON.stringify(requestBody),
+    body: requestBody === undefined ? undefined : JSON.stringify(requestBody),
   })
   const body = await response.json().catch(() => null) as ApiResponse<T> | null
 
@@ -162,7 +185,18 @@ export function getPublicContentSessions(contentId: string, signal?: AbortSignal
 }
 
 export function createReservationHold({ sessionId, quantity }: { sessionId: string; quantity: number }, accessToken: string) {
-  return post<ReservationHold>('/api/v1/reservations', { sessionId, quantity }, accessToken)
+  return post<ReservationHold>('/api/v1/reservations', { requestBody: { sessionId, quantity }, accessToken })
+}
+
+export function getPublicSessionReservationInfo(sessionId: string, signal?: AbortSignal) {
+  return get<PublicSessionReservationInfo>(`/api/v1/sessions/${sessionId}`, signal)
+}
+
+export function confirmReservationHold(holdId: string, idempotencyKey: string, accessToken: string) {
+  return post<ReservationConfirmation>(`/api/v1/reservation-holds/${holdId}/confirm`, {
+    accessToken,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
 }
 
 export function getPublicContentReviews(
