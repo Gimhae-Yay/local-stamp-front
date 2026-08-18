@@ -63,6 +63,21 @@ export interface PublicContentReviewPage {
   totalPages: number
 }
 
+export interface PublicContentSession {
+  sessionId: string
+  startsAt: string
+  endsAt: string
+}
+
+export interface ReservationHold {
+  holdId: string
+  sessionId: string
+  quantity: number
+  status: 'ACTIVE'
+  expiresAt: string
+  createdAt: string
+}
+
 interface ApiResponse<T> {
   statusCode: number
   code: string
@@ -80,6 +95,29 @@ async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     headers: { Accept: 'application/json' },
     signal,
+  })
+  const body = await response.json().catch(() => null) as ApiResponse<T> | null
+
+  if (!response.ok || !body) {
+    throw new Error(body?.message ?? '요청을 처리하지 못했습니다.')
+  }
+
+  return body.data
+}
+
+async function post<T>(path: string, requestBody: unknown, accessToken: string): Promise<T> {
+  if (!apiBaseUrl) {
+    throw new Error('VITE_API_BASE_URL 환경 변수를 설정해 주세요.')
+  }
+
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
   })
   const body = await response.json().catch(() => null) as ApiResponse<T> | null
 
@@ -117,6 +155,14 @@ export function getPublicContents(regionId: string, reservationAvailable?: boole
 
 export function getPublicContent(contentId: string, signal?: AbortSignal) {
   return get<PublicContentDetail>(`/api/v1/contents/${contentId}`, signal)
+}
+
+export function getPublicContentSessions(contentId: string, signal?: AbortSignal) {
+  return get<{ contentId: string; sessions: PublicContentSession[] }>(`/api/v1/contents/${contentId}/sessions`, signal)
+}
+
+export function createReservationHold({ sessionId, quantity }: { sessionId: string; quantity: number }, accessToken: string) {
+  return post<ReservationHold>('/api/v1/reservations', { sessionId, quantity }, accessToken)
 }
 
 export function getPublicContentReviews(

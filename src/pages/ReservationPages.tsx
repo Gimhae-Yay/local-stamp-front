@@ -1,12 +1,42 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { createReservationHold, getPublicContent, getPublicContentSessions, type PublicContentDetail, type PublicContentSession } from '../api/public'
 import { Breadcrumbs, InfoRow, Notice, PageHeader, StatusPill } from '../components/PageElements'
 import { getEvent } from '../data/events'
 
 const bookingId = 'r20260813'
 
 interface BookingFlowState {
+  holdId?: string
+  expiresAt?: string
   quantity?: number
+  sessionId?: string
+  startsAt?: string
+  endsAt?: string
+}
+
+const sessionDateFormatter = new Intl.DateTimeFormat('ko-KR', {
+  month: 'long',
+  day: 'numeric',
+  weekday: 'short',
+  timeZone: 'Asia/Seoul',
+})
+const sessionDayFormatter = new Intl.DateTimeFormat('ko-KR', { day: '2-digit', timeZone: 'Asia/Seoul' })
+const sessionTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  timeZone: 'Asia/Seoul',
+})
+
+function formatSessionDuration(startsAt: string, endsAt: string) {
+  const durationInMinutes = Math.round((new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60000)
+  const hours = Math.floor(durationInMinutes / 60)
+  const minutes = durationInMinutes % 60
+
+  if (hours === 0) return `${minutes}분`
+  if (minutes === 0) return `${hours}시간`
+  return `${hours}시간 ${minutes}분`
 }
 
 function ReservationCrumbs({ eventTitle, current }: { eventTitle?: string; current: string }) {
@@ -14,29 +44,114 @@ function ReservationCrumbs({ eventTitle, current }: { eventTitle?: string; curre
 }
 
 export function BookingPage() {
-  const event = getEvent(useParams().eventId)
+  const { eventId } = useParams()
   const navigate = useNavigate()
-  const [selected, setSelected] = useState('17-10')
+  const [content, setContent] = useState<PublicContentDetail | null>(null)
+  const [sessions, setSessions] = useState<PublicContentSession[]>([])
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
-  const sessions: Array<[string, string, string]> = [
-    ['17-10', '8월 17일 (일)', '10:00–12:00'], ['17-14', '8월 17일 (일)', '14:00–16:00'],
-    ['23-10', '8월 23일 (토)', '10:00–12:00'], ['23-14', '8월 23일 (토)', '14:00–16:00'],
-    ['30-10', '8월 30일 (토)', '10:00–12:00'], ['30-14', '8월 30일 (토)', '14:00–16:00'],
-  ]
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitErrorMessage, setSubmitErrorMessage] = useState<string | null>(null)
+  const isSubmittingRef = useRef(false)
+
+  useEffect(() => {
+    if (!eventId) {
+      setContent(null)
+      setSessions([])
+      setSelectedSessionId(null)
+      setErrorMessage('행사·체험 정보를 찾을 수 없습니다.')
+      setIsLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setContent(null)
+    setSessions([])
+    setSelectedSessionId(null)
+    setIsLoading(true)
+    setErrorMessage(null)
+    Promise.all([
+      getPublicContent(eventId, controller.signal),
+      getPublicContentSessions(eventId, controller.signal),
+    ])
+      .then(([publicContent, { sessions: publicSessions }]) => {
+        setContent(publicContent)
+        setSessions(publicSessions)
+        setSelectedSessionId(publicSessions[0]?.sessionId ?? null)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setErrorMessage(error instanceof Error ? error.message : '예약할 회차를 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [eventId, requestVersion])
+
   const adjustQuantity = (amount: number) => setQuantity((current) => Math.max(1, current + amount))
+  const selectedSession = sessions.find(({ sessionId }) => sessionId === selectedSessionId)
+
+  const moveToConfirmation = async () => {
+    if (!content || !selectedSession || isSubmittingRef.current) return
+
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setSubmitErrorMessage('로그인 정보가 없어 예약을 진행할 수 없습니다. 다시 로그인해 주세요.')
+      return
+    }
+
+    isSubmittingRef.current = true
+    setIsSubmitting(true)
+    setSubmitErrorMessage(null)
+    try {
+      const hold = await createReservationHold({ sessionId: selectedSession.sessionId, quantity }, accessToken)
+      navigate(`/events/${content.contentId}/reserve/confirm`, {
+        state: {
+          holdId: hold.holdId,
+          expiresAt: hold.expiresAt,
+          sessionId: selectedSession.sessionId,
+          startsAt: selectedSession.startsAt,
+          endsAt: selectedSession.endsAt,
+          quantity: hold.quantity,
+        },
+      })
+    } catch (error: unknown) {
+      setSubmitErrorMessage(error instanceof Error ? error.message : '예약 자리를 확보하지 못했습니다.')
+    } finally {
+      isSubmittingRef.current = false
+      setIsSubmitting(false)
+    }
+  }
+
+  if (isLoading) {
+    return <section className="page-container empty-page"><p>예약할 회차를 불러오는 중입니다.</p></section>
+  }
+
+  if (errorMessage || !content) {
+    return <section className="page-container empty-page"><p>{errorMessage ?? '행사·체험 정보를 찾을 수 없습니다.'}</p><button className="text-link-button" type="button" onClick={() => setRequestVersion((version) => version + 1)}>다시 시도</button></section>
+  }
+
   return (
     <section className="page-container booking-page">
-      <PageHeader title="회차 선택 및 예약" description="참여할 회차와 인원을 선택해 주세요."><Breadcrumbs items={[{ label: '홈', to: '/' }, { label: event.title, to: `/events/${event.id}` }, { label: '예약' }]} /></PageHeader>
+      <PageHeader title="회차 선택 및 예약" description="참여할 회차와 인원을 선택해 주세요."><Breadcrumbs items={[{ label: '홈', to: '/' }, { label: content.title, to: `/events/${content.contentId}` }, { label: '예약' }]} /></PageHeader>
       <section className="booking-section"><div className="section-title"><h2>예약할 회차 선택</h2><span>남은 회차 {sessions.length}개</span></div>
-        <div className="session-list">{sessions.map(([id, date, time]) => <button key={id} className={`session-row${selected === id ? ' selected' : ''}`} onClick={() => setSelected(id)}>
-          <span className="date-box">{String(date).slice(3, 5)}</span><span><b>{time}</b><small>{event.address} · 2시간</small></span>
-        </button>)}</div>
+        {sessions.length > 0
+          ? <div className="session-list">{sessions.map((session) => <button key={session.sessionId} type="button" className={`session-row${selectedSessionId === session.sessionId ? ' selected' : ''}`} onClick={() => setSelectedSessionId(session.sessionId)}>
+            <span className="date-box">{sessionDayFormatter.format(new Date(session.startsAt))}</span><span><b>{sessionDateFormatter.format(new Date(session.startsAt))} {sessionTimeFormatter.format(new Date(session.startsAt))}–{sessionTimeFormatter.format(new Date(session.endsAt))}</b><small>{content.locationText} · {formatSessionDuration(session.startsAt, session.endsAt)}</small></span>
+          </button>)}</div>
+          : <p className="empty-page">예약할 수 있는 회차가 없습니다.</p>}
       </section>
       <section className="booking-section"><div className="section-title"><h2>예약 인원</h2></div>
         <div className="counter-row"><div><b>예약 인원</b><small>참여할 인원 수를 선택해 주세요.</small></div><div className="counter"><button onClick={() => adjustQuantity(-1)} aria-label="예약 인원 감소">−</button><strong>{quantity}</strong><button onClick={() => adjustQuantity(1)} aria-label="예약 인원 증가">＋</button></div></div>
         <div className="total-people"><span>총 예약 인원</span><b>{quantity}명</b></div>
       </section>
-      <button className="button-primary booking-submit" onClick={() => navigate(`/events/${event.id}/reserve/confirm`, { state: { quantity } })}>예약하기</button>
+      {submitErrorMessage && <Notice tone="red">{submitErrorMessage}</Notice>}
+      <button className="button-primary booking-submit" type="button" disabled={!selectedSession || isSubmitting} onClick={moveToConfirmation}>{isSubmitting ? '예약 자리를 확보하는 중입니다.' : '예약하기'}</button>
     </section>
   )
 }
