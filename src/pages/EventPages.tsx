@@ -1,21 +1,43 @@
-import { useMemo } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { getPublicContents, type PublicContent } from '../api/public'
 import EventCard from '../components/EventCard'
-import { Breadcrumbs, InfoRow, Notice, PageHeader, PlaceholderImage, StatusPill } from '../components/PageElements'
-import { events, getEvent } from '../data/events'
+import { Breadcrumbs, Notice, PageHeader, PlaceholderImage, StatusPill } from '../components/PageElements'
+import { getEvent } from '../data/events'
 import { useAppState } from '../components/AppLayout'
 
 const filters = ['전체', '예약 가능만'] as const
 
 export function EventsPage() {
-  const { region, openRegionDialog } = useAppState()
-  const [params, setParams] = useSearchParams()
-  const filter = params.get('filter') ?? '전체'
-  const page = Number(params.get('page') ?? 1)
-  const filtered = useMemo(() => events.filter((event) => filter !== '예약 가능만' || event.reservationStatus === '예약 가능'), [filter])
-  const pageEvents = filtered.slice((page - 1) * 6, page * 6)
-  const changeFilter = (next: string) => setParams(next === '전체' ? {} : { filter: next })
-  const setPage = (next: number) => setParams({ ...(filter === '전체' ? {} : { filter }), page: String(next) })
+  const { region, regionId, openRegionDialog } = useAppState()
+  const [filter, setFilter] = useState<(typeof filters)[number]>('전체')
+  const [contents, setContents] = useState<PublicContent[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+
+  useEffect(() => {
+    if (!regionId) {
+      setContents([])
+      return
+    }
+
+    const controller = new AbortController()
+    setIsLoading(true)
+    setErrorMessage(null)
+    getPublicContents(regionId, filter === '예약 가능만' ? true : undefined, controller.signal)
+      .then(({ contents: publicContents }) => setContents(publicContents))
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setContents([])
+        setErrorMessage(error instanceof Error ? error.message : '행사·체험을 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [regionId, filter, requestVersion])
 
   return (
     <section className="page-container">
@@ -23,13 +45,13 @@ export function EventsPage() {
         <Breadcrumbs items={[{ label: '홈', to: '/' }, { label: `${region} 행사·체험` }]} />
       </PageHeader>
       <div className="filter-row">
-        <div className="filter-chips">{filters.map((item) => <button key={item} className={filter === item ? 'selected' : ''} onClick={() => changeFilter(item)}>{item}</button>)}</div>
-        <span><b>{filtered.length}개</b> 행사·체험 · {page} / 3 페이지</span>
+        <div className="filter-chips">{filters.map((item) => <button key={item} className={filter === item ? 'selected' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div>
+        {!isLoading && !errorMessage && <span><b>{contents.length}개</b> 행사·체험</span>}
       </div>
-      <div className="event-grid">{pageEvents.map((event) => <EventCard key={event.id} event={event} />)}</div>
-      <div className="pagination" aria-label="행사 목록 페이지">
-        {[1, 2, 3].map((item) => <button key={item} onClick={() => setPage(item)} className={item === page ? 'current' : ''}>{item}</button>)}
-      </div>
+      {isLoading && <p className="empty-page">행사·체험을 불러오는 중입니다.</p>}
+      {!isLoading && errorMessage && <div className="empty-page"><p>{errorMessage}</p><button className="text-link-button" type="button" onClick={() => setRequestVersion((version) => version + 1)}>다시 시도</button></div>}
+      {!isLoading && !errorMessage && <div className="event-grid">{contents.map((content) => <EventCard key={content.contentId} content={content} />)}</div>}
+      {!isLoading && !errorMessage && contents.length === 0 && <p className="empty-page">조건에 맞는 행사·체험이 없습니다.</p>}
     </section>
   )
 }

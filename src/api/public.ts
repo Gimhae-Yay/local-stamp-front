@@ -20,6 +20,16 @@ export interface RegionHomeContent {
   }
 }
 
+export interface PublicContent {
+  contentId: string
+  contentType: 'EVENT_EXPERIENCE'
+  title: string
+  locationText: string
+  representativeImageUrl: string | null
+  representativeImageUrlExpiresAt: string | null
+  reservationAvailable: boolean
+}
+
 interface ApiResponse<T> {
   statusCode: number
   code: string
@@ -57,4 +67,17 @@ export function getRegionHome(regionId: string, signal?: AbortSignal) {
     ongoingContents: RegionHomeContent[]
     upcomingContents: RegionHomeContent[]
   }>(`/api/v1/regions/${regionId}/home`, signal)
+}
+
+export function getPublicContents(regionId: string, reservationAvailable?: boolean, signal?: AbortSignal) {
+  const query = new URLSearchParams({
+    regionId,
+    contentType: 'EVENT_EXPERIENCE',
+  })
+
+  if (reservationAvailable !== undefined) {
+    query.set('reservationAvailable', String(reservationAvailable))
+  }
+
+  return get<{ contents: PublicContent[] }>(`/api/v1/contents?${query.toString()}`, signal)
 }
