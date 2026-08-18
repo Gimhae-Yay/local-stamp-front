@@ -63,6 +63,15 @@ export interface PublicContentReviewPage {
   totalPages: number
 }
 
+export interface VisitReview {
+  reviewId: string
+  visitId: string
+  contentId: string
+  rating: number
+  reviewText: string
+  createdAt: string
+}
+
 export interface PublicContentSession {
   sessionId: string
   startsAt: string
@@ -148,6 +157,7 @@ export interface MyReservationSummary {
   content: {
     contentId: string
     title: string
+    locationText: string
   }
   session: {
     sessionId: string
@@ -290,6 +300,17 @@ export function getMyReservationQr(reservationId: string, accessToken: string, s
 
 export function cancelMyReservation(reservationId: string, accessToken: string) {
   return post<MyReservationCancellation>(`/api/v1/me/reservations/${reservationId}/cancel`, { accessToken })
+}
+
+export function createVisitReview(
+  visitId: string,
+  { rating, reviewText }: { rating: number; reviewText: string },
+  accessToken: string,
+) {
+  return post<VisitReview>(`/api/v1/visits/${visitId}/reviews`, {
+    requestBody: { rating, reviewText },
+    accessToken,
+  })
 }
 
 export function getPublicContentReviews(

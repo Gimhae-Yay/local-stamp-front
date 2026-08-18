@@ -1,14 +1,107 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Breadcrumbs, InfoRow, Notice, PageHeader, StatusPill } from '../components/PageElements'
+import { createVisitReview, getMyReservations, type MyReservationSummary } from '../api/public'
+import { Breadcrumbs, Notice, PageHeader, StatusPill } from '../components/PageElements'
 import { useAppState } from '../components/AppLayout'
+
+const reviewSessionDateFormatter = new Intl.DateTimeFormat('ko-KR', {
+  month: 'long',
+  day: 'numeric',
+  weekday: 'short',
+  timeZone: 'Asia/Seoul',
+})
+const reviewSessionTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  timeZone: 'Asia/Seoul',
+})
+
+function formatReviewSession(startsAt: string, endsAt: string) {
+  return `${reviewSessionDateFormatter.format(new Date(startsAt))} ${reviewSessionTimeFormatter.format(new Date(startsAt))}–${reviewSessionTimeFormatter.format(new Date(endsAt))}`
+}
+
+function isReviewableReservation(reservation: MyReservationSummary) {
+  return reservation.status === 'CHECKED_IN' && reservation.checkIn.checkedIn && reservation.checkIn.visitId !== null
+}
 
 export function ReviewPage() {
   const navigate = useNavigate()
   const [rating, setRating] = useState(0)
   const [review, setReview] = useState('')
-  return <section className="page-container narrow-page"><PageHeader title="방문 후기를 남겨주세요" description="체크인이 완료된 방문에 대해 한 번 작성할 수 있어요."><Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '내 예약', to: '/reservations' }, { label: '김해 가야문화 체험' }, { label: '후기 작성' }]} /></PageHeader>
-    <div className="confirmation-grid review-layout"><section><h2>후기 내용</h2><label className="field-label">만족도 <em>필수</em></label><div className="stars" aria-label="만족도">{[1, 2, 3, 4, 5].map((star) => <button key={star} onClick={() => setRating(star)} aria-label={`${star}점`}>{star <= rating ? '★' : '☆'}</button>)}</div><p className="field-help">별점을 선택해 주세요.</p><label className="field-label" htmlFor="review">후기 <em>필수</em></label><textarea id="review" value={review} onChange={(event) => setReview(event.target.value)} maxLength={2000} placeholder="방문하며 좋았던 점이나 다른 방문자에게 도움이 될 내용을 남겨 주세요." /><span className="character-count">{review.length} / 2,000</span><button className="button-primary review-submit" disabled={!rating || !review.trim()} onClick={() => navigate('/reservations')}>후기 등록하기</button></section><section className="visited-content"><h2>방문한 콘텐츠</h2><article><StatusPill>체크인 완료</StatusPill><h3>김해 가야문화 체험</h3><p>2026년 8월 13일(목) 14:00–16:00<br />김해문화회관 1층</p></article><h3>작성 안내</h3><ul><li>후기는 콘텐츠 상세에 ‘인증 방문자’로 공개됩니다.</li><li>방문당 한 개의 후기만 작성할 수 있습니다.</li><li>등록 후 30일 동안 내용을 수정할 수 있습니다.</li></ul></section></div>
+  const [reservations, setReservations] = useState<MyReservationSummary[]>([])
+  const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [submitErrorMessage, setSubmitErrorMessage] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+  const isSubmittingRef = useRef(false)
+
+  useEffect(() => {
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setReservations([])
+      setSelectedVisitId(null)
+      setErrorMessage('로그인 정보가 없어 후기 작성 대상을 조회할 수 없습니다. 다시 로그인해 주세요.')
+      setIsLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setReservations([])
+    setSelectedVisitId(null)
+    setIsLoading(true)
+    setErrorMessage(null)
+    getMyReservations(accessToken, controller.signal)
+      .then(({ reservations: myReservations }) => {
+        if (controller.signal.aborted) return
+        const reviewableReservations = myReservations.filter(isReviewableReservation)
+        setReservations(reviewableReservations)
+        setSelectedVisitId(reviewableReservations[0]?.checkIn.visitId ?? null)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setErrorMessage(error instanceof Error ? error.message : '후기 작성 대상을 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [requestVersion])
+
+  const selectedReservation = reservations.find((reservation) => reservation.checkIn.visitId === selectedVisitId) ?? null
+
+  const submitReview = async () => {
+    if (!selectedReservation?.checkIn.visitId || !rating || !review.trim() || isSubmittingRef.current) return
+
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setSubmitErrorMessage('로그인 정보가 없어 후기를 등록할 수 없습니다. 다시 로그인해 주세요.')
+      return
+    }
+
+    isSubmittingRef.current = true
+    setIsSubmitting(true)
+    setSubmitErrorMessage(null)
+    try {
+      const createdReview = await createVisitReview(
+        selectedReservation.checkIn.visitId,
+        { rating, reviewText: review.trim() },
+        accessToken,
+      )
+      navigate(`/events/${createdReview.contentId}/reviews`)
+    } catch (error: unknown) {
+      setSubmitErrorMessage(error instanceof Error ? error.message : '후기를 등록하지 못했습니다.')
+    } finally {
+      isSubmittingRef.current = false
+      setIsSubmitting(false)
+    }
+  }
+
+  return <section className="page-container narrow-page"><PageHeader title="방문 후기를 남겨주세요" description="체크인이 완료된 방문에 대해 한 번 작성할 수 있어요."><Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '내 예약', to: '/reservations' }, ...(selectedReservation ? [{ label: selectedReservation.content.title }] : []), { label: '후기 작성' }]} /></PageHeader>
+    <div className="confirmation-grid review-layout"><section><h2>후기 내용</h2><label className="field-label">만족도 <em>필수</em></label><div className="stars" aria-label="만족도">{[1, 2, 3, 4, 5].map((star) => <button key={star} type="button" onClick={() => setRating(star)} aria-label={`${star}점`}>{star <= rating ? '★' : '☆'}</button>)}</div><p className="field-help">별점을 선택해 주세요.</p><label className="field-label" htmlFor="review">후기 <em>필수</em></label><textarea id="review" value={review} onChange={(event) => setReview(event.target.value)} maxLength={2000} placeholder="방문하며 좋았던 점이나 다른 방문자에게 도움이 될 내용을 남겨 주세요." /><span className="character-count">{review.length} / 2,000</span>{submitErrorMessage && <Notice tone="red">{submitErrorMessage}</Notice>}<button className="button-primary review-submit" type="button" disabled={!selectedReservation || !rating || !review.trim() || isSubmitting} onClick={submitReview}>{isSubmitting ? '후기를 등록하는 중입니다.' : '후기 등록하기'}</button></section><section className="visited-content"><h2>방문한 콘텐츠</h2>{isLoading && <p>후기 작성 대상을 불러오는 중입니다.</p>}{!isLoading && errorMessage && <><Notice tone="red">{errorMessage}</Notice><button className="text-link-button" type="button" onClick={() => setRequestVersion((version) => version + 1)}>다시 시도</button></>}{!isLoading && !errorMessage && reservations.length === 0 && <p>후기를 작성할 수 있는 체크인 완료 방문이 없습니다.</p>}{!isLoading && !errorMessage && reservations.length > 0 && <><label className="field-label" htmlFor="review-visit">방문 선택 <em>필수</em></label><select id="review-visit" value={selectedVisitId ?? ''} onChange={(event) => setSelectedVisitId(event.target.value)}>{reservations.map((reservation) => <option key={reservation.checkIn.visitId} value={reservation.checkIn.visitId ?? ''}>{reservation.content.title} · {formatReviewSession(reservation.session.startsAt, reservation.session.endsAt)}</option>)}</select>{selectedReservation && <article><StatusPill>체크인 완료</StatusPill><h3>{selectedReservation.content.title}</h3><p>{formatReviewSession(selectedReservation.session.startsAt, selectedReservation.session.endsAt)}<br />{selectedReservation.content.locationText}</p></article>}</>}<h3>작성 안내</h3><ul><li>후기는 콘텐츠 상세에 ‘인증 방문자’로 공개됩니다.</li><li>방문당 한 개의 후기만 작성할 수 있습니다.</li></ul></section></div>
   </section>
 }
 
