@@ -72,6 +72,33 @@ export interface VisitReview {
   createdAt: string
 }
 
+export type CouponStatus = 'AVAILABLE' | 'RESERVED' | 'USED' | 'EXPIRED' | 'INVALIDATED'
+export type CouponIssueSourceType = 'VISIT' | 'MISSION_REWARD' | 'STAMPBOOK_COMPLETION'
+
+export interface MyCoupon {
+  couponId: string
+  couponPolicyId: string
+  contentId: string
+  regionId: string
+  policyName: string
+  issueSourceType: CouponIssueSourceType
+  status: CouponStatus
+  discountAmount: number
+  minimumPaymentAmount: number
+  issuedAt: string
+  expiresAt: string
+}
+
+export interface MyCouponUsageHistoryItem {
+  couponRedemptionId: string
+  reservationId: string
+  priceSnapshotId: string
+  status: 'CONFIRMED' | 'REVERSED'
+  discountAmount: number
+  confirmedAt: string
+  reversedAt: string | null
+}
+
 export interface PublicContentSession {
   sessionId: string
   startsAt: string
@@ -292,6 +319,18 @@ export function getMyReservation(reservationId: string, accessToken: string, sig
 
 export function getMyReservations(accessToken: string, signal?: AbortSignal) {
   return get<{ reservations: MyReservationSummary[] }>('/api/v1/me/reservations', signal, accessToken)
+}
+
+export function getMyCoupons(accessToken: string, signal?: AbortSignal) {
+  return get<{ coupons: MyCoupon[] }>('/api/v1/me/coupons', signal, accessToken)
+}
+
+export function getMyCouponUsageHistory(couponId: string, accessToken: string, signal?: AbortSignal) {
+  return get<{ couponId: string; usageHistory: MyCouponUsageHistoryItem[] }>(
+    `/api/v1/me/coupons/${couponId}/usage-history`,
+    signal,
+    accessToken,
+  )
 }
 
 export function getMyReservationQr(reservationId: string, accessToken: string, signal?: AbortSignal) {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { createVisitReview, getMyReservations, type MyReservationSummary } from '../api/public'
+import { createVisitReview, getMyCouponUsageHistory, getMyCoupons, getMyReservations, type CouponIssueSourceType, type CouponStatus, type MyCoupon, type MyCouponUsageHistoryItem, type MyReservationSummary } from '../api/public'
 import { Breadcrumbs, Notice, PageHeader, StatusPill } from '../components/PageElements'
 import { useAppState } from '../components/AppLayout'
 
@@ -23,6 +23,46 @@ function formatReviewSession(startsAt: string, endsAt: string) {
 
 function isReviewableReservation(reservation: MyReservationSummary) {
   return reservation.status === 'CHECKED_IN' && reservation.checkIn.checkedIn && reservation.checkIn.visitId !== null
+}
+
+const couponDateFormatter = new Intl.DateTimeFormat('ko-KR', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  timeZone: 'Asia/Seoul',
+})
+const couponDateTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  timeZone: 'Asia/Seoul',
+})
+const couponCurrencyFormatter = new Intl.NumberFormat('ko-KR')
+
+function couponStatusLabel(status: CouponStatus) {
+  return ({ AVAILABLE: '사용 가능', RESERVED: '사용 예정', USED: '사용 완료', EXPIRED: '만료', INVALIDATED: '사용 불가' })[status]
+}
+
+function couponStatusTone(status: CouponStatus) {
+  return ({ AVAILABLE: 'green', RESERVED: 'amber', USED: 'blue', EXPIRED: 'gray', INVALIDATED: 'red' })[status] as const
+}
+
+function couponIssueSourceLabel(issueSourceType: CouponIssueSourceType) {
+  return ({ VISIT: '방문 인증', MISSION_REWARD: '미션 보상', STAMPBOOK_COMPLETION: '스탬프북 완료 보상' })[issueSourceType]
+}
+
+function usageHistoryTitle(history: MyCouponUsageHistoryItem) {
+  return history.status === 'REVERSED'
+    ? `${couponCurrencyFormatter.format(history.discountAmount)}원 할인 · 쿠폰 복구`
+    : `${couponCurrencyFormatter.format(history.discountAmount)}원 할인 · 사용 확정`
+}
+
+function usageHistoryDate(history: MyCouponUsageHistoryItem) {
+  const dateTime = history.status === 'REVERSED' && history.reversedAt ? history.reversedAt : history.confirmedAt
+  return `${history.status === 'REVERSED' ? '복구' : '사용'} ${couponDateTimeFormatter.format(new Date(dateTime))}`
 }
 
 export function ReviewPage() {
@@ -106,20 +146,107 @@ export function ReviewPage() {
 }
 
 export function CouponsPage() {
+  const [coupons, setCoupons] = useState<MyCoupon[]>([])
   const [openCouponId, setOpenCouponId] = useState<string | null>(null)
-  return <section className="page-container narrow-page"><PageHeader title="쿠폰 지갑" description="보유한 쿠폰과 사용 내역을 확인하세요." action={<b className="green-text">사용 가능 쿠폰 2장</b>}><Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '쿠폰 지갑' }]} /></PageHeader>
-    <h2 className="content-title">보유 쿠폰</h2><div className="coupon-list"><Coupon couponId="1001" amount="3,000" content="10,000원 이상 결제 시 · 김해 가야문화 체험 재방문 시" expiry="2026년 8월 31일까지" isHistoryOpen={openCouponId === '1001'} onToggleHistory={() => setOpenCouponId((current) => current === '1001' ? null : '1001')} history={[{ symbol: '↶', title: '3,000원 할인 · 쿠폰 복구', sub: '예약 ID 123 · 카드 실패 ID 9001 · 할인 3,000원', date: '복구 2026. 08. 08 10:30' }]} /><Coupon couponId="1002" amount="5,000" content="20,000원 이상 결제 시 · 동해 바다 산책 예약 시" expiry="2026년 9월 15일까지" isHistoryOpen={openCouponId === '1002'} onToggleHistory={() => setOpenCouponId((current) => current === '1002' ? null : '1002')} history={[{ symbol: '✓', title: '지역 체험 5,000원 할인 · 사용 확정', sub: '예약 ID 94 · 카드 승인 ID 884 · 할인 5,000원', date: '사용 2026. 07. 21 14:05' }]} /></div><p className="coupon-note">쿠폰 적용 가능 여부와 최종 할인 금액은 예약 결제 단계에서 현재 회차와 결제 금액을 기준으로 다시 확인됩니다. 사용·복구 이력은 쿠폰별로 확인할 수 있습니다.</p>
+  const [usageHistories, setUsageHistories] = useState<Record<string, MyCouponUsageHistoryItem[]>>({})
+  const [usageHistoryErrors, setUsageHistoryErrors] = useState<Record<string, string>>({})
+  const [loadingUsageHistoryCouponIds, setLoadingUsageHistoryCouponIds] = useState<Record<string, true>>({})
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+  const usageHistoryRequestControllersRef = useRef(new Map<string, AbortController>())
+
+  useEffect(() => {
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setCoupons([])
+      setOpenCouponId(null)
+      setErrorMessage('로그인 정보가 없어 쿠폰을 조회할 수 없습니다. 다시 로그인해 주세요.')
+      setIsLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setCoupons([])
+    setOpenCouponId(null)
+    setUsageHistories({})
+    setUsageHistoryErrors({})
+    setLoadingUsageHistoryCouponIds({})
+    setIsLoading(true)
+    setErrorMessage(null)
+    getMyCoupons(accessToken, controller.signal)
+      .then(({ coupons: myCoupons }) => {
+        if (!controller.signal.aborted) setCoupons(myCoupons)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setErrorMessage(error instanceof Error ? error.message : '쿠폰을 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [requestVersion])
+
+  useEffect(() => () => {
+    usageHistoryRequestControllersRef.current.forEach((controller) => controller.abort())
+    usageHistoryRequestControllersRef.current.clear()
+  }, [])
+
+  const loadUsageHistory = (couponId: string) => {
+    if (usageHistories[couponId] || loadingUsageHistoryCouponIds[couponId]) return
+
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setUsageHistoryErrors((current) => ({ ...current, [couponId]: '로그인 정보가 없어 사용 이력을 조회할 수 없습니다. 다시 로그인해 주세요.' }))
+      return
+    }
+
+    const controller = new AbortController()
+    usageHistoryRequestControllersRef.current.set(couponId, controller)
+    setLoadingUsageHistoryCouponIds((current) => ({ ...current, [couponId]: true }))
+    setUsageHistoryErrors((current) => {
+      const { [couponId]: _, ...remainingErrors } = current
+      return remainingErrors
+    })
+    getMyCouponUsageHistory(couponId, accessToken, controller.signal)
+      .then(({ usageHistory }) => {
+        if (!controller.signal.aborted) setUsageHistories((current) => ({ ...current, [couponId]: usageHistory }))
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setUsageHistoryErrors((current) => ({ ...current, [couponId]: error instanceof Error ? error.message : '사용 이력을 불러오지 못했습니다.' }))
+      })
+      .finally(() => {
+        usageHistoryRequestControllersRef.current.delete(couponId)
+        if (!controller.signal.aborted) {
+          setLoadingUsageHistoryCouponIds((current) => {
+            const { [couponId]: _, ...remainingCouponIds } = current
+            return remainingCouponIds
+          })
+        }
+      })
+  }
+
+  const toggleUsageHistory = (couponId: string) => {
+    if (openCouponId === couponId) {
+      setOpenCouponId(null)
+      return
+    }
+
+    setOpenCouponId(couponId)
+    loadUsageHistory(couponId)
+  }
+
+  const availableCouponCount = coupons.filter((coupon) => coupon.status === 'AVAILABLE').length
+
+  return <section className="page-container narrow-page"><PageHeader title="쿠폰 지갑" description="보유한 쿠폰과 사용 내역을 확인하세요." action={!isLoading && !errorMessage ? <b className="green-text">사용 가능 쿠폰 {availableCouponCount}장</b> : undefined}><Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '쿠폰 지갑' }]} /></PageHeader>
+    <h2 className="content-title">보유 쿠폰</h2>{isLoading && <p className="empty-page">쿠폰을 불러오는 중입니다.</p>}{!isLoading && errorMessage && <div className="empty-page"><p>{errorMessage}</p><button className="text-link-button" type="button" onClick={() => setRequestVersion((version) => version + 1)}>다시 시도</button></div>}{!isLoading && !errorMessage && coupons.length === 0 && <p className="empty-page">보유한 쿠폰이 없습니다.</p>}{!isLoading && !errorMessage && coupons.length > 0 && <><div className="coupon-list">{coupons.map((coupon) => <Coupon key={coupon.couponId} coupon={coupon} isHistoryOpen={openCouponId === coupon.couponId} history={usageHistories[coupon.couponId]} historyErrorMessage={usageHistoryErrors[coupon.couponId]} isHistoryLoading={Boolean(loadingUsageHistoryCouponIds[coupon.couponId])} onToggleHistory={() => toggleUsageHistory(coupon.couponId)} onRetryHistory={() => loadUsageHistory(coupon.couponId)} />)}</div><p className="coupon-note">쿠폰 적용 가능 여부와 최종 할인 금액은 예약 결제 단계에서 현재 회차와 결제 금액을 기준으로 다시 확인됩니다. 사용·복구 이력은 쿠폰별로 확인할 수 있습니다.</p></>}
   </section>
 }
 
-interface CouponHistoryItem {
-  symbol: string
-  title: string
-  sub: string
-  date: string
-}
-
-function Coupon({ couponId, amount, content, expiry, history, isHistoryOpen, onToggleHistory }: { couponId: string; amount: string; content: string; expiry: string; history: CouponHistoryItem[]; isHistoryOpen: boolean; onToggleHistory: () => void }) { return <article className="coupon"><div><StatusPill>사용 가능</StatusPill><b>{amount}<small>원 할인</small></b></div><div><p>{content}</p><small>방문 인증으로 발급</small><button className="coupon-history-toggle" type="button" aria-expanded={isHistoryOpen} aria-controls={`coupon-history-${couponId}`} onClick={onToggleHistory}>사용 이력 {isHistoryOpen ? '접기' : '보기'}</button></div><time>{expiry}<small>발급일 2026. 08. 01</small></time>{isHistoryOpen && <div className="coupon-usage-history" id={`coupon-history-${couponId}`}><h3>사용 · 복구 이력</h3>{history.length ? history.map((item) => <HistoryItem key={item.date} {...item} />) : <p>사용·복구 이력이 없습니다.</p>}</div>}</article> }
+function Coupon({ coupon, history, isHistoryOpen, isHistoryLoading, historyErrorMessage, onToggleHistory, onRetryHistory }: { coupon: MyCoupon; history?: MyCouponUsageHistoryItem[]; isHistoryOpen: boolean; isHistoryLoading: boolean; historyErrorMessage?: string; onToggleHistory: () => void; onRetryHistory: () => void }) { return <article className="coupon"><div><StatusPill tone={couponStatusTone(coupon.status)}>{couponStatusLabel(coupon.status)}</StatusPill><b>{couponCurrencyFormatter.format(coupon.discountAmount)}<small>원 할인</small></b></div><div><p>{coupon.policyName}</p><small>{coupon.minimumPaymentAmount > 0 ? `${couponCurrencyFormatter.format(coupon.minimumPaymentAmount)}원 이상 결제 시` : '결제 금액 제한 없음'} · {couponIssueSourceLabel(coupon.issueSourceType)} 발급</small><button className="coupon-history-toggle" type="button" aria-expanded={isHistoryOpen} aria-controls={`coupon-history-${coupon.couponId}`} onClick={onToggleHistory}>사용 이력 {isHistoryOpen ? '접기' : '보기'}</button></div><time>{couponDateFormatter.format(new Date(coupon.expiresAt))}까지<small>발급일 {couponDateFormatter.format(new Date(coupon.issuedAt))}</small></time>{isHistoryOpen && <div className="coupon-usage-history" id={`coupon-history-${coupon.couponId}`}><h3>사용 · 복구 이력</h3>{isHistoryLoading && <p>사용 이력을 불러오는 중입니다.</p>}{!isHistoryLoading && historyErrorMessage && <><Notice tone="red">{historyErrorMessage}</Notice><button className="text-link-button" type="button" onClick={onRetryHistory}>다시 시도</button></>}{!isHistoryLoading && !historyErrorMessage && history && (history.length ? history.map((item) => <HistoryItem key={item.couponRedemptionId} symbol={item.status === 'REVERSED' ? '↶' : '✓'} title={usageHistoryTitle(item)} sub={`예약 ID ${item.reservationId} · 가격 스냅샷 ID ${item.priceSnapshotId}`} date={usageHistoryDate(item)} />) : <p>사용·복구 이력이 없습니다.</p>)}</div>}</article> }
 function HistoryItem({ symbol, title, sub, date }: { symbol: string; title: string; sub: string; date: string }) { return <article className="history-item"><span>{symbol}</span><div><b>{title}</b><small>{sub}</small></div><time>{date}</time></article> }
 
 export function MissionsPage() {
