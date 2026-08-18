@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { confirmReservationHold, createReservationHold, getMyReservation, getPublicContent, getPublicContentSessions, getPublicSessionReservationInfo, type MyReservationDetail, type PublicContentDetail, type PublicContentSession, type PublicSessionReservationInfo } from '../api/public'
+import { confirmReservationHold, createReservationHold, getMyReservation, getMyReservations, getPublicContent, getPublicContentSessions, getPublicSessionReservationInfo, type MyReservationDetail, type MyReservationSummary, type PublicContentDetail, type PublicContentSession, type PublicSessionReservationInfo } from '../api/public'
 import { Breadcrumbs, InfoRow, Notice, PageHeader, StatusPill } from '../components/PageElements'
 import { getEvent } from '../data/events'
 
@@ -58,6 +58,14 @@ function formatDateTime(dateTime: string) {
 
 function reservationStatusLabel(status: MyReservationDetail['reservation']['status']) {
   return ({ CONFIRMED: '예약 확정', CHECKED_IN: '체크인 완료', CANCELLED: '예약 취소', EXPIRED: '예약 만료' })[status]
+}
+
+function reservationStatusTone(status: MyReservationSummary['status']) {
+  return ({ CONFIRMED: 'green', CHECKED_IN: 'blue', CANCELLED: 'red', EXPIRED: 'gray' })[status]
+}
+
+function isUpcomingReservation(reservation: MyReservationSummary) {
+  return reservation.status === 'CONFIRMED' && reservation.session.status === 'SCHEDULED'
 }
 
 function ReservationCrumbs({ eventTitle, current }: { eventTitle?: string; current: string }) {
@@ -341,35 +349,58 @@ export function BookingCompletePage() {
 
 export function ReservationsPage() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming')
-  const upcomingReservations: Reservation[] = [
-    { id: bookingId, date: '오늘 14:00–16:00', dateLabel: '2026. 08. 13 (목)', title: '김해 가야문화 체험', location: '김해문화회관 1층 · 김해시 가야의길 190', status: '체크인 가능', checkin: true },
-    { id: 'r20260824', date: '8월 23일(일) 13:00', dateLabel: '2026. 08. 23 (일)', title: '분청도자기 원데이 클래스', location: '김해시 진례면 · 김해문화센터', status: '예약 확정', checkin: false },
-  ]
-  const pastReservations: Reservation[] = [
-    { id: 'r20260730', date: '7월 30일(목) 14:00', dateLabel: '2026. 07. 30 (목)', title: '김해 가야문화 체험', location: '김해문화회관 1층 · 김해시 가야의길 190', status: '체크인 완료', checkin: false, reviewable: true },
-    { id: 'r20260718', date: '7월 18일(토) 10:00', dateLabel: '2026. 07. 18 (토)', title: '대성동 고분 박물관 해설', location: '대성동고분박물관 · 김해시 가야안길 126', status: '체크인 완료', checkin: false, reviewable: true },
-    { id: 'r20260629', date: '6월 29일(일) 11:00', dateLabel: '2026. 06. 29 (일)', title: '낙동강 생태 탐방', location: '김해시 생태원 일대', status: '체크인 완료', checkin: false, reviewable: false },
-  ]
+  const [listedReservations, setListedReservations] = useState<MyReservationSummary[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+
+  useEffect(() => {
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setListedReservations([])
+      setErrorMessage('로그인 정보가 없어 예약 목록을 조회할 수 없습니다. 다시 로그인해 주세요.')
+      setIsLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setListedReservations([])
+    setIsLoading(true)
+    setErrorMessage(null)
+    getMyReservations(accessToken, controller.signal)
+      .then(({ reservations }) => setListedReservations(reservations))
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setErrorMessage(error instanceof Error ? error.message : '예약 목록을 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [requestVersion])
+
+  if (isLoading) {
+    return <section className="page-container empty-page"><p>예약 목록을 불러오는 중입니다.</p></section>
+  }
+
+  if (errorMessage) {
+    return <section className="page-container empty-page"><p>{errorMessage}</p><button className="text-link-button" type="button" onClick={() => setRequestVersion((version) => version + 1)}>다시 시도</button></section>
+  }
+
+  const upcomingReservations = listedReservations.filter(isUpcomingReservation)
+  const pastReservations = listedReservations.filter((reservation) => !isUpcomingReservation(reservation))
   const reservations = activeTab === 'upcoming' ? upcomingReservations : pastReservations
   return <section className="page-container reservations-page"><PageHeader title="내 예약" description="예약한 행사·체험의 일정과 체크인 정보를 확인하세요."><Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '내 예약' }]} /></PageHeader>
     <div className="tab-row"><button className={activeTab === 'upcoming' ? 'active' : ''} onClick={() => setActiveTab('upcoming')}>다가오는 예약 <b>{upcomingReservations.length}</b></button><button className={activeTab === 'past' ? 'active' : ''} onClick={() => setActiveTab('past')}>지난 예약 <b>{pastReservations.length}</b></button></div>
-    <div className="reservation-list">{reservations.map((reservation) => <ReservationCard key={reservation.id} reservation={reservation} />)}</div>
+    {reservations.length > 0
+      ? <div className="reservation-list">{reservations.map((reservation) => <ReservationCard key={reservation.reservationId} reservation={reservation} />)}</div>
+      : <section className="empty-page"><p>{activeTab === 'upcoming' ? '다가오는 예약이 없습니다.' : '지난 예약이 없습니다.'}</p></section>}
   </section>
 }
 
-interface Reservation {
-  id: string
-  date: string
-  dateLabel: string
-  title: string
-  location: string
-  status: string
-  checkin: boolean
-  reviewable?: boolean
-}
-
-function ReservationCard({ reservation }: { reservation: Reservation }) {
-  return <article className="reservation-card"><div className="reservation-date"><b>{reservation.date}</b><span>{reservation.dateLabel}</span></div><div className="reservation-info"><StatusPill tone={reservation.status === '체크인 완료' ? 'gray' : 'green'}>{reservation.status}</StatusPill><h2>{reservation.title}</h2><p>{reservation.location}</p><small>예약 번호 {reservation.id.toUpperCase()}A7K3M9Q2W5XZ</small></div><div className="reservation-actions">{reservation.checkin && <Link className="button-primary button-small" to={`/reservations/${reservation.id}`}>체크인 QR 보기</Link>}{reservation.reviewable && <Link className="button-primary button-small" to="/reviews/new">후기 작성</Link>}<Link className="button-outline" to={`/reservations/${reservation.id}`}>예약 상세</Link></div></article>
+function ReservationCard({ reservation }: { reservation: MyReservationSummary }) {
+  return <article className="reservation-card"><div className="reservation-date"><b>{formatSessionSchedule(reservation.session.startsAt, reservation.session.endsAt)}</b><span>예약 확정 {formatDateTime(reservation.confirmedAt)}</span></div><div className="reservation-info"><StatusPill tone={reservationStatusTone(reservation.status)}>{reservationStatusLabel(reservation.status)}</StatusPill><h2>{reservation.content.title}</h2><small>예약 번호 {reservation.reservationNo}</small><small>예약 인원 {reservation.quantity}명</small></div><div className="reservation-actions"><Link className="button-outline" to={`/reservations/${reservation.reservationId}`}>예약 상세</Link></div></article>
 }
 
 export function ReservationDetailPage() {

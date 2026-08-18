@@ -124,6 +124,29 @@ export interface MyReservationDetail {
   }
 }
 
+export interface MyReservationSummary {
+  reservationId: string
+  reservationNo: string
+  status: 'CONFIRMED' | 'CHECKED_IN' | 'CANCELLED' | 'EXPIRED'
+  quantity: number
+  confirmedAt: string
+  content: {
+    contentId: string
+    title: string
+  }
+  session: {
+    sessionId: string
+    status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED'
+    startsAt: string
+    endsAt: string
+  }
+  checkIn: {
+    checkedIn: boolean
+    checkedAt: string | null
+    visitId: string | null
+  }
+}
+
 interface ApiResponse<T> {
   statusCode: number
   code: string
@@ -231,6 +254,10 @@ export function confirmReservationHold(holdId: string, idempotencyKey: string, a
 
 export function getMyReservation(reservationId: string, accessToken: string, signal?: AbortSignal) {
   return get<MyReservationDetail>(`/api/v1/me/reservations/${reservationId}`, signal, accessToken)
+}
+
+export function getMyReservations(accessToken: string, signal?: AbortSignal) {
+  return get<{ reservations: MyReservationSummary[] }>('/api/v1/me/reservations', signal, accessToken)
 }
 
 export function getPublicContentReviews(
