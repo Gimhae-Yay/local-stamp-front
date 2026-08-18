@@ -1,20 +1,17 @@
 import { useState } from 'react'
+import type { PublicRegion } from '../api/public'
 
-export interface RegionOption {
-  regionId: string
-  regionCode: string
-  name: string
+interface RegionDialogProps {
+  regionId: string | null
+  regions: PublicRegion[]
+  isLoading: boolean
+  errorMessage: string | null
+  onRetry: () => void
+  onSelect: (region: PublicRegion) => void
+  onClose: () => void
 }
 
-const regions: RegionOption[] = [
-  { regionId: '1', regionCode: 'GIMHAE', name: '김해시' },
-  { regionId: '2', regionCode: 'DONGHAE', name: '동해시' },
-  { regionId: '3', regionCode: 'GANGNEUNG', name: '강릉시' },
-  { regionId: '4', regionCode: 'GOYANG', name: '고양시' },
-  { regionId: '5', regionCode: 'SUWON', name: '수원시' },
-]
-
-export default function RegionDialog({ regionId, onSelect, onClose }: { regionId: string; onSelect: (region: RegionOption) => void; onClose: () => void }) {
+export default function RegionDialog({ regionId, regions, isLoading, errorMessage, onRetry, onSelect, onClose }: RegionDialogProps) {
   const [query, setQuery] = useState('')
   const visibleRegions = regions.filter((region) => region.name.includes(query))
   return (
@@ -30,7 +27,12 @@ export default function RegionDialog({ regionId, onSelect, onClose }: { regionId
         </label>
         <p className="dialog-section-label">서비스 지역</p>
         <div className="region-options">
-          {visibleRegions.map((region) => (
+          {isLoading && <p>서비스 지역을 불러오는 중입니다.</p>}
+          {!isLoading && errorMessage && <div>
+            <p>{errorMessage}</p>
+            <button className="text-link-button" type="button" onClick={onRetry}>다시 시도</button>
+          </div>}
+          {!isLoading && !errorMessage && visibleRegions.map((region) => (
             <button
               key={region.regionId}
               className={`region-option${region.regionId === regionId ? ' selected' : ''}`}
@@ -41,6 +43,7 @@ export default function RegionDialog({ regionId, onSelect, onClose }: { regionId
               {region.regionId === regionId && <b>✓</b>}
             </button>
           ))}
+          {!isLoading && !errorMessage && visibleRegions.length === 0 && <p>검색 결과가 없습니다.</p>}
         </div>
         <p className="dialog-footnote">새로운 지역을 계속 추가하고 있어요. 원하는 지역의 행사·체험은 해당 지자체 서비스 시작 후 확인할 수 있습니다.</p>
       </section>

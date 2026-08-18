@@ -1,12 +1,13 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
+import { getPublicRegions, type PublicRegion } from '../api/public'
 import Navbar from './Navbar'
-import RegionDialog, { type RegionOption } from './RegionDialog'
+import RegionDialog from './RegionDialog'
 
 interface AppState {
   loggedIn: boolean
   region: string
-  regionId: string
+  regionId: string | null
   login: () => void
   logout: () => void
   openRegionDialog: () => void
@@ -22,12 +23,44 @@ export function useAppState() {
 
 export default function AppLayout() {
   const [loggedIn, setLoggedIn] = useState(false)
-  const [region, setRegion] = useState<RegionOption>({ regionId: '1', regionCode: 'GIMHAE', name: '김해시' })
+  const [region, setRegion] = useState<PublicRegion | null>(null)
+  const [regions, setRegions] = useState<PublicRegion[]>([])
+  const [regionsLoading, setRegionsLoading] = useState(true)
+  const [regionsError, setRegionsError] = useState<string | null>(null)
   const [regionDialogOpen, setRegionDialogOpen] = useState(false)
+
+  const loadRegions = () => {
+    const controller = new AbortController()
+
+    setRegionsLoading(true)
+    setRegionsError(null)
+    getPublicRegions(controller.signal)
+      .then(({ regions: publicRegions }) => {
+        setRegions(publicRegions)
+        setRegion((currentRegion) => currentRegion && publicRegions.some(({ regionId }) => regionId === currentRegion.regionId)
+          ? currentRegion
+          : publicRegions[0] ?? null)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setRegionsError(error instanceof Error ? error.message : '서비스 지역을 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRegionsLoading(false)
+      })
+
+    return controller
+  }
+
+  useEffect(() => {
+    const controller = loadRegions()
+    return () => controller.abort()
+  }, [])
+
   const state: AppState = {
     loggedIn,
-    region: region.name,
-    regionId: region.regionId,
+    region: region?.name ?? '지역',
+    regionId: region?.regionId ?? null,
     login: () => setLoggedIn(true),
     logout: () => setLoggedIn(false),
     openRegionDialog: () => setRegionDialogOpen(true),
@@ -38,7 +71,15 @@ export default function AppLayout() {
       <div className="app-shell">
         <Navbar loggedIn={loggedIn} onLogout={state.logout} />
         <main><Outlet /></main>
-        {regionDialogOpen && <RegionDialog regionId={region.regionId} onSelect={setRegion} onClose={() => setRegionDialogOpen(false)} />}
+        {regionDialogOpen && <RegionDialog
+          regionId={region?.regionId ?? null}
+          regions={regions}
+          isLoading={regionsLoading}
+          errorMessage={regionsError}
+          onRetry={() => loadRegions()}
+          onSelect={setRegion}
+          onClose={() => setRegionDialogOpen(false)}
+        />}
       </div>
     </AppStateContext.Provider>
   )

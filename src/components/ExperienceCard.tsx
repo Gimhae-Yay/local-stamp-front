@@ -6,6 +6,7 @@ export interface Experience {
   id: string
   title: string
   location: string
+  imageUrl: string | null
   reservationAvailable: boolean
 }
 
@@ -50,7 +51,7 @@ export default function ExperienceCard({ exp }: { exp: Experience }) {
         flexDirection: 'column',
       }}
     >
-      <PlaceholderImage />
+      {exp.imageUrl ? <img src={exp.imageUrl} alt="" style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover' }} /> : <PlaceholderImage />}
       <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
         <div style={{ display: 'flex', gap: 6 }}><Badge type={exp.reservationAvailable ? '예약 가능' : '예약 마감'} /></div>
         <h3 style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.35, color: 'var(--text)', marginTop: 2 }}>{exp.title}</h3>
