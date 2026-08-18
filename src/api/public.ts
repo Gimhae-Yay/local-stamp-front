@@ -30,6 +30,39 @@ export interface PublicContent {
   reservationAvailable: boolean
 }
 
+export interface PublicContentDetail {
+  contentId: string
+  contentType: 'EVENT_EXPERIENCE'
+  title: string
+  description: string
+  representativeImageUrl: string | null
+  representativeImageUrlExpiresAt: string | null
+  locationText: string
+  operatingHoursText: string
+  contactText: string
+  precautions: string
+  ageRequirement: string
+  materials: string
+  cancellationPolicyText: string
+}
+
+export interface PublicContentReview {
+  reviewId: string
+  authorDisplayName: string
+  rating: number
+  reviewText: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PublicContentReviewPage {
+  content: PublicContentReview[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
 interface ApiResponse<T> {
   statusCode: number
   code: string
@@ -80,4 +113,12 @@ export function getPublicContents(regionId: string, reservationAvailable?: boole
   }
 
   return get<{ contents: PublicContent[] }>(`/api/v1/contents?${query.toString()}`, signal)
+}
+
+export function getPublicContent(contentId: string, signal?: AbortSignal) {
+  return get<PublicContentDetail>(`/api/v1/contents/${contentId}`, signal)
+}
+
+export function getPublicContentReviews(contentId: string, signal?: AbortSignal) {
+  return get<PublicContentReviewPage>(`/api/v1/contents/${contentId}/reviews?page=0&size=2`, signal)
 }

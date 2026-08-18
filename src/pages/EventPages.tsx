@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getPublicContents, type PublicContent } from '../api/public'
+import { getPublicContent, getPublicContentReviews, getPublicContents, type PublicContent, type PublicContentDetail, type PublicContentReviewPage } from '../api/public'
 import EventCard from '../components/EventCard'
-import { Breadcrumbs, Notice, PageHeader, PlaceholderImage, StatusPill } from '../components/PageElements'
+import { Breadcrumbs, Notice, PageHeader, PlaceholderImage } from '../components/PageElements'
 import { getEvent } from '../data/events'
 import { useAppState } from '../components/AppLayout'
 
 const filters = ['전체', '예약 가능만'] as const
+
+function toStars(rating: number) {
+  const clampedRating = Math.min(5, Math.max(0, rating))
+  return `${'★'.repeat(clampedRating)}${'☆'.repeat(5 - clampedRating)}`
+}
 
 export function EventsPage() {
   const { region, regionId, openRegionDialog } = useAppState()
@@ -57,26 +62,84 @@ export function EventsPage() {
 }
 
 export function EventDetailPage() {
-  const event = getEvent(useParams().eventId)
+  const { eventId } = useParams()
   const { loggedIn } = useAppState()
   const navigate = useNavigate()
+  const [content, setContent] = useState<PublicContentDetail | null>(null)
+  const [reviews, setReviews] = useState<PublicContentReviewPage | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isReviewsLoading, setIsReviewsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [reviewsErrorMessage, setReviewsErrorMessage] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+
+  useEffect(() => {
+    if (!eventId) {
+      setContent(null)
+      setErrorMessage('행사·체험 정보를 찾을 수 없습니다.')
+      setIsLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setContent(null)
+    setReviews(null)
+    setIsLoading(true)
+    setIsReviewsLoading(true)
+    setErrorMessage(null)
+    setReviewsErrorMessage(null)
+
+    getPublicContent(eventId, controller.signal)
+      .then(setContent)
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setErrorMessage(error instanceof Error ? error.message : '행사·체험 정보를 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    getPublicContentReviews(eventId, controller.signal)
+      .then(setReviews)
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setReviewsErrorMessage(error instanceof Error ? error.message : '후기를 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsReviewsLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [eventId, requestVersion])
+
+  if (isLoading) {
+    return <section className="page-container empty-page"><p>행사·체험 정보를 불러오는 중입니다.</p></section>
+  }
+
+  if (errorMessage || !content) {
+    return <section className="page-container empty-page"><p>{errorMessage ?? '행사·체험 정보를 찾을 수 없습니다.'}</p><button className="text-link-button" type="button" onClick={() => setRequestVersion((version) => version + 1)}>다시 시도</button></section>
+  }
+
   return (
     <section className="page-container detail-page">
-      <Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '김해시 행사·체험', to: '/events' }, { label: event.title }]} />
-      <PlaceholderImage tall />
-      <div className="detail-status"><StatusPill tone={event.reservationStatus === '예약 가능' ? 'green' : 'gray'}>{event.reservationStatus}</StatusPill></div>
-      <h1>{event.title}</h1>
-      <p className="detail-lede">{event.description}</p>
-      <div className="event-summary"><b>남은 회차</b> 6회</div>
-      <section className="detail-section"><h2>행사·체험 소개</h2><p>가야 왕국의 역사와 문화를 쉽고 재미있게 만나보세요. 전시 해설을 듣고 유물 모형을 활용한 체험을 진행합니다. 가족과 친구, 혼자 방문한 분도 편안하게 참여할 수 있습니다.</p></section>
+      <Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '행사·체험', to: '/events' }, { label: content.title }]} />
+      {content.representativeImageUrl
+        ? <img src={content.representativeImageUrl} alt={`${content.title} 대표 이미지`} style={{ width: '100%', height: 214, objectFit: 'cover', border: '1px solid #c8ddc6', borderRadius: 'var(--radius)' }} />
+        : <PlaceholderImage tall />}
+      <h1>{content.title}</h1>
+      <section className="detail-section"><h2>행사·체험 소개</h2><p>{content.description}</p></section>
       <section className="detail-section"><h2>이용 안내</h2><div className="info-grid">
-        <div><span>위치</span><b>{event.location}<br />{event.address}</b></div><div><span>운영 시간</span><b>매주 토·일<br />10:00–16:00</b></div>
-        <div><span>연령</span><b>초등학생 이상<br />보호자 동반 시 미취학 아동 가능</b></div><div><span>준비물</span><b>편한 복장, 개인 물병<br />필기도구는 현장에서 제공</b></div>
+        <div><span>위치</span><b>{content.locationText}</b></div><div><span>운영 시간</span><b>{content.operatingHoursText}</b></div>
+        <div><span>연령</span><b>{content.ageRequirement}</b></div><div><span>준비물</span><b>{content.materials}</b></div>
+        <div><span>문의</span><b>{content.contactText}</b></div><div><span>예약 취소</span><b>{content.cancellationPolicyText}</b></div>
       </div></section>
-      <Notice>유의사항&nbsp; 체험 시작 10분 전까지 도착해 주세요. 예약 회차가 시작된 뒤에는 참여가 어려울 수 있습니다.</Notice>
-      <section className="detail-section reviews-heading"><h2>방문 후기</h2><Link to={`/events/${event.id}/reviews`}>후기 16개 모두 보기 ›</Link></section>
-      <div className="review-preview"><article><b>인증 방문자</b><span>★★★★★</span><p>아이와 함께 참여했는데 해설이 알기 쉽고 체험 시간도 알찼어요.</p></article><article><b>인증 방문자</b><span>★★★★★</span><p>가야 문화를 처음 접하는데도 재미있게 이해할 수 있었습니다.</p></article></div>
-      <button className="button-primary detail-cta" onClick={() => navigate(loggedIn ? `/events/${event.id}/reserve` : '/login')}>{loggedIn ? '예약하기' : '로그인하고 예약하기'}</button>
+      <Notice>유의사항&nbsp; {content.precautions}</Notice>
+      <section className="detail-section reviews-heading"><h2>방문 후기</h2><Link to={`/events/${content.contentId}/reviews`}>{!isReviewsLoading && !reviewsErrorMessage ? `후기 ${reviews?.totalElements ?? 0}개 모두 보기 ›` : '후기 모두 보기 ›'}</Link></section>
+      {isReviewsLoading && <p>후기를 불러오는 중입니다.</p>}
+      {!isReviewsLoading && reviewsErrorMessage && <p>{reviewsErrorMessage}</p>}
+      {!isReviewsLoading && !reviewsErrorMessage && reviews?.content.length === 0 && <p>아직 등록된 후기가 없습니다.</p>}
+      {!isReviewsLoading && !reviewsErrorMessage && reviews && reviews.content.length > 0 && <div className="review-preview">{reviews.content.map((review) => <article key={review.reviewId}><b>{review.authorDisplayName}</b><span>{toStars(review.rating)}</span><p>{review.reviewText}</p></article>)}</div>}
+      <button className="button-primary detail-cta" onClick={() => navigate(loggedIn ? `/events/${content.contentId}/reserve` : '/login')}>{loggedIn ? '예약하기' : '로그인하고 예약하기'}</button>
     </section>
   )
 }
