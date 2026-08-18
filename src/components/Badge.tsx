@@ -1,9 +1,10 @@
-export type BadgeType = '진행 중' | '예약 가능' | '마감 임박'
+export type BadgeType = '진행 중' | '예정' | '예약 가능' | '예약 마감'
 
 const badgeStyles: Record<BadgeType, { bg: string; color: string; border: string }> = {
   '진행 중':  { bg: 'var(--green-light)', color: 'var(--green-dark)', border: 'var(--green-mid)' },
+  '예정': { bg: '#edf4ff', color: '#41698e', border: '#c9d9ec' },
   '예약 가능': { bg: 'var(--green-light)', color: 'var(--green-dark)', border: 'var(--green-mid)' },
-  '마감 임박': { bg: 'var(--amber-light)', color: 'var(--amber)',      border: '#fcd9a0' },
+  '예약 마감': { bg: '#f2f3f1', color: '#6f776e', border: '#d8dcd7' },
 }
 
 export default function Badge({ type }: { type: BadgeType }) {

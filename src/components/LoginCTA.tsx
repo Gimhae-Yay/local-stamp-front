@@ -18,7 +18,7 @@ export default function LoginCTA() {
           관심 있는 체험을 찾으셨나요?
         </h2>
         <p style={{ fontSize: 14, color: 'var(--text-sub)', marginBottom: 28 }}>
-          로그인하면 무료 예약, 예약 QR, 방문 후기까지 이어서 이용할 수 있습니다.
+          로그인하면 예약, 예약 QR, 방문 후기까지 이어서 이용할 수 있습니다.
         </p>
         <GreenButton large fullWidth onClick={() => navigate('/login')}>
           로그인하고 예약하기

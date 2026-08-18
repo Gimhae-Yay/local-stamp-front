@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Badge, { type BadgeType } from './Badge'
+import Badge from './Badge'
 
 export interface Experience {
-  id: number
+  id: string
   title: string
   location: string
-  time: string
-  badge: BadgeType
-  seats: string
+  reservationAvailable: boolean
 }
 
 function PlaceholderImage() {
@@ -38,7 +36,7 @@ export default function ExperienceCard({ exp }: { exp: Experience }) {
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onClick={() => navigate(`/events/${exp.id === 1 ? 'gaya-culture' : exp.id === 2 ? 'daeseong-tomb' : exp.id === 3 ? 'nakdong-eco' : exp.id === 4 ? 'buncheong-class' : exp.id === 5 ? 'bonghwang-walk' : 'gaya-night'}`)}
+      onClick={() => navigate(`/events/${exp.id}`)}
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',
@@ -54,13 +52,11 @@ export default function ExperienceCard({ exp }: { exp: Experience }) {
     >
       <PlaceholderImage />
       <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-        <Badge type={exp.badge} />
+        <div style={{ display: 'flex', gap: 6 }}><Badge type={exp.reservationAvailable ? '예약 가능' : '예약 마감'} /></div>
         <h3 style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.35, color: 'var(--text)', marginTop: 2 }}>{exp.title}</h3>
         <div style={{ fontSize: 12, color: 'var(--text-sub)', lineHeight: 1.6 }}>
           <div>{exp.location}</div>
-          <div>{exp.time}</div>
         </div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--green)', marginTop: 4 }}>{exp.seats}</div>
       </div>
     </div>
   )
