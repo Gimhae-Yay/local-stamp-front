@@ -1,6 +1,6 @@
 import { FormEvent, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { loginWithEmail, storeAccessToken } from '../api/public'
+import { loginWithEmail, signupVisitor, storeAccessToken } from '../api/public'
 import { useAppState } from '../components/AppLayout'
 import { Notice } from '../components/PageElements'
 
@@ -37,9 +37,36 @@ export function LoginPage() {
 }
 
 export function SignupPage() {
-  const { login } = useAppState()
   const navigate = useNavigate()
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [agreed, setAgreed] = useState(false)
-  const onSubmit = (event: FormEvent) => { event.preventDefault(); login(); navigate('/') }
-  return <AuthFrame mode="signup"><form onSubmit={onSubmit}><h1>Local Stamp 시작하기</h1><p>방문자 계정을 만들고 지역 체험을 예약해 보세요.</p><div className="form-pair"><label>이름<input placeholder="이름" required /></label><label>전화번호<input type="tel" placeholder="01012345678" required /></label></div><label>이메일<input type="email" placeholder="example@email.com" required /></label><div className="form-pair"><label>비밀번호<input type="password" placeholder="8자 이상" minLength={8} required /></label><label>비밀번호 확인<input type="password" placeholder="한 번 더 입력" minLength={8} required /></label></div><label className="terms"><input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} required /> 서비스 이용을 위해 이용약관 및 개인정보 처리에 동의합니다.</label><button className="button-primary" type="submit">회원가입</button><p className="auth-footer">행사 운영자이신가요? <span>운영자 가입 신청 →</span></p></form></AuthFrame>
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const onSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+
+    if (password !== passwordConfirmation) {
+      setErrorMessage('비밀번호가 일치하지 않습니다.')
+      return
+    }
+
+    setIsSubmitting(true)
+    setErrorMessage(null)
+
+    try {
+      await signupVisitor({ email, password, name, phone })
+      navigate('/login', { replace: true })
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '회원가입하지 못했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return <AuthFrame mode="signup"><form onSubmit={onSubmit}><h1>Local Stamp 시작하기</h1><p>방문자 계정을 만들고 지역 체험을 예약해 보세요.</p><div className="form-pair"><label>이름<input value={name} onChange={(event) => setName(event.target.value)} placeholder="이름" autoComplete="name" required /></label><label>전화번호<input value={phone} onChange={(event) => setPhone(event.target.value)} type="tel" placeholder="01012345678" autoComplete="tel" inputMode="numeric" required /></label></div><label>이메일<input value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="example@email.com" autoComplete="email" required /></label><div className="form-pair"><label>비밀번호<input value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="8자 이상" minLength={8} autoComplete="new-password" required /></label><label>비밀번호 확인<input value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} type="password" placeholder="한 번 더 입력" minLength={8} autoComplete="new-password" required /></label></div><label className="terms"><input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} required /> 서비스 이용을 위해 이용약관 및 개인정보 처리에 동의합니다.</label>{errorMessage && <Notice tone="red">{errorMessage}</Notice>}<button className="button-primary" type="submit" disabled={isSubmitting}>{isSubmitting ? '회원가입하는 중입니다.' : '회원가입'}</button><p className="auth-footer">행사 운영자이신가요? <span>운영자 가입 신청 →</span></p></form></AuthFrame>
 }

@@ -286,6 +286,13 @@ export interface LoginResult {
   accessToken: string
 }
 
+export interface SignupResult {
+  userId: string
+  requestedRole: 'VISITOR' | 'OPERATOR'
+  assignedRole: 'VISITOR' | null
+  operatorApplicationStatus: 'PENDING' | null
+}
+
 interface ApiResponse<T> {
   statusCode: number
   code: string
@@ -413,6 +420,22 @@ async function post<T>(
 
 export function loginWithEmail({ email, password }: { email: string; password: string }) {
   return post<LoginResult>('/api/v1/auth/login', { requestBody: { email, password } })
+}
+
+export function signupVisitor({
+  email,
+  password,
+  name,
+  phone,
+}: {
+  email: string
+  password: string
+  name: string
+  phone: string
+}) {
+  return post<SignupResult>('/api/v1/auth/signup', {
+    requestBody: { email, password, name, phone, requestedRole: 'VISITOR' },
+  })
 }
 
 export async function logoutFromServer() {
