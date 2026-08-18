@@ -119,6 +119,14 @@ export function getPublicContent(contentId: string, signal?: AbortSignal) {
   return get<PublicContentDetail>(`/api/v1/contents/${contentId}`, signal)
 }
 
-export function getPublicContentReviews(contentId: string, signal?: AbortSignal) {
-  return get<PublicContentReviewPage>(`/api/v1/contents/${contentId}/reviews?page=0&size=2`, signal)
+export function getPublicContentReviews(
+  contentId: string,
+  { page = 0, size = 20, signal }: { page?: number; size?: number; signal?: AbortSignal } = {},
+) {
+  const query = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  })
+
+  return get<PublicContentReviewPage>(`/api/v1/contents/${contentId}/reviews?${query.toString()}`, signal)
 }
