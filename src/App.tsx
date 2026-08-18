@@ -17,7 +17,7 @@ export default function App() {
           <Route path="/events/:eventId/reviews" element={<ReviewsPage />} />
           <Route path="/events/:eventId/reserve" element={<BookingPage />} />
           <Route path="/events/:eventId/reserve/confirm" element={<BookingConfirmPage />} />
-          <Route path="/events/:eventId/reserve/complete" element={<BookingCompletePage />} />
+          <Route path="/events/:eventId/reserve/complete/:reservationId" element={<BookingCompletePage />} />
           <Route path="/reservations" element={<ReservationsPage />} />
           <Route path="/reservations/:reservationId" element={<ReservationDetailPage />} />
           <Route path="/reservations/:reservationId/cancel" element={<CancelReservationPage />} />

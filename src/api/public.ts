@@ -97,6 +97,33 @@ export interface ReservationConfirmation {
   confirmedAt: string
 }
 
+export interface MyReservationDetail {
+  reservation: {
+    reservationId: string
+    reservationNo: string
+    status: 'CONFIRMED' | 'CHECKED_IN' | 'CANCELLED' | 'EXPIRED'
+    quantity: number
+    confirmedAt: string
+    cancelledAt: string | null
+    cancellationReason: string | null
+    expiredAt: string | null
+  }
+  session: {
+    sessionId: string
+    contentId: string
+    status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED'
+    startsAt: string
+    endsAt: string
+    checkinOpenAt: string
+    checkinCloseAt: string
+  }
+  checkIn: {
+    checkedIn: boolean
+    checkedAt: string | null
+    visitId: string | null
+  }
+}
+
 interface ApiResponse<T> {
   statusCode: number
   code: string
@@ -106,13 +133,16 @@ interface ApiResponse<T> {
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '')
 
-async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
+async function get<T>(path: string, signal?: AbortSignal, accessToken?: string): Promise<T> {
   if (!apiBaseUrl) {
     throw new Error('VITE_API_BASE_URL 환경 변수를 설정해 주세요.')
   }
 
   const response = await fetch(`${apiBaseUrl}${path}`, {
-    headers: { Accept: 'application/json' },
+    headers: {
+      Accept: 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
     signal,
   })
   const body = await response.json().catch(() => null) as ApiResponse<T> | null
@@ -197,6 +227,10 @@ export function confirmReservationHold(holdId: string, idempotencyKey: string, a
     accessToken,
     headers: { 'Idempotency-Key': idempotencyKey },
   })
+}
+
+export function getMyReservation(reservationId: string, accessToken: string, signal?: AbortSignal) {
+  return get<MyReservationDetail>(`/api/v1/me/reservations/${reservationId}`, signal, accessToken)
 }
 
 export function getPublicContentReviews(

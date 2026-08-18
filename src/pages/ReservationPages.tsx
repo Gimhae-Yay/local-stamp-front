@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { confirmReservationHold, createReservationHold, getPublicContent, getPublicContentSessions, getPublicSessionReservationInfo, type PublicContentDetail, type PublicContentSession, type PublicSessionReservationInfo } from '../api/public'
+import { confirmReservationHold, createReservationHold, getMyReservation, getPublicContent, getPublicContentSessions, getPublicSessionReservationInfo, type MyReservationDetail, type PublicContentDetail, type PublicContentSession, type PublicSessionReservationInfo } from '../api/public'
 import { Breadcrumbs, InfoRow, Notice, PageHeader, StatusPill } from '../components/PageElements'
 import { getEvent } from '../data/events'
 
@@ -13,9 +13,6 @@ interface BookingFlowState {
   sessionId?: string
   startsAt?: string
   endsAt?: string
-  reservationId?: string
-  reservationNo?: string
-  confirmedAt?: string
 }
 
 const sessionDateFormatter = new Intl.DateTimeFormat('ko-KR', {
@@ -53,6 +50,14 @@ function formatSessionDuration(startsAt: string, endsAt: string) {
 
 function formatSessionSchedule(startsAt: string, endsAt: string) {
   return `${sessionDateFormatter.format(new Date(startsAt))} ${sessionTimeFormatter.format(new Date(startsAt))}–${sessionTimeFormatter.format(new Date(endsAt))}`
+}
+
+function formatDateTime(dateTime: string) {
+  return `${sessionDateFormatter.format(new Date(dateTime))} ${sessionTimeFormatter.format(new Date(dateTime))}`
+}
+
+function reservationStatusLabel(status: MyReservationDetail['reservation']['status']) {
+  return ({ CONFIRMED: '예약 확정', CHECKED_IN: '체크인 완료', CANCELLED: '예약 취소', EXPIRED: '예약 만료' })[status]
 }
 
 function ReservationCrumbs({ eventTitle, current }: { eventTitle?: string; current: string }) {
@@ -242,14 +247,7 @@ export function BookingConfirmPage() {
         return
       }
 
-      navigate(`/events/${content.contentId}/reserve/complete`, {
-        state: {
-          ...bookingState,
-          reservationId: reservation.reservationId,
-          reservationNo: reservation.reservationNo,
-          confirmedAt: reservation.confirmedAt,
-        },
-      })
+      navigate(`/events/${content.contentId}/reserve/complete/${reservation.reservationId}`)
     } catch (error: unknown) {
       setConfirmErrorMessage(error instanceof Error ? error.message : '예약을 확정하지 못했습니다.')
     } finally {
@@ -276,13 +274,68 @@ export function BookingConfirmPage() {
 }
 
 export function BookingCompletePage() {
-  const event = getEvent(useParams().eventId)
-  const { state } = useLocation()
-  const { quantity = 1 } = (state as BookingFlowState | null) ?? {}
+  const { reservationId } = useParams()
+  const [reservationDetail, setReservationDetail] = useState<MyReservationDetail | null>(null)
+  const [content, setContent] = useState<PublicContentDetail | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+
+  useEffect(() => {
+    if (!reservationId) {
+      setReservationDetail(null)
+      setContent(null)
+      setErrorMessage('예약 정보를 찾을 수 없습니다.')
+      setIsLoading(false)
+      return
+    }
+
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setReservationDetail(null)
+      setContent(null)
+      setErrorMessage('로그인 정보가 없어 예약을 조회할 수 없습니다. 다시 로그인해 주세요.')
+      setIsLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setReservationDetail(null)
+    setContent(null)
+    setIsLoading(true)
+    setErrorMessage(null)
+    getMyReservation(reservationId, accessToken, controller.signal)
+      .then(async (myReservation) => {
+        const publicContent = await getPublicContent(myReservation.session.contentId, controller.signal)
+        if (controller.signal.aborted) return
+        setReservationDetail(myReservation)
+        setContent(publicContent)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setErrorMessage(error instanceof Error ? error.message : '예약 완료 정보를 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [requestVersion, reservationId])
+
+  if (isLoading) {
+    return <section className="page-container empty-page"><p>예약 완료 정보를 불러오는 중입니다.</p></section>
+  }
+
+  if (errorMessage || !reservationDetail || !content) {
+    return <section className="page-container empty-page"><p>{errorMessage ?? '예약 완료 정보를 찾을 수 없습니다.'}</p><Link className="button-outline" to="/reservations">내 예약으로 이동</Link>{reservationId && <button className="text-link-button" type="button" onClick={() => setRequestVersion((version) => version + 1)}>다시 시도</button>}</section>
+  }
+
+  const { reservation, session } = reservationDetail
+  const isConfirmed = reservation.status === 'CONFIRMED'
   return <section className="page-container narrow-page">
-    <ReservationCrumbs eventTitle={event.title} current="예약 완료" />
-    <div className="complete-title"><span>✓</span><div><h1>예약이 완료되었습니다!</h1><p>예약 내용을 확인해 주세요.</p></div></div>
-    <div className="confirmation-grid"><section><h2>예약 내용</h2><h3>{event.title}</h3><InfoRow label="선택 회차">8월 17일(일) 10:00–12:00</InfoRow><InfoRow label="위치">{event.location}</InfoRow><InfoRow label="예약 인원">{quantity}명</InfoRow></section><section><h2>예약 번호</h2><div className="booking-number">R20260813A7K3M9Q2W5XZ</div><InfoRow label="예약 금액">0원</InfoRow><Link className="button-primary" to={`/reservations/${bookingId}`}>내 예약 확인하기</Link><p className="summary-caption">체크인 가능 시간이 되면 내 예약에서 QR을 확인할 수 있습니다.</p></section></div>
+    <ReservationCrumbs eventTitle={content.title} current="예약 완료" />
+    <div className="complete-title"><span>{isConfirmed ? '✓' : '!'}</span><div><h1>{isConfirmed ? '예약이 완료되었습니다!' : '예약 상태를 확인해 주세요.'}</h1><p>{isConfirmed ? '예약 내용을 확인해 주세요.' : `현재 예약 상태는 ${reservationStatusLabel(reservation.status)}입니다.`}</p></div></div>
+    <div className="confirmation-grid"><section><h2>예약 내용</h2><h3>{content.title}</h3><InfoRow label="선택 회차">{formatSessionSchedule(session.startsAt, session.endsAt)}</InfoRow><InfoRow label="위치">{content.locationText}</InfoRow><InfoRow label="예약 인원">{reservation.quantity}명</InfoRow></section><section><h2>예약 번호</h2><div className="booking-number">{reservation.reservationNo}</div><InfoRow label="예약 상태">{reservationStatusLabel(reservation.status)}</InfoRow><InfoRow label="예약 확정">{formatDateTime(reservation.confirmedAt)}</InfoRow><Link className="button-primary" to={`/reservations/${reservation.reservationId}`}>내 예약 확인하기</Link><p className="summary-caption">체크인 가능 시간이 되면 내 예약에서 QR을 확인할 수 있습니다.</p></section></div>
   </section>
 }
 
