@@ -1,0 +1,95 @@
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+function success<T>(data: T) {
+  return new Response(
+    JSON.stringify({
+      statusCode: 200,
+      code: "SUCCESS",
+      message: "성공",
+      data,
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  )
+}
+
+function unauthenticated() {
+  return new Response(
+    JSON.stringify({
+      statusCode: 401,
+      code: "UNAUTHENTICATED",
+      message: "인증 정보가 없거나 유효하지 않습니다.",
+      data: null,
+    }),
+    { status: 401, headers: { "Content-Type": "application/json" } },
+  )
+}
+
+describe("regional admin authentication transitions", () => {
+  beforeEach(() => {
+    vi.resetModules()
+    window.localStorage.clear()
+  })
+
+  it("shares one refresh request between concurrent unauthorized requests", async () => {
+    let protectedCalls = 0
+    let refreshCalls = 0
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith("/api/v1/auth/refresh")) {
+        refreshCalls += 1
+        return success({ accessToken: "refreshed-token" })
+      }
+      protectedCalls += 1
+      if (protectedCalls <= 2) return unauthenticated()
+      expect(new Headers(init?.headers).get("Authorization")).toBe(
+        "Bearer refreshed-token",
+      )
+      return success({ value: protectedCalls })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const { apiRequest } = await import("./api")
+    await Promise.all([
+      apiRequest("/api/v1/protected/one"),
+      apiRequest("/api/v1/protected/two"),
+    ])
+
+    expect(refreshCalls).toBe(1)
+    expect(protectedCalls).toBe(4)
+  })
+
+  it("waits for an in-flight refresh before logout", async () => {
+    let resolveRefresh!: (response: Response) => void
+    const refreshResponse = new Promise<Response>((resolve) => {
+      resolveRefresh = resolve
+    })
+    const calls: string[] = []
+    let protectedCalls = 0
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith("/api/v1/auth/refresh")) {
+        calls.push("refresh")
+        return refreshResponse
+      }
+      if (url.endsWith("/api/v1/auth/logout")) {
+        calls.push("logout")
+        return success(null)
+      }
+      protectedCalls += 1
+      return protectedCalls === 1 ? unauthenticated() : success({ ok: true })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const { apiRequest, logout } = await import("./api")
+    const protectedRequest = apiRequest("/api/v1/protected")
+    await vi.waitFor(() => expect(calls).toEqual(["refresh"]))
+
+    const logoutRequest = logout()
+    await Promise.resolve()
+    expect(calls).toEqual(["refresh"])
+
+    resolveRefresh(success({ accessToken: "refreshed-token" }))
+    await Promise.all([protectedRequest, logoutRequest])
+    expect(calls).toEqual(["refresh", "logout"])
+  })
+})
