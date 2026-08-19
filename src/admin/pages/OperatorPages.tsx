@@ -137,14 +137,15 @@ export function OperatorRequestDetailPage() {
                 <KeyValueGrid
                   items={[
                     ["신청 ID", detail.operatorApplicationId],
-                    ["신청자 ID", detail.applicantUserId],
+                    ["신청자 ID", detail.applicantUserId ?? "연결 해제됨"],
                     ["요청 지역 ID", detail.requestedRegionId],
                     ["신청 시각", formatDate(detail.requestedAt)],
                     ["최근 변경", formatDate(detail.updatedAt)],
                     [
                       "사업자 정보",
                       <span className="ra-preline">
-                        {detail.businessInformation}
+                        {detail.businessInformation ??
+                          "신청자 탈퇴로 확인할 수 없습니다."}
                       </span>,
                       true,
                     ],

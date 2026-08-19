@@ -24,13 +24,13 @@ export interface AdminSession {
 
 export interface OperatorRequest {
   operatorApplicationId: number | string
-  applicantUserId: number | string
+  applicantUserId: number | string | null
   requestedRegionId: number | string
   requestedAt: string
 }
 
 export interface OperatorRequestDetail extends OperatorRequest {
-  businessInformation: string
+  businessInformation: string | null
   status: string
   inspectedUserId: number | string | null
   rejectedReason: string | null
@@ -107,6 +107,15 @@ export interface PublicContentDetail {
   ageRequirement: string
   materials: string
   cancellationPolicyText: string
+}
+
+export interface PublicContentSessions {
+  contentId: string
+  sessions: Array<{
+    sessionId: string
+    startsAt: string
+    endsAt: string
+  }>
 }
 
 export interface ContentHistory {
@@ -213,7 +222,7 @@ export interface QrExceptionDetail extends QrExceptionSummary {
     startsAt: string
     checkinOpenAt: string
     checkinCloseAt: string
-    participant: { memberLinked: boolean name: string phone: string }
+    participant: { memberLinked: boolean name: string phone: string | null }
     checkIn: {
       checkedIn: boolean
       canCheckIn: boolean

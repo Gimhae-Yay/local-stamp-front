@@ -29,6 +29,7 @@ import type {
   ContentRevisionSummary,
   ContentSummary,
   PublicContentDetail,
+  PublicContentSessions,
   WithdrawalDetail,
   WithdrawalSummary,
 } from "../types"
@@ -671,11 +672,30 @@ export function ContentRevisionDetailPage() {
               </Panel>
               <Panel title="원본과 수정 후보 비교">
                 {detail.contentStatus !== "PUBLISHED" ? (
-                  <div className="ra-inline-warning">
-                    공개 전 수정본은 원본 공개 상세 API가 제공되지 않아 후보
-                    정보만 확인할 수 있습니다. 승인 전에 원본 콘텐츠 ID와 운영자
-                    제출 내역을 함께 확인해 주세요.
-                  </div>
+                  <>
+                    <div className="ra-inline-warning">
+                      공개 전 수정본은 원본 공개 상세 API가 제공되지 않아 후보
+                      정보만 확인할 수 있습니다. 아래 값은 현재 원본이 아니라
+                      승인 시 반영될 수정 후보입니다.
+                    </div>
+                    <ContentImage
+                      src={detail.representativeImageUrl}
+                      alt={`${detail.title} 수정 후보`}
+                    />
+                    <KeyValueGrid
+                      items={[
+                        ["후보 제목", detail.title, true],
+                        ["후보 설명", detail.description, true],
+                        ["장소", detail.locationText],
+                        ["운영 시간", detail.operatingHoursText],
+                        ["연락처", detail.contactText],
+                        ["연령 조건", detail.ageRequirement],
+                        ["준비물", detail.materials],
+                        ["주의사항", detail.precautions, true],
+                        ["취소 정책", detail.cancellationPolicyText, true],
+                      ]}
+                    />
+                  </>
                 ) : originalState.loading && !originalState.data ? (
                   <p className="ra-muted">원본 정보를 불러오는 중입니다.</p>
                 ) : originalState.error && !originalState.data ? (
@@ -802,6 +822,9 @@ export function PublishedContentDetailPage() {
   const detailState = useApiData<PublicContentDetail>(
     `/api/v1/contents/${contentId}`,
   )
+  const sessionsState = useApiData<PublicContentSessions>(
+    `/api/v1/contents/${contentId}/sessions`,
+  )
   const [action, setAction] = useState<ActionConfig | null>(null)
   const actions = useMemo<Record<string, ActionConfig>>(
     () => ({
@@ -867,6 +890,36 @@ export function PublishedContentDetailPage() {
                     ["취소 정책", detail.cancellationPolicyText, true],
                   ]}
                 />
+              </Panel>
+              <Panel title="공개 회차">
+                {sessionsState.loading && !sessionsState.data ? (
+                  <p className="ra-muted">회차 정보를 불러오는 중입니다.</p>
+                ) : sessionsState.error && !sessionsState.data ? (
+                  <ErrorState
+                    error={sessionsState.error}
+                    onRetry={sessionsState.reload}
+                  />
+                ) : sessionsState.data?.sessions.length ? (
+                  <div className="ra-session-cards">
+                    {sessionsState.data.sessions.map((session) => (
+                      <article key={session.sessionId}>
+                        <div>
+                          <strong>회차 {session.sessionId}</strong>
+                          <StatusBadge value="PUBLISHED" label="공개" />
+                        </div>
+                        <p>
+                          {formatDate(session.startsAt)} ~{" "}
+                          {formatDate(session.endsAt)}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="현재 공개된 회차가 없습니다."
+                    description="공개 회차가 등록되면 이곳에 표시됩니다."
+                  />
+                )}
               </Panel>
             </div>
             <aside className="ra-detail-aside">
