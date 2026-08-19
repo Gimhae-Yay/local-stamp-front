@@ -2,7 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import HomePage from './pages/HomePage'
 import { EventsPage, EventDetailPage, NotFoundPage, ReviewsPage } from './pages/EventPages'
-import { BookingPage, BookingConfirmPage, BookingCompletePage, CancelReservationPage, PaymentCompletePage, ReservationDetailPage, ReservationsPage } from './pages/ReservationPages'
+import { BookingPage, BookingConfirmPage, BookingCompletePage, CancelReservationPage, PaymentPage, ReservationDetailPage, ReservationsPage } from './pages/ReservationPages'
 import { CouponsPage, MissionsPage, ReviewPage, StampbookPage } from './pages/ActivityPages'
 import { LoginPage, SignupPage } from './pages/AuthPages'
 
@@ -18,6 +18,7 @@ export default function App() {
           <Route path="/events/:eventId/reserve" element={<BookingPage />} />
           <Route path="/events/:eventId/reserve/confirm" element={<BookingConfirmPage />} />
           <Route path="/events/:eventId/reserve/complete/:reservationId" element={<BookingCompletePage />} />
+          <Route path="/payments/:paymentId" element={<PaymentPage />} />
           <Route path="/reservations" element={<ReservationsPage />} />
           <Route path="/reservations/:reservationId" element={<ReservationDetailPage />} />
           <Route path="/reservations/:reservationId/cancel" element={<CancelReservationPage />} />
@@ -27,7 +28,6 @@ export default function App() {
           <Route path="/stampbook" element={<StampbookPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          <Route path="/payment/complete" element={<PaymentCompletePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

@@ -1,10 +1,9 @@
+import * as PortOne from '@portone/browser-sdk/v2'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { cancelMyReservation, confirmReservationHold, createReservationHold, getMyReservation, getMyReservationQr, getMyReservations, getPublicContent, getPublicContentSessions, getPublicSessionReservationInfo, type MyReservationCancellation, type MyReservationDetail, type MyReservationQr, type MyReservationSummary, type PublicContentDetail, type PublicContentSession, type PublicSessionReservationInfo } from '../api/public'
+import { cancelMyReservation, createReservationHold, createReservationPayment, getMyPayment, getMyReservation, getMyReservationQr, getMyReservations, getPublicContent, getPublicContentSessions, getPublicSessionReservationInfo, type MyPayment, type MyReservationCancellation, type MyReservationDetail, type MyReservationQr, type MyReservationSummary, type PublicContentDetail, type PublicContentSession, type PublicSessionReservationInfo } from '../api/public'
 import { Breadcrumbs, InfoRow, Notice, PageHeader, StatusPill } from '../components/PageElements'
-
-const bookingId = 'r20260813'
 
 interface BookingFlowState {
   holdId?: string
@@ -13,6 +12,11 @@ interface BookingFlowState {
   sessionId?: string
   startsAt?: string
   endsAt?: string
+}
+
+interface PaymentFlowState {
+  contentId?: string
+  contentTitle?: string
 }
 
 const sessionDateFormatter = new Intl.DateTimeFormat('ko-KR', {
@@ -74,6 +78,17 @@ function sessionStatusLabel(status: MyReservationDetail['session']['status']) {
 
 function cancellationReasonLabel(reason: string | null) {
   return reason === 'USER_REQUEST' ? '사용자 요청' : reason ?? '확인할 수 없음'
+}
+
+function paymentStatusLabel(status: MyPayment['status']) {
+  return ({
+    PENDING: '결제 대기',
+    APPROVED: '결제 승인 완료',
+    DECLINED: '결제 승인 거절',
+    CANCELLED: '결제 취소',
+    EXPIRED: '결제 만료',
+    DISCREPANT: '결제 확인 필요',
+  })[status]
 }
 
 function ReservationCrumbs({ eventTitle, current }: { eventTitle?: string; current: string }) {
@@ -207,9 +222,7 @@ export function BookingConfirmPage() {
   const [isConfirming, setIsConfirming] = useState(false)
   const [confirmErrorMessage, setConfirmErrorMessage] = useState<string | null>(null)
   const isConfirmingRef = useRef(false)
-  const idempotencyKeyRef = useRef<string | null>(null)
-
-  if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID()
+  const paymentIdempotencyKeyRef = useRef(crypto.randomUUID())
 
   useEffect(() => {
     if (!eventId || !sessionId || !holdId || !expiresAt) {
@@ -244,12 +257,13 @@ export function BookingConfirmPage() {
     return () => controller.abort()
   }, [eventId, expiresAt, holdId, requestVersion, sessionId])
 
-  const completeReservation = async () => {
-    if (!content || !sessionInfo || !holdId || isConfirmingRef.current || sessionInfo.price > 0) return
+  const proceedReservation = async () => {
+    if (!content || !sessionInfo || !holdId || isConfirmingRef.current) return
+    const currentHoldId = holdId
 
     const accessToken = window.sessionStorage.getItem('accessToken')
     if (!accessToken) {
-      setConfirmErrorMessage('로그인 정보가 없어 예약을 확정할 수 없습니다. 다시 로그인해 주세요.')
+      setConfirmErrorMessage('로그인 정보가 없어 예약을 진행할 수 없습니다. 다시 로그인해 주세요.')
       return
     }
 
@@ -257,15 +271,22 @@ export function BookingConfirmPage() {
     setIsConfirming(true)
     setConfirmErrorMessage(null)
     try {
-      const reservation = await confirmReservationHold(holdId, idempotencyKeyRef.current, accessToken)
-      if (reservation.status !== 'CONFIRMED') {
-        setConfirmErrorMessage(`예약 상태가 ${reservation.status}입니다. 내 예약에서 상태를 확인해 주세요.`)
+      const paymentCreation = await createReservationPayment(currentHoldId, paymentIdempotencyKeyRef.current, accessToken)
+      if (paymentCreation.requiresPayment && paymentCreation.payment) {
+        navigate(`/payments/${paymentCreation.payment.paymentId}`, {
+          state: { contentId: content.contentId, contentTitle: content.title },
+        })
         return
       }
 
-      navigate(`/events/${content.contentId}/reserve/complete/${reservation.reservationId}`)
+      if (!paymentCreation.requiresPayment && paymentCreation.reservation?.status === 'CONFIRMED') {
+        navigate(`/events/${content.contentId}/reserve/complete/${paymentCreation.reservation.reservationId}`)
+        return
+      }
+
+      setConfirmErrorMessage('예약 또는 결제 정보를 준비하지 못했습니다. 다시 시도해 주세요.')
     } catch (error: unknown) {
-      setConfirmErrorMessage(error instanceof Error ? error.message : '예약을 확정하지 못했습니다.')
+      setConfirmErrorMessage(error instanceof Error ? error.message : '예약을 진행하지 못했습니다.')
     } finally {
       isConfirmingRef.current = false
       setIsConfirming(false)
@@ -276,7 +297,7 @@ export function BookingConfirmPage() {
     return <section className="page-container empty-page"><p>예약 확인 정보를 불러오는 중입니다.</p></section>
   }
 
-  if (errorMessage || !content || !sessionInfo || !eventId) {
+  if (errorMessage || !content || !sessionInfo || !eventId || !expiresAt) {
     return <section className="page-container empty-page"><p>{errorMessage ?? '예약 확인 정보를 찾을 수 없습니다.'}</p><Link className="button-outline" to={eventId ? `/events/${eventId}/reserve` : '/events'}>회차 다시 선택하기</Link>{eventId && sessionId && holdId && expiresAt && <button className="text-link-button" type="button" onClick={() => setRequestVersion((version) => version + 1)}>다시 시도</button>}</section>
   }
 
@@ -285,7 +306,7 @@ export function BookingConfirmPage() {
     <ReservationCrumbs eventTitle={content.title} current="예약 확인" />
     <PageHeader title="예약을 확정하시겠어요?" />
     <Notice>선택한 회차와 자리를 확보했어요. <span>{holdExpirationFormatter.format(new Date(expiresAt))}까지 예약을 확정해 주세요.</span></Notice>
-    <div className="confirmation-grid"><section><h2>예약 내용</h2><h3>{content.title}</h3><InfoRow label="선택 회차">{formatSessionSchedule(sessionInfo.startsAt, sessionInfo.endsAt)}</InfoRow><InfoRow label="위치">{content.locationText}</InfoRow><InfoRow label="예약 인원">{quantity}명</InfoRow></section><section><h2>예약 확인</h2><InfoRow label="예약 금액">{currencyFormatter.format(sessionInfo.price)}원</InfoRow>{!isFreeReservation && <Notice tone="red">유료 예약은 결제 흐름이 준비된 후 확정할 수 있습니다.</Notice>}{confirmErrorMessage && <Notice tone="red">{confirmErrorMessage}</Notice>}<button className="button-primary" type="button" disabled={!isFreeReservation || isConfirming} onClick={completeReservation}>{isConfirming ? '예약을 확정하는 중입니다.' : '예약 확정하기'}</button><p className="summary-caption">현장 혹은 내 예약에서 예약 QR을 확인할 수 있습니다.</p></section></div>
+    <div className="confirmation-grid"><section><h2>예약 내용</h2><h3>{content.title}</h3><InfoRow label="선택 회차">{formatSessionSchedule(sessionInfo.startsAt, sessionInfo.endsAt)}</InfoRow><InfoRow label="위치">{content.locationText}</InfoRow><InfoRow label="예약 인원">{quantity}명</InfoRow></section><section><h2>예약 확인</h2><InfoRow label="예약 금액">{currencyFormatter.format(sessionInfo.price)}원</InfoRow>{!isFreeReservation && <Notice>결제 정보를 준비한 뒤 PortOne 결제창으로 이동합니다.</Notice>}{confirmErrorMessage && <Notice tone="red">{confirmErrorMessage}</Notice>}<button className="button-primary" type="button" disabled={isConfirming} onClick={proceedReservation}>{isConfirming ? (isFreeReservation ? '예약을 확정하는 중입니다.' : '결제를 준비하는 중입니다.') : (isFreeReservation ? '예약 확정하기' : '결제하기')}</button><p className="summary-caption">현장 혹은 내 예약에서 예약 QR을 확인할 수 있습니다.</p></section></div>
   </section>
 }
 
@@ -615,11 +636,138 @@ export function CancelReservationPage() {
   </section>
 }
 
-export function PaymentCompletePage() {
-  return <section className="payment-result"><Breadcrumbs items={[{ label: '홈', to: '/' }, { label: '김해 가야문화 체험', to: '/events/101' }, { label: '예약' }, { label: '결제 결과' }]} />
-    <div className="payment-success"><span>✓</span><div><h1>결제가 승인되어 예약이 완료되었어요.</h1><p>결제 승인과 예약 확정이 모두 완료되었습니다. 예약 상세에서 일정과 체크인 정보를 확인하세요.</p></div></div>
-    <div className="payment-state"><div>✓ <span>예약 상태<b>예약 확정</b></span></div><div>✓ <span>결제 상태<b>결제 승인 완료</b></span></div></div>
-    <div className="confirmation-grid"><section><h2>예약 정보</h2><h3>김해 가야문화 체험</h3><InfoRow label="예약 번호">R20260806A7K3M9Q2W5XZ</InfoRow><InfoRow label="예약 회차">8월 17일(일) 10:00–12:00</InfoRow><InfoRow label="예약 확정">2026. 08. 13. 11:31</InfoRow></section><section><h2>결제 내역</h2><InfoRow label="기본 금액">20,000원</InfoRow><InfoRow label="쿠폰 할인">-3,000원</InfoRow><InfoRow label="최종 결제 금액">17,000원</InfoRow><div className="booking-number">주문 번호<br /><b>ORD-20260813-9F3K7Q</b></div></section></div>
-    <Notice>체크인 QR은 체크인 가능 시간에 예약 상세에서 확인할 수 있어요.</Notice><div className="payment-actions"><Link className="button-outline" to="/reservations">내 예약으로 이동</Link><Link className="button-primary" to={`/reservations/${bookingId}`}>예약 상세 보기</Link></div>
+export function PaymentPage() {
+  const { paymentId } = useParams()
+  const { state, search } = useLocation()
+  const navigate = useNavigate()
+  const paymentFlowState = (state as PaymentFlowState | null) ?? {}
+  const paymentRedirectParams = new URLSearchParams(search)
+  const paymentRedirectError = paymentRedirectParams.get('code')
+    ? paymentRedirectParams.get('message') ?? '결제를 완료하지 못했습니다.'
+    : null
+  const [payment, setPayment] = useState<MyPayment | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isRequestingPayment, setIsRequestingPayment] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [paymentMessage, setPaymentMessage] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+
+  const loadPayment = async (signal?: AbortSignal) => {
+    if (!paymentId) throw new Error('결제 정보를 찾을 수 없습니다.')
+
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) throw new Error('로그인 정보가 없어 결제 상태를 조회할 수 없습니다. 다시 로그인해 주세요.')
+
+    const myPayment = await getMyPayment(paymentId, accessToken, signal)
+    setPayment(myPayment)
+    return myPayment
+  }
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setPayment(null)
+    setIsLoading(true)
+    setErrorMessage(null)
+    setPaymentMessage(null)
+
+    loadPayment(controller.signal)
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setErrorMessage(error instanceof Error ? error.message : '결제 정보를 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [paymentId, requestVersion])
+
+  const refreshPayment = async () => {
+    setIsRefreshing(true)
+    setErrorMessage(null)
+    try {
+      const updatedPayment = await loadPayment()
+      if (updatedPayment.status === 'APPROVED') {
+        setPaymentMessage('결제 승인이 확인되었습니다. 예약 상세에서 일정을 확인해 주세요.')
+      } else {
+        setPaymentMessage('결제 승인 상태를 다시 확인했습니다.')
+      }
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : '결제 상태를 갱신하지 못했습니다.')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  const requestPayment = async () => {
+    if (!payment || payment.status !== 'PENDING' || isRequestingPayment) return
+
+    const storeId = import.meta.env.VITE_PORTONE_STORE_ID?.trim()
+    const channelKey = import.meta.env.VITE_PORTONE_CHANNEL_KEY?.trim()
+    if (!storeId || !channelKey) {
+      setErrorMessage('VITE_PORTONE_STORE_ID와 VITE_PORTONE_CHANNEL_KEY 환경 변수를 설정해 주세요.')
+      return
+    }
+
+    if (payment.amount.finalAmount < 1) {
+      setErrorMessage('결제 금액이 올바르지 않습니다. 예약을 다시 진행해 주세요.')
+      return
+    }
+
+    setIsRequestingPayment(true)
+    setErrorMessage(null)
+    setPaymentMessage(null)
+    try {
+      const response = await PortOne.requestPayment({
+        storeId,
+        channelKey,
+        paymentId: payment.orderId,
+        orderName: paymentFlowState.contentTitle ?? '지역 행사·체험 예약',
+        totalAmount: payment.amount.finalAmount,
+        currency: 'KRW',
+        payMethod: 'CARD',
+        redirectUrl: `${window.location.origin}/payments/${payment.paymentId}`,
+      })
+
+      if (response?.code !== undefined) {
+        setErrorMessage(response.message ?? '결제를 완료하지 못했습니다.')
+        return
+      }
+
+      setPaymentMessage('결제 요청이 완료되었습니다. 서버에서 승인 상태를 확인하고 있습니다.')
+      await refreshPayment()
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : 'PortOne 결제창을 열지 못했습니다.')
+    } finally {
+      setIsRequestingPayment(false)
+    }
+  }
+
+  if (isLoading) {
+    return <section className="page-container empty-page"><p>결제 정보를 불러오는 중입니다.</p></section>
+  }
+
+  if (errorMessage && !payment) {
+    return <section className="page-container empty-page"><p>{errorMessage}</p><button className="text-link-button" type="button" onClick={() => setRequestVersion((version) => version + 1)}>다시 시도</button></section>
+  }
+
+  if (!payment) {
+    return <section className="page-container empty-page"><p>결제 정보를 찾을 수 없습니다.</p><Link className="button-outline" to="/reservations">내 예약으로 이동</Link></section>
+  }
+
+  const isApproved = payment.status === 'APPROVED' && payment.reservationId
+  const isPending = payment.status === 'PENDING'
+  const reservationPath = isApproved
+    ? paymentFlowState.contentId
+      ? `/events/${paymentFlowState.contentId}/reserve/complete/${payment.reservationId}`
+      : `/reservations/${payment.reservationId}`
+    : null
+
+  return <section className="payment-result">
+    <Breadcrumbs items={[{ label: '홈', to: '/' }, ...(paymentFlowState.contentTitle ? [{ label: paymentFlowState.contentTitle }] : []), { label: '결제' }]} />
+    <div className="payment-success"><span>{isApproved ? '✓' : '₩'}</span><div><h1>{isApproved ? '결제가 승인되어 예약이 완료되었어요.' : '예약 결제를 진행해 주세요.'}</h1><p>{isApproved ? '서버에서 결제 승인과 예약 확정을 확인했습니다.' : '결제창에서 카드 결제를 완료한 뒤, 결제 상태를 다시 확인해 주세요.'}</p></div></div>
+    <div className="payment-state"><div>{isApproved ? '✓' : '•'} <span>결제 상태<b>{paymentStatusLabel(payment.status)}</b></span></div><div>{isApproved ? '✓' : '•'} <span>예약 상태<b>{isApproved ? '예약 확정' : '결제 승인 대기'}</b></span></div></div>
+    <div className="confirmation-grid"><section><h2>결제 대상</h2><h3>{paymentFlowState.contentTitle ?? '지역 행사·체험 예약'}</h3><InfoRow label="주문 번호">{payment.orderId}</InfoRow><InfoRow label="결제 요청 시각">{formatDateTime(payment.createdAt)}</InfoRow>{payment.finalizedAt && <InfoRow label="최종 처리 시각">{formatDateTime(payment.finalizedAt)}</InfoRow>}</section><section><h2>결제 내역</h2><InfoRow label="기본 금액">{currencyFormatter.format(payment.amount.baseAmount)}원</InfoRow><InfoRow label="쿠폰 할인">-{currencyFormatter.format(payment.amount.discountAmount)}원</InfoRow><InfoRow label="최종 결제 금액">{currencyFormatter.format(payment.amount.finalAmount)}원</InfoRow>{paymentMessage && <Notice>{paymentMessage}</Notice>}{(paymentRedirectError ?? errorMessage) && <Notice tone="red">{paymentRedirectError ?? errorMessage}</Notice>}{isPending && <><button className="button-primary" type="button" disabled={isRequestingPayment} onClick={requestPayment}>{isRequestingPayment ? '결제창을 여는 중입니다.' : '카드로 결제하기'}</button><button className="text-link-button" type="button" disabled={isRefreshing} onClick={refreshPayment}>{isRefreshing ? '결제 상태를 확인하는 중입니다.' : '결제 상태 새로고침'}</button></>}{reservationPath && <button className="button-primary" type="button" onClick={() => navigate(reservationPath)}>예약 상세 확인하기</button>}{!isPending && !reservationPath && <Link className="button-outline" to="/reservations">내 예약으로 이동</Link>}</section></div>
   </section>
 }

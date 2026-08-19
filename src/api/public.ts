@@ -205,6 +205,43 @@ export interface ReservationConfirmation {
   confirmedAt: string
 }
 
+export interface PaymentAmount {
+  baseAmount: number
+  discountAmount: number
+  finalAmount: number
+  currency: 'KRW'
+}
+
+export interface PaymentCreation {
+  requiresPayment: boolean
+  payment: {
+    paymentId: string
+    holdId: string
+    orderId: string
+    status: 'PENDING'
+    amount: PaymentAmount
+    createdAt: string
+  } | null
+  reservation: {
+    reservationId: string
+    reservationNo: string
+    holdId: string
+    status: 'CONFIRMED'
+    confirmedAt: string
+  } | null
+}
+
+export interface MyPayment {
+  paymentId: string
+  holdId: string
+  orderId: string
+  status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'CANCELLED' | 'EXPIRED' | 'DISCREPANT'
+  amount: PaymentAmount
+  reservationId: string | null
+  createdAt: string
+  finalizedAt: string | null
+}
+
 export interface MyReservationDetail {
   reservation: {
     reservationId: string
@@ -517,6 +554,18 @@ export function confirmReservationHold(holdId: string, idempotencyKey: string, a
     accessToken,
     headers: { 'Idempotency-Key': idempotencyKey },
   })
+}
+
+export function createReservationPayment(holdId: string, idempotencyKey: string, accessToken: string) {
+  return post<PaymentCreation>(`/api/v1/me/reservation-holds/${holdId}/payments`, {
+    requestBody: {},
+    accessToken,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+export function getMyPayment(paymentId: string, accessToken: string, signal?: AbortSignal) {
+  return get<MyPayment>(`/api/v1/me/payments/${paymentId}`, signal, accessToken)
 }
 
 export function getMyReservation(reservationId: string, accessToken: string, signal?: AbortSignal) {
