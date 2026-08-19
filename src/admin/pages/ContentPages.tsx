@@ -68,7 +68,7 @@ function ContentTabs({
   )
 }
 
-function ContentImage({ src, alt }: { src: string | null; alt: string }) {
+function ContentImage({ src, alt }: { src: string | null alt: string }) {
   return src ? (
     <img className="ra-content-image" src={src} alt={alt} />
   ) : (
@@ -80,6 +80,42 @@ function ContentImage({ src, alt }: { src: string | null; alt: string }) {
       대표 이미지
     </div>
   )
+}
+
+export interface ContentRevisionComparisonField {
+  label: string
+  original: string
+  candidate: string
+  changed: boolean
+}
+
+export function buildContentRevisionComparison(
+  original: PublicContentDetail,
+  candidate: ContentDetail,
+): ContentRevisionComparisonField[] {
+  const fields: Array<[string, keyof PublicContentDetail, keyof ContentDetail]> =
+    [
+      ["제목", "title", "title"],
+      ["설명", "description", "description"],
+      ["장소", "locationText", "locationText"],
+      ["운영 시간", "operatingHoursText", "operatingHoursText"],
+      ["연락처", "contactText", "contactText"],
+      ["주의사항", "precautions", "precautions"],
+      ["연령 조건", "ageRequirement", "ageRequirement"],
+      ["준비물", "materials", "materials"],
+      ["취소 정책", "cancellationPolicyText", "cancellationPolicyText"],
+    ]
+
+  return fields.map(([label, originalKey, candidateKey]) => {
+    const originalValue = String(original[originalKey] ?? "—")
+    const candidateValue = String(candidate[candidateKey] ?? "—")
+    return {
+      label,
+      original: originalValue,
+      candidate: candidateValue,
+      changed: originalValue !== candidateValue,
+    }
+  })
 }
 
 export function ContentReviewListPage() {
@@ -571,6 +607,11 @@ export function ContentRevisionDetailPage() {
   const state = useApiData<ContentDetail>(
     `/api/v1/region-admin/content-revisions/${revisionId}`,
   )
+  const originalState = useApiData<PublicContentDetail>(
+    state.data?.contentStatus === "PUBLISHED"
+      ? `/api/v1/contents/${state.data.contentId}`
+      : null,
+  )
   const [action, setAction] = useState<ActionConfig | null>(null)
   const configs: Record<string, ActionConfig> = {
     approve: {
@@ -597,7 +638,7 @@ export function ContentRevisionDetailPage() {
     <>
       <PageHeader
         title="콘텐츠 수정본 상세"
-        description="후보 표시 정보와 원본 상태를 확인합니다."
+        description="원본과 수정 후보를 나란히 비교하고 변경된 필드를 확인합니다."
         actions={
           <Link className="ra-button" to="/region-admin/content-revisions">
             ← 목록으로
@@ -609,15 +650,11 @@ export function ContentRevisionDetailPage() {
           <div className="ra-detail-layout">
             <div className="ra-detail-main">
               <Panel
-                title="수정 후보"
+                title="심사 정보"
                 action={
                   <StatusBadge value={detail.contentStatus ?? "PENDING"} />
                 }
               >
-                <ContentImage
-                  src={detail.representativeImageUrl}
-                  alt={detail.title}
-                />
                 <KeyValueGrid
                   items={[
                     ["수정본 ID", detail.revisionId],
@@ -626,16 +663,101 @@ export function ContentRevisionDetailPage() {
                       "검토 유형",
                       <StatusBadge value={detail.reviewType ?? ""} />,
                     ],
-                    ["제목", detail.title, true],
-                    ["설명", detail.description, true],
-                    ["장소", detail.locationText],
-                    ["운영 시간", detail.operatingHoursText],
                     ["가격", formatMoney(detail.reservationPrice)],
                     ["후보 공개 시각", formatDate(detail.candidatePublishAt)],
                     ["제출 시각", formatDate(detail.submittedAt)],
-                    ["주의사항", detail.precautions, true],
                   ]}
                 />
+              </Panel>
+              <Panel title="원본과 수정 후보 비교">
+                {detail.contentStatus !== "PUBLISHED" ? (
+                  <div className="ra-inline-warning">
+                    공개 전 수정본은 원본 공개 상세 API가 제공되지 않아 후보
+                    정보만 확인할 수 있습니다. 승인 전에 원본 콘텐츠 ID와 운영자
+                    제출 내역을 함께 확인해 주세요.
+                  </div>
+                ) : originalState.loading && !originalState.data ? (
+                  <p className="ra-muted">원본 정보를 불러오는 중입니다.</p>
+                ) : originalState.error && !originalState.data ? (
+                  <ErrorState
+                    error={originalState.error}
+                    onRetry={originalState.reload}
+                  />
+                ) : originalState.data ? (
+                  (() => {
+                    const fields = buildContentRevisionComparison(
+                      originalState.data,
+                      detail,
+                    )
+                    const changedCount = fields.filter(
+                      (field) => field.changed,
+                    ).length
+                    return (
+                      <>
+                        <div className="ra-status-line">
+                          <p className="ra-muted">
+                            총 {fields.length}개 비교 필드 중 {changedCount}개가
+                            변경되었습니다.
+                          </p>
+                          <StatusBadge
+                            value={changedCount ? "PENDING" : "SUCCESS"}
+                            label={`${changedCount}개 변경`}
+                          />
+                        </div>
+                        <div className="ra-compare-grid">
+                          <div className="ra-compare-card">
+                            <h3>현재 원본</h3>
+                            <ContentImage
+                              src={originalState.data.representativeImageUrl}
+                              alt={`${originalState.data.title} 원본`}
+                            />
+                          </div>
+                          <div className="ra-compare-card candidate">
+                            <h3>수정 후보</h3>
+                            <ContentImage
+                              src={detail.representativeImageUrl}
+                              alt={`${detail.title} 수정 후보`}
+                            />
+                          </div>
+                        </div>
+                        <div className="ra-table-wrap">
+                          <table className="ra-revision-compare">
+                            <thead>
+                              <tr>
+                                <th>필드</th>
+                                <th>현재 원본</th>
+                                <th>수정 후보</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {fields.map((field) => (
+                                <tr
+                                  className={field.changed ? "changed" : ""}
+                                  key={field.label}
+                                >
+                                  <td>
+                                    {field.label}
+                                    {field.changed && (
+                                      <span className="ra-change-mark">
+                                        변경
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="ra-preline">
+                                    {field.original}
+                                  </td>
+                                  <td className="ra-preline">
+                                    {field.candidate}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
+                    )
+                  })()
+                ) : null}
               </Panel>
             </div>
             <aside className="ra-detail-aside">

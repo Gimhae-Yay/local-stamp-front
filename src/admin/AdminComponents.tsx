@@ -115,6 +115,7 @@ export function StatusBadge({
     PUBLISHED: "공개",
     REJECTED: "반려",
     SUSPENDED: "운영 중단",
+    WITHDRAWN: "전체 철회",
     ENDED: "종료",
     DELETED: "삭제",
     DRAFT: "초안",
@@ -122,6 +123,10 @@ export function StatusBadge({
     SUCCESS: "성공",
     FAILURE: "실패",
     CHECKED_IN: "체크인 완료",
+    CONFIRMED: "예약 확정",
+    CANCELLED: "취소",
+    EXPIRED: "만료",
+    COMPLETED: "완료",
     EVENT_EXPERIENCE: "행사·체험",
     PUBLISHED_REVISION: "공개 콘텐츠 수정",
     PRE_PUBLIC_REVISION: "공개 전 수정",
@@ -278,12 +283,13 @@ export interface ActionConfig {
     required?: boolean
     maxLength?: number
     placeholder?: string
-    options?: Array<{ value: string; label: string }>
+    options?: Array<{ value: string label: string }>
   }
   body?: Record<string, unknown>
   target?: string
   result?: string
   warning?: string
+  errorMessages?: Record<string, string>
 }
 
 export function ActionModal({
@@ -379,7 +385,9 @@ export function ActionModal({
       onSuccess()
     } catch (caught) {
       setError(
-        caught instanceof ApiError ? caught.message : "처리하지 못했습니다.",
+        caught instanceof ApiError
+          ? (config.errorMessages?.[caught.code] ?? caught.message)
+          : "처리하지 못했습니다.",
       )
     } finally {
       submittingRef.current = false

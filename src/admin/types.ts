@@ -115,7 +115,7 @@ export interface ContentHistory {
     status: string
     reason: string | null
     processedAt: string
-    actor: { userId: string | number; displayName: string } | null
+    actor: { userId: string | number displayName: string } | null
   }>
 }
 
@@ -171,7 +171,7 @@ export interface WithdrawalSummary {
   contentType: string
   contentTitle: string
   contentStatus: string
-  requester: { userId: string; name: string } | null
+  requester: { userId: string name: string } | null
   requestedAt: string
 }
 
@@ -185,7 +185,7 @@ export interface WithdrawalDetail {
     status: string
     publishAt: string
   }
-  requester: { userId: string; name: string } | null
+  requester: { userId: string name: string } | null
   requestReason: string
   requestedAt: string
 }
@@ -213,12 +213,39 @@ export interface QrExceptionDetail extends QrExceptionSummary {
     startsAt: string
     checkinOpenAt: string
     checkinCloseAt: string
-    participant: { memberLinked: boolean; name: string; phone: string }
+    participant: { memberLinked: boolean name: string phone: string }
     checkIn: {
       checkedIn: boolean
       canCheckIn: boolean
       checkedAt: string | null
     }
+  }
+}
+
+export interface ReservationSearchResult {
+  reservationId: string
+  reservationNo: string
+  status: string
+  content: {
+    contentId: string
+    title: string
+  }
+  session: {
+    sessionId: string
+    status: string
+    startsAt: string
+    endsAt: string
+    checkinOpenAt: string
+    checkinCloseAt: string
+  }
+  participant: {
+    name: string
+    phone: string | null
+  }
+  checkIn: {
+    checkedIn: boolean
+    canCheckIn: boolean
+    checkedAt: string | null
   }
 }
 
@@ -264,7 +291,7 @@ export interface MissionDetail {
   status: string
   conditionType: string
   requiredVisitCount: number | null
-  targetContents: Array<{ contentId: string; title: string }>
+  targetContents: Array<{ contentId: string title: string }>
   rewardCouponPolicyId: string
   endsAt: string
 }
