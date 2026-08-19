@@ -30,11 +30,13 @@ import {
 
 import { LoginPage, SignupPage } from "./pages/AuthPages"
 import RegionalAdminApp from "./admin/RegionalAdminApp"
+import PlatformAdminApp from "./platform-admin/PlatformAdminApp"
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/admin/*" element={<PlatformAdminApp />} />
         <Route path="/region-admin/*" element={<RegionalAdminApp />} />
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomePage />} />
