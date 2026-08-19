@@ -490,7 +490,7 @@ export function MissionDetailPage() {
         "대상 콘텐츠가 모두 공개 상태이고, 보상 쿠폰 정책이 공개 상태이며, 종료 시각이 미래인지 확인해 주세요.",
       errorMessages: {
         MISSION_STATE_CONFLICT:
-          "미션을 승인할 수 없습니다. 대상 콘텐츠가 모두 공개(PUBLISHED) 상태인지, 보상 쿠폰 정책이 공개(PUBLISHED) 상태인지, 종료 시각이 미래인지 확인해 주세요.",
+          "승인 조건을 충족하지 못했습니다. 대상 콘텐츠와 보상 쿠폰 정책의 공개(PUBLISHED) 여부는 운영자 제출 정보에서 확인하고, 종료 시각이 미래인지 점검해 주세요.",
       },
     },
     reject: {

@@ -193,7 +193,7 @@ export function QrExceptionListPage() {
                   ],
                   ["회차 시작", formatDate(reservation.session.startsAt)],
                   ["예약자", reservation.participant.name],
-                  ["연락처", reservation.participant.phone],
+                  ["연락처", reservation.participant.phone ?? "연락처 없음"],
                   [
                     "체크인",
                     reservation.checkIn.checkedIn
@@ -387,7 +387,7 @@ export function QrExceptionDetailPage() {
                     ],
                     [
                       "참가자",
-                      `${detail.reservation.participant.name} · ${detail.reservation.participant.phone}`,
+                      `${detail.reservation.participant.name} · ${detail.reservation.participant.phone ?? "연락처 없음"}`,
                     ],
                     [
                       "회원 연결",
