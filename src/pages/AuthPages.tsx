@@ -209,7 +209,8 @@ export function SignupPage() {
           {submitting ? "가입 처리 중…" : "회원가입"}
         </button>
         <p className="auth-footer">
-          행사 운영자이신가요? <span>운영자 가입 신청 →</span>
+          이전 운영자 신청이 반려됐나요?{" "}
+          <Link to="/operator-request">운영자 재신청 →</Link>
         </p>
       </form>
     </AuthFrame>

@@ -27,6 +27,7 @@ interface AppState {
   user: AuthenticatedUser | null
   region: string
   regionId: string
+  regions: RegionOption[]
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   deleteAccount: () => Promise<void>
@@ -100,6 +101,7 @@ export default function AppLayout() {
       user,
       region: region?.name ?? "지역",
       regionId: region?.regionId ?? "",
+      regions,
       login: async (email, password) => {
         await loginRequest(email, password)
         setUser(await getAuthenticatedUser())
@@ -114,7 +116,7 @@ export default function AppLayout() {
       },
       openRegionDialog: () => setRegionDialogOpen(true),
     }),
-    [authReady, region, user],
+    [authReady, region, regions, user],
   )
 
   return (

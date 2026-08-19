@@ -151,6 +151,7 @@ export default function Navbar({
                   ["내 스탬프북", "/stampbook"],
                   ["내 지역 미션", "/missions"],
                   ["쿠폰함", "/coupons"],
+                  ["운영자 재신청", "/operator-request"],
                 ].map(([label, to]) => (
                   <Link key={label} to={to} onClick={() => setMenuOpen(false)}>
                     {label}

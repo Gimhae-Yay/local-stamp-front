@@ -36,6 +36,7 @@ import {
 } from "./pages/ActivityPages"
 
 import { LoginPage, SignupPage } from "./pages/AuthPages"
+import OperatorRequestPage from "./pages/OperatorRequestPage"
 import RegionalAdminApp from "./admin/RegionalAdminApp"
 import PlatformAdminApp from "./platform-admin/PlatformAdminApp"
 
@@ -83,6 +84,7 @@ export default function App() {
             <Route path="/reviews/new" element={<ReviewPage />} />
             <Route path="/coupons" element={<CouponsPage />} />
             <Route path="/stampbook" element={<StampbookPage />} />
+            <Route path="/operator-request" element={<OperatorRequestPage />} />
             <Route path="/payment/complete" element={<PaymentCompletePage />} />
           </Route>
           <Route path="/login" element={<LoginPage />} />
