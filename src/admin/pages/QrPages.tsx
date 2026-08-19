@@ -1,3 +1,4 @@
+import { useState, type FormEvent } from "react"
 import { Link, useParams, useSearchParams } from "react-router-dom"
 import {
   AsyncContent,
@@ -9,8 +10,12 @@ import {
   formatDate,
   useApiData,
 } from "../AdminComponents"
-import { withQuery } from "../api"
-import type { QrExceptionDetail, QrExceptionSummary } from "../types"
+import { ApiError, apiRequest, withQuery } from "../api"
+import type {
+  QrExceptionDetail,
+  QrExceptionSummary,
+  ReservationSearchResult,
+} from "../types"
 
 const exceptionTypeLabels: Record<string, string> = {
   QR_CHECK_IN_FAILURE: "QR 체크인 실패",
@@ -64,7 +69,10 @@ export function formatQrReason(value: string) {
       ? "QR 스캔 실패"
       : null
   if (manualReason) {
-    const suffix = value.replace(/^MANUAL_CHECK_IN_QR_(?:NOT_AVAILABLE|SCAN_FAILED)_/, "")
+    const suffix = value.replace(
+      /^MANUAL_CHECK_IN_QR_(?:NOT_AVAILABLE|SCAN_FAILED)_/,
+      "",
+    )
     return `${manualReason} · ${checkInResultLabels[suffix] ?? suffix}`
   }
 
@@ -90,6 +98,11 @@ export function readCursorHistory(value: string | null) {
 
 export function QrExceptionListPage() {
   const [search, setSearch] = useSearchParams()
+  const [reservationNo, setReservationNo] = useState("")
+  const [reservation, setReservation] =
+    useState<ReservationSearchResult | null>(null)
+  const [reservationError, setReservationError] = useState("")
+  const [reservationLoading, setReservationLoading] = useState(false)
   const cursor = search.get("cursor")
   const cursorHistory = readCursorHistory(search.get("cursorHistory"))
   const state = useApiData<{
@@ -97,18 +110,109 @@ export function QrExceptionListPage() {
     nextCursor: string | null
     hasNext: boolean
   }>(withQuery("/api/v1/region-admin/qr-exceptions", { cursor, size: 20 }))
+
+  const searchReservation = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const normalized = reservationNo.trim()
+    if (!normalized) {
+      setReservation(null)
+      setReservationError("예약번호를 입력해 주세요.")
+      return
+    }
+    setReservationLoading(true)
+    setReservationError("")
+    setReservation(null)
+    try {
+      const result = await apiRequest<ReservationSearchResult>(
+        withQuery("/api/v1/region-admin/reservations/search", {
+          reservationNo: normalized,
+        }),
+      )
+      setReservation(result)
+    } catch (caught) {
+      setReservationError(
+        caught instanceof ApiError
+          ? caught.message
+          : "예약 정보를 조회하지 못했습니다.",
+      )
+    } finally {
+      setReservationLoading(false)
+    }
+  }
+
   return (
     <>
       <PageHeader
         title="QR 예외"
         description="최근 QR 실패와 보조 처리 감사 기록을 확인합니다."
       />
+      <div className="ra-reservation-search">
+        <Panel title="예약번호 보조 조회">
+          <form
+            className="ra-reservation-search-form"
+            onSubmit={searchReservation}
+          >
+            <label className="ra-field">
+              예약번호
+              <input
+                className="ra-control"
+                value={reservationNo}
+                onChange={(event) => setReservationNo(event.target.value)}
+                placeholder="예: RA-A-BEFORE-001"
+                autoComplete="off"
+              />
+            </label>
+            <button
+              className="ra-button ra-button-admin"
+              type="submit"
+              disabled={reservationLoading}
+            >
+              {reservationLoading ? "조회 중…" : "예약 조회"}
+            </button>
+          </form>
+          {reservationError && (
+            <div className="ra-alert ra-alert-compact" role="alert">
+              {reservationError}
+            </div>
+          )}
+          {reservation && (
+            <div className="ra-reservation-search-result" aria-live="polite">
+              <div className="ra-status-line">
+                <strong>{reservation.content.title}</strong>
+                <StatusBadge value={reservation.status} />
+              </div>
+              <KeyValueGrid
+                items={[
+                  ["예약번호", reservation.reservationNo],
+                  ["예약 ID", reservation.reservationId],
+                  ["콘텐츠 ID", reservation.content.contentId],
+                  ["회차 ID", reservation.session.sessionId],
+                  [
+                    "회차 상태",
+                    <StatusBadge value={reservation.session.status} />,
+                  ],
+                  ["회차 시작", formatDate(reservation.session.startsAt)],
+                  ["예약자", reservation.participant.name],
+                  ["연락처", reservation.participant.phone],
+                  [
+                    "체크인",
+                    reservation.checkIn.checkedIn
+                      ? `완료 · ${formatDate(reservation.checkIn.checkedAt)}`
+                      : "미완료 (지역 관리자는 조회만 가능)",
+                    true,
+                  ],
+                ]}
+              />
+            </div>
+          )}
+        </Panel>
+      </div>
       <div className="ra-filter-bar">
         <div>
           <strong>최근 QR 예외 기록</strong>
           <span>기본 20건 · 커서 방식</span>
         </div>
-        <small>서버 고정 순서 · 검색/필터 없음</small>
+        <small>예외 목록은 서버 고정 순서 · 필터 없음</small>
       </div>
       <AsyncContent
         state={state}

@@ -234,7 +234,10 @@ export function StampbookDetailPage() {
               <Panel title={`대상 콘텐츠 ${detail.targetContents.length}개`}>
                 <div className="ra-list-cards">
                   {detail.targetContents.map((content, index) => (
-                    <article key={content.contentId}>
+                    <article
+                      className="ra-target-content-card"
+                      key={content.contentId}
+                    >
                       <span>{index + 1}</span>
                       <div>
                         <strong>{content.title}</strong>
@@ -483,6 +486,12 @@ export function MissionDetailPage() {
       tone: "admin",
       target: `미션 ${missionId}`,
       result: "미션 승인",
+      warning:
+        "대상 콘텐츠가 모두 공개 상태이고, 보상 쿠폰 정책이 공개 상태이며, 종료 시각이 미래인지 확인해 주세요.",
+      errorMessages: {
+        MISSION_STATE_CONFLICT:
+          "미션을 승인할 수 없습니다. 대상 콘텐츠가 모두 공개(PUBLISHED) 상태인지, 보상 쿠폰 정책이 공개(PUBLISHED) 상태인지, 종료 시각이 미래인지 확인해 주세요.",
+      },
     },
     reject: {
       title: "미션 반려",
@@ -623,7 +632,10 @@ export function MissionDetailPage() {
             <aside className="ra-detail-aside">
               <section className="ra-action-card">
                 <h2>미션 심사</h2>
-                <p>조건, 대상 콘텐츠, 보상 정책과 종료 일정을 확인해 주세요.</p>
+                <p>
+                  대상 콘텐츠 전체 공개, 보상 정책 공개, 미래 종료 일정 조건을
+                  확인해 주세요.
+                </p>
                 {detail.status === "PENDING_REVIEW" ? (
                   <>
                     <button

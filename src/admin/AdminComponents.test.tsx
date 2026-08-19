@@ -1,15 +1,28 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { MemoryRouter } from "react-router-dom"
-import { ActionModal, PageHeader } from "./AdminComponents"
+import { ActionModal, PageHeader, StatusBadge } from "./AdminComponents"
+import { ApiError, apiRequest } from "./api"
 
 vi.mock("./api", () => ({
   apiRequest: vi.fn(),
-  ApiError: class ApiError extends Error {},
+  ApiError: class ApiError extends Error {
+    constructor(
+      message: string,
+      public readonly status: number,
+      public readonly code: string,
+    ) {
+      super(message)
+    }
+  },
 }))
 
 describe("ActionModal", () => {
+  beforeEach(() => {
+    vi.mocked(apiRequest).mockReset()
+  })
+
   it("shows the operation summary and traps reverse focus navigation", async () => {
     const user = userEvent.setup()
     render(
@@ -35,6 +48,39 @@ describe("ActionModal", () => {
     await user.tab({ shift: true })
     expect(screen.getByRole("button", { name: "운영 중단" })).toHaveFocus()
   })
+
+  it("replaces a backend conflict with the configured actionable message", async () => {
+    const user = userEvent.setup()
+    vi.mocked(apiRequest).mockRejectedValue(
+      new ApiError(
+        "미션 상태가 요청을 처리할 수 없습니다.",
+        409,
+        "MISSION_STATE_CONFLICT",
+      ),
+    )
+    render(
+      <ActionModal
+        config={{
+          title: "미션 승인",
+          description: "승인 조건을 확인합니다.",
+          confirmLabel: "미션 승인",
+          endpoint: "/api/v1/region-admin/missions/1/approve",
+          errorMessages: {
+            MISSION_STATE_CONFLICT:
+              "대상 콘텐츠와 보상 정책의 공개 상태를 확인해 주세요.",
+          },
+        }}
+        onClose={vi.fn()}
+        onSuccess={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole("button", { name: "미션 승인" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "대상 콘텐츠와 보상 정책의 공개 상태를 확인해 주세요.",
+    )
+  })
 })
 
 describe("PageHeader", () => {
@@ -58,5 +104,13 @@ describe("PageHeader", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "콘텐츠 승인이 완료되었습니다.",
     )
+  })
+})
+
+describe("StatusBadge", () => {
+  it("renders withdrawn status as a compact Korean label", () => {
+    render(<StatusBadge value="WITHDRAWN" />)
+
+    expect(screen.getByText("전체 철회")).toHaveClass("ra-badge-withdrawn")
   })
 })
