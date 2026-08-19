@@ -286,6 +286,18 @@ export interface LoginResult {
   accessToken: string
 }
 
+export type UserRole = 'VISITOR' | 'OPERATOR' | 'REGION_ADMIN'
+
+export interface MyRoleAssignment {
+  role: UserRole
+  regionId: string | null
+  regionName: string | null
+}
+
+export interface MyProfile {
+  roleAssignments: MyRoleAssignment[]
+}
+
 export interface SignupResult {
   userId: string
   requestedRole: 'VISITOR' | 'OPERATOR'
@@ -420,6 +432,10 @@ async function post<T>(
 
 export function loginWithEmail({ email, password }: { email: string; password: string }) {
   return post<LoginResult>('/api/v1/auth/login', { requestBody: { email, password } })
+}
+
+export function getMyProfile(accessToken: string, signal?: AbortSignal) {
+  return get<MyProfile>('/api/v1/me', signal, accessToken)
 }
 
 export function signupVisitor({

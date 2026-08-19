@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { getPublicRegions, hasAccessToken, logoutFromServer, type PublicRegion } from '../api/public'
+import { getMyProfile, getPublicRegions, hasAccessToken, logoutFromServer, type MyProfile, type PublicRegion } from '../api/public'
 import Navbar from './Navbar'
 import RegionDialog from './RegionDialog'
 
@@ -24,6 +24,7 @@ export function useAppState() {
 export default function AppLayout() {
   const [loggedIn, setLoggedIn] = useState(() => hasAccessToken())
   const [region, setRegion] = useState<PublicRegion | null>(null)
+  const [profile, setProfile] = useState<MyProfile | null>(null)
   const [regions, setRegions] = useState<PublicRegion[]>([])
   const [regionsLoading, setRegionsLoading] = useState(true)
   const [regionsError, setRegionsError] = useState<string | null>(null)
@@ -57,17 +58,46 @@ export default function AppLayout() {
     return () => controller.abort()
   }, [])
 
+  useEffect(() => {
+    if (!loggedIn) {
+      setProfile(null)
+      return
+    }
+
+    const accessToken = window.sessionStorage.getItem('accessToken')
+    if (!accessToken) {
+      setProfile(null)
+      return
+    }
+
+    const controller = new AbortController()
+    getMyProfile(accessToken, controller.signal)
+      .then((myProfile) => {
+        if (!controller.signal.aborted) setProfile(myProfile)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        if (!controller.signal.aborted) setProfile(null)
+      })
+
+    return () => controller.abort()
+  }, [loggedIn])
+
   const state: AppState = {
     loggedIn,
     region: region?.name ?? '지역',
     regionId: region?.regionId ?? null,
-    login: () => setLoggedIn(true),
+    login: () => {
+      setProfile(null)
+      setLoggedIn(true)
+    },
     logout: async () => {
       try {
         await logoutFromServer()
       } catch {
         // The local login state must still be cleared when the logout endpoint is unavailable.
       } finally {
+        setProfile(null)
         setLoggedIn(false)
       }
     },
@@ -77,7 +107,7 @@ export default function AppLayout() {
   return (
     <AppStateContext.Provider value={state}>
       <div className="app-shell">
-        <Navbar loggedIn={loggedIn} onLogout={state.logout} />
+        <Navbar loggedIn={loggedIn} roleAssignments={profile?.roleAssignments} onLogout={state.logout} />
         <main><Outlet /></main>
         {regionDialogOpen && <RegionDialog
           regionId={region?.regionId ?? null}

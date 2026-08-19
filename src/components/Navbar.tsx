@@ -1,14 +1,32 @@
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
+import type { MyRoleAssignment } from '../api/public'
 
 interface NavbarProps {
   loggedIn: boolean
+  roleAssignments?: MyRoleAssignment[]
   onLogout: () => Promise<void>
 }
 
-export default function Navbar({ loggedIn, onLogout }: NavbarProps) {
+function accountSummary(roleAssignments?: MyRoleAssignment[]) {
+  if (!roleAssignments) {
+    return { title: '내 계정', description: '계정 정보를 불러오는 중입니다.' }
+  }
+
+  const assignment = roleAssignments.find(({ role }) => role === 'VISITOR') ?? roleAssignments[0]
+  if (!assignment) return { title: '내 계정', description: '부여된 역할이 없습니다.' }
+
+  const roleLabel = ({ VISITOR: '방문자', OPERATOR: '운영자', REGION_ADMIN: '지역 관리자' })[assignment.role]
+  return {
+    title: `${roleLabel} 계정`,
+    description: assignment.regionName ? `${assignment.regionName} 담당` : `${roleLabel} 권한`,
+  }
+}
+
+export default function Navbar({ loggedIn, roleAssignments, onLogout }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const navigate = useNavigate()
+  const account = accountSummary(roleAssignments)
   const links = [
     ['홈', '/'],
     ['행사·체험', '/events'],
@@ -58,11 +76,11 @@ export default function Navbar({ loggedIn, onLogout }: NavbarProps) {
         {loggedIn ? (
           <div className="account-menu-wrap">
             <button className="account-trigger" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen}>
-              <span>김</span> 내 예약 · 내 계정
+              <span aria-hidden="true">●</span> {account.title}
             </button>
             {menuOpen && (
               <div className="account-menu">
-                <div className="account-menu-user"><b>김 방문자 계정</b><small>김해시 지역 회원</small></div>
+                <div className="account-menu-user"><b>{account.title}</b><small>{account.description}</small></div>
                 {[
                   ['내 예약', '/reservations'], ['내 방문 후기', '/reviews/new'], ['내 스탬프북', '/stampbook'], ['내 지역 미션', '/missions'], ['쿠폰함', '/coupons'],
                 ].map(([label, to]) => <Link key={to} to={to} onClick={() => setMenuOpen(false)}>{label}</Link>)}
