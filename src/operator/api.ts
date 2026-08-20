@@ -8,6 +8,7 @@ import type {
   CouponPolicyDetail,
   CouponPolicyInput,
   CouponPolicySummary,
+  CreatedCouponPolicy,
   MissionDetail,
   MissionInput,
   MissionSummary,
@@ -233,7 +234,7 @@ export function getCouponPolicy(id: string, signal?: AbortSignal) {
 }
 
 export function createCouponPolicy(input: CouponPolicyInput) {
-  return apiRequest<CouponPolicyDetail>("/api/v1/operator/coupon-policies", {
+  return apiRequest<CreatedCouponPolicy>("/api/v1/operator/coupon-policies", {
     method: "POST",
     body: jsonBody(input),
   })

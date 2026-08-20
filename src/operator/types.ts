@@ -162,6 +162,18 @@ export interface CouponPolicyDetail extends CouponPolicySummary {
   endedAt: string | null
 }
 
+export interface CreatedCouponPolicy extends CouponPolicySummary {
+  regionId: string
+  issueSourceType: string
+  discountAmount: number
+  minimumPaymentAmount: number
+  validDaysAfterIssue: number
+  issueStartsAt: string
+  issueEndsAt: string
+  totalIssueLimit: number | null
+  createdAt: string
+}
+
 export interface CouponPolicyInput {
   contentId: string
   name: string

@@ -219,6 +219,10 @@ export function CouponListPage() {
                         <dd>{detail.contentId}</dd>
                       </div>
                       <div className="op-kv">
+                        <dt>지역 ID</dt>
+                        <dd>{detail.regionId}</dd>
+                      </div>
+                      <div className="op-kv">
                         <dt>발급 유형</dt>
                         <dd>{statusLabel(detail.issueSourceType)}</dd>
                       </div>
@@ -247,6 +251,14 @@ export function CouponListPage() {
                           {detail.issuedCount} /{" "}
                           {detail.totalIssueLimit ?? "무제한"}
                         </dd>
+                      </div>
+                      <div className="op-kv">
+                        <dt>공개 시각</dt>
+                        <dd>{formatDate(detail.publishedAt)}</dd>
+                      </div>
+                      <div className="op-kv">
+                        <dt>종료 시각</dt>
+                        <dd>{formatDate(detail.endedAt)}</dd>
                       </div>
                       <div className="op-kv op-full">
                         <dt>설명</dt>
@@ -333,6 +345,67 @@ const emptyCoupon = {
   reason: "",
 }
 
+export type CouponDraft = typeof emptyCoupon
+
+const issueSourceTypes = new Set([
+  "VISIT",
+  "MISSION_REWARD",
+  "STAMPBOOK_COMPLETION",
+])
+
+function parseInteger(value: string) {
+  if (!/^\d+$/.test(value)) return null
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) ? parsed : null
+}
+
+export function validateCouponDraft(draft: CouponDraft, editing = false) {
+  const name = draft.name.trim()
+  if (!/^[1-9]\d*$/.test(draft.contentId))
+    return "연결 콘텐츠를 선택해 주세요."
+  if (!issueSourceTypes.has(draft.issueSourceType))
+    return "발급 출처를 확인해 주세요."
+  if (!name) return "정책명을 입력해 주세요."
+  if (name.length > 255) return "정책명은 255자 이하로 입력해 주세요."
+  if (draft.description.length > 1_000)
+    return "정책 설명은 1,000자 이하로 입력해 주세요."
+
+  const discountAmount = parseInteger(draft.discountAmount)
+  if (discountAmount === null || discountAmount < 1)
+    return "할인 금액은 1원 이상의 정수로 입력해 주세요."
+
+  const minimumPaymentAmount = parseInteger(draft.minimumPaymentAmount)
+  if (minimumPaymentAmount === null || minimumPaymentAmount < discountAmount)
+    return "최소 결제 금액은 할인 금액 이상의 정수로 입력해 주세요."
+
+  const validDaysAfterIssue = parseInteger(draft.validDaysAfterIssue)
+  if (
+    validDaysAfterIssue === null ||
+    validDaysAfterIssue < 1 ||
+    validDaysAfterIssue > 365
+  )
+    return "발급 후 유효일은 1일 이상 365일 이하로 입력해 주세요."
+
+  if (draft.totalIssueLimit) {
+    const totalIssueLimit = parseInteger(draft.totalIssueLimit)
+    if (totalIssueLimit === null || totalIssueLimit < 1)
+      return "총 발급 한도는 1 이상의 정수로 입력해 주세요."
+  }
+
+  const issueStartsAt = Date.parse(`${draft.issueStartsAt}:00+09:00`)
+  const issueEndsAt = Date.parse(`${draft.issueEndsAt}:00+09:00`)
+  if (!Number.isFinite(issueStartsAt) || !Number.isFinite(issueEndsAt))
+    return "발급 시작 시각과 종료 시각을 입력해 주세요."
+  if (issueStartsAt >= issueEndsAt)
+    return "발급 종료 시각은 시작 시각보다 뒤여야 합니다."
+
+  const reason = draft.reason.trim()
+  if (editing && !reason) return "수정 사유를 입력해 주세요."
+  if (editing && reason.length > 500)
+    return "수정 사유는 500자 이하로 입력해 주세요."
+  return ""
+}
+
 export function CouponFormPage() {
   const { couponPolicyId } = useParams()
   const navigate = useNavigate()
@@ -342,8 +415,14 @@ export function CouponFormPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const [loadError, setLoadError] = useState("")
+  const [policyStatus, setPolicyStatus] = useState<string | null>(null)
   useEffect(() => {
     const controller = new AbortController()
+    setLoading(true)
+    setError("")
+    setLoadError("")
+    setPolicyStatus(null)
     Promise.all([
       listMyContents(controller.signal),
       couponPolicyId
@@ -356,7 +435,8 @@ export function CouponFormPage() {
             ["APPROVED", "PUBLISHED"].includes(item.status),
           ),
         )
-        if (policy)
+        if (policy) {
+          setPolicyStatus(policy.status)
           setDraft({
             contentId: policy.contentId,
             issueSourceType: policy.issueSourceType,
@@ -373,7 +453,7 @@ export function CouponFormPage() {
             issueEndsAt: toInputDate(policy.issueEndsAt),
             reason: "",
           })
-        else
+        } else
           setDraft((current) => ({
             ...current,
             contentId:
@@ -384,7 +464,7 @@ export function CouponFormPage() {
       })
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setError(
+          setLoadError(
             apiErrorMessage(caught, "정책 입력 정보를 불러오지 못했습니다."),
           )
       })
@@ -397,8 +477,13 @@ export function CouponFormPage() {
     setDraft((current) => ({ ...current, [key]: value }))
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    setSubmitting(true)
     setError("")
+    const validationError = validateCouponDraft(draft, editing)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+    setSubmitting(true)
     const input = {
       contentId: draft.contentId,
       issueSourceType: draft.issueSourceType,
@@ -434,6 +519,11 @@ export function CouponFormPage() {
     }
   }
   if (loading) return <RouteState loading />
+  if (loadError) return <RouteState error={loadError} />
+  if (editing && policyStatus !== "DRAFT")
+    return (
+      <RouteState error="초안 상태의 쿠폰 정책만 수정할 수 있습니다." />
+    )
   return (
     <>
       <Breadcrumb>
@@ -491,12 +581,15 @@ export function CouponFormPage() {
                 label="정책명"
                 value={draft.name}
                 set={(value) => set("name", value)}
+                maxLength={255}
                 full
               />
               <Area
                 label="정책 설명"
                 value={draft.description}
                 set={(value) => set("description", value)}
+                maxLength={1000}
+                required={false}
                 full
               />
               <NumberField
@@ -516,6 +609,7 @@ export function CouponFormPage() {
                 value={draft.validDaysAfterIssue}
                 set={(value) => set("validDaysAfterIssue", value)}
                 min="1"
+                max="365"
               />
               <NumberField
                 label="총 발급 한도 (비우면 무제한)"
@@ -539,6 +633,7 @@ export function CouponFormPage() {
                   label="수정 사유"
                   value={draft.reason}
                   set={(value) => set("reason", value)}
+                  maxLength={500}
                   full
                 />
               )}
@@ -1468,11 +1563,13 @@ function Text({
   value,
   set,
   full,
+  maxLength,
 }: {
   label: string
   value: string
   set: (value: string) => void
   full?: boolean
+  maxLength?: number
 }) {
   return (
     <label className={`op-field${full ? " op-full" : ""}`}>
@@ -1481,6 +1578,7 @@ function Text({
         className="op-control"
         value={value}
         onChange={(event) => set(event.target.value)}
+        maxLength={maxLength}
         required
       />
     </label>
@@ -1491,11 +1589,15 @@ function Area({
   value,
   set,
   full,
+  required = true,
+  maxLength,
 }: {
   label: string
   value: string
   set: (value: string) => void
   full?: boolean
+  required?: boolean
+  maxLength?: number
 }) {
   return (
     <label className={`op-field${full ? " op-full" : ""}`}>
@@ -1504,7 +1606,8 @@ function Area({
         className="op-control"
         value={value}
         onChange={(event) => set(event.target.value)}
-        required
+        required={required}
+        maxLength={maxLength}
       />
     </label>
   )
@@ -1514,12 +1617,14 @@ function NumberField({
   value,
   set,
   min,
+  max,
   required = true,
 }: {
   label: string
   value: string
   set: (value: string) => void
   min: string
+  max?: string
   required?: boolean
 }) {
   return (
@@ -1529,6 +1634,7 @@ function NumberField({
         className="op-control"
         type="number"
         min={min}
+        max={max}
         value={value}
         onChange={(event) => set(event.target.value)}
         required={required}
