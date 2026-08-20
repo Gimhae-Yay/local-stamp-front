@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react"
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom"
-import { Brand, usePlatformAuth } from "./PlatformAdminAuth"
+import { useEffect, useRef, useState } from "react";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Brand, usePlatformAuth } from "./PlatformAdminAuth";
 
 const navigation = [
   ["플랫폼 운영", "⌂", "운영 홈", "/admin"],
@@ -10,25 +10,25 @@ const navigation = [
   ["거래 예외", "↺", "환불 실패", "/admin/refund-failures"],
   ["거래 예외", "↯", "수동 전액 환불", "/admin/manual-refund"],
   ["최고 관리자 전용", "▣", "전체 관리자 계정", "/admin/admin-accounts"],
-] as const
+] as const;
 
 export default function PlatformLayout() {
-  const { session, logout } = usePlatformAuth()
-  const [open, setOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const navigate = useNavigate()
-  const isSuperAdmin = session?.grade === "SUPER_ADMIN"
+  const { session, logout } = usePlatformAuth();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const isSuperAdmin = session?.grade === "SUPER_ADMIN";
   const visibleNavigation = navigation.filter(
     ([group]) => group !== "최고 관리자 전용" || isSuperAdmin,
-  )
+  );
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setOpen(false)
-    }
-    document.addEventListener("mousedown", close)
-    return () => document.removeEventListener("mousedown", close)
-  }, [])
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
 
   return (
     <div className="pa-shell">
@@ -45,9 +45,7 @@ export default function PlatformLayout() {
           >
             <span className="pa-account-avatar">관</span>
             <span>사용자 {session?.userId}</span>
-            <span className="pa-grade-pill">
-              {isSuperAdmin ? "최고 관리자" : "플랫폼 관리자"}
-            </span>
+            <span className="pa-grade-pill">{isSuperAdmin ? "최고 관리자" : "플랫폼 관리자"}</span>
             <span>⌄</span>
           </button>
           {open && (
@@ -55,15 +53,11 @@ export default function PlatformLayout() {
               <div className="pa-popover-profile">
                 <span className="pa-account-avatar">관</span>
                 <div>
-                  <strong>
-                    {isSuperAdmin ? "최고 관리자" : "플랫폼 관리자"}
-                  </strong>
+                  <strong>{isSuperAdmin ? "최고 관리자" : "플랫폼 관리자"}</strong>
                   <small>사용자 {session?.userId}</small>
                 </div>
               </div>
-              {Array.from(
-                new Set(visibleNavigation.map(([group]) => group)),
-              ).map((group) => (
+              {Array.from(new Set(visibleNavigation.map(([group]) => group))).map((group) => (
                 <section key={group}>
                   <h3>{group}</h3>
                   {visibleNavigation
@@ -85,8 +79,8 @@ export default function PlatformLayout() {
               <button
                 className="pa-popover-logout"
                 onClick={async () => {
-                  await logout()
-                  navigate("/admin/login", { replace: true })
+                  await logout();
+                  navigate("/admin/login", { replace: true });
                 }}
               >
                 로그아웃
@@ -97,5 +91,5 @@ export default function PlatformLayout() {
       </header>
       <Outlet />
     </div>
-  )
+  );
 }

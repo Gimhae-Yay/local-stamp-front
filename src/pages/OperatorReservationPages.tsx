@@ -1,75 +1,64 @@
-import { useState, type FormEvent } from "react"
-import { Link } from "react-router-dom"
-import { ApiError } from "../api/client"
+import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
+import { ApiError } from "../api/client";
 import {
   searchOperatorReservation,
   type OperatorReservationSearchResponse,
   type OperatorReservationStatus,
-} from "../api/operator"
-import {
-  Breadcrumbs,
-  Notice,
-  PageHeader,
-  StatusPill,
-} from "../components/PageElements"
+} from "../api/operator";
+import { Breadcrumbs, Notice, PageHeader, StatusPill } from "../components/PageElements";
 
 const statusLabels: Record<OperatorReservationStatus, string> = {
   CONFIRMED: "예약 확정",
   CHECKED_IN: "체크인 완료",
   CANCELLED: "예약 취소",
   EXPIRED: "예약 만료",
-}
+};
 
 function searchErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.code === "NOT_FOUND") {
-      return "일치하는 예약번호를 찾을 수 없습니다. 예약번호를 확인해 주세요."
+      return "일치하는 예약번호를 찾을 수 없습니다. 예약번호를 확인해 주세요.";
     }
     if (error.code === "FORBIDDEN") {
-      return "담당 콘텐츠의 예약이 아니어서 조회할 수 없습니다."
+      return "담당 콘텐츠의 예약이 아니어서 조회할 수 없습니다.";
     }
-    return error.message
+    return error.message;
   }
-  return error instanceof Error
-    ? error.message
-    : "예약번호를 조회하지 못했습니다."
+  return error instanceof Error ? error.message : "예약번호를 조회하지 못했습니다.";
 }
 
 export default function OperatorReservationSearchPage() {
-  const [reservationNo, setReservationNo] = useState("")
-  const [result, setResult] =
-    useState<OperatorReservationSearchResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [searching, setSearching] = useState(false)
+  const [reservationNo, setReservationNo] = useState("");
+  const [result, setResult] = useState<OperatorReservationSearchResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
 
   const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    const normalizedReservationNo = reservationNo.trim()
+    event.preventDefault();
+    const normalizedReservationNo = reservationNo.trim();
     if (!normalizedReservationNo) {
-      setResult(null)
-      setError("예약번호를 입력해 주세요.")
-      return
+      setResult(null);
+      setError("예약번호를 입력해 주세요.");
+      return;
     }
 
-    setSearching(true)
-    setResult(null)
-    setError(null)
+    setSearching(true);
+    setResult(null);
+    setError(null);
     try {
-      setResult(await searchOperatorReservation(normalizedReservationNo))
+      setResult(await searchOperatorReservation(normalizedReservationNo));
     } catch (requestError) {
-      setError(searchErrorMessage(requestError))
+      setError(searchErrorMessage(requestError));
     } finally {
-      setSearching(false)
+      setSearching(false);
     }
-  }
+  };
 
   return (
     <section className="page-container">
       <Breadcrumbs
-        items={[
-          { label: "콘텐츠 관리", to: "/operator/contents" },
-          { label: "예약번호 검색" },
-        ]}
+        items={[{ label: "콘텐츠 관리", to: "/operator/contents" }, { label: "예약번호 검색" }]}
       />
       <PageHeader
         title="예약번호 검색"
@@ -112,10 +101,7 @@ export default function OperatorReservationSearchPage() {
               <h2>{result.content.title}</h2>
               <p>예약번호 {result.reservationNo}</p>
             </div>
-            <Link
-              className="button-outline"
-              to={`/operator/contents/${result.content.contentId}`}
-            >
+            <Link className="button-outline" to={`/operator/contents/${result.content.contentId}`}>
               콘텐츠 보기
             </Link>
           </div>
@@ -150,5 +136,5 @@ export default function OperatorReservationSearchPage() {
         </article>
       )}
     </section>
-  )
+  );
 }

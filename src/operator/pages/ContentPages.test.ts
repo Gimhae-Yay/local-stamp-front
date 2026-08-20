@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest";
 
-import { ApiError } from "../../api/client"
+import { ApiError } from "../../api/client";
 
 import {
   canManageSession,
@@ -8,7 +8,7 @@ import {
   sessionMutationErrorMessage,
   validateContentDraft,
   validateSessionDraft,
-} from "./ContentPages"
+} from "./ContentPages";
 
 const validSession = {
   startsAt: "2026-08-25T10:00",
@@ -20,7 +20,7 @@ const validSession = {
   checkinCloseAt: "2026-08-25T10:30",
 
   capacity: "20",
-}
+};
 
 const validContent = {
   title: "김해 가야문화 체험",
@@ -44,11 +44,11 @@ const validContent = {
   reservationPrice: "20000",
 
   publishAt: "2026-08-21T09:00",
-}
+};
 
 describe("운영자 콘텐츠 생성 입력 검증", () => {
   it("Backend와 같은 회차 시간 순서를 검사한다", () => {
-    expect(validateSessionDraft(validSession)).toBeNull()
+    expect(validateSessionDraft(validSession)).toBeNull();
 
     expect(
       validateSessionDraft({
@@ -56,14 +56,12 @@ describe("운영자 콘텐츠 생성 입력 검증", () => {
 
         checkinCloseAt: validSession.endsAt,
       }),
-    ).toContain("체크인 종료는 회차 종료보다 빨라야")
-  })
+    ).toContain("체크인 종료는 회차 종료보다 빨라야");
+  });
 
   it("유효한 콘텐츠와 회차 입력을 허용한다", () => {
-    expect(
-      validateContentDraft(validContent, [validSession], true, true),
-    ).toBeNull()
-  })
+    expect(validateContentDraft(validContent, [validSession], true, true)).toBeNull();
+  });
 
   it("공백 필드와 유효하지 않은 금액을 API 호출 전에 차단한다", () => {
     expect(
@@ -76,7 +74,7 @@ describe("운영자 콘텐츠 생성 입력 검증", () => {
 
         true,
       ),
-    ).toContain("콘텐츠 제목")
+    ).toContain("콘텐츠 제목");
 
     expect(
       validateContentDraft(
@@ -88,13 +86,13 @@ describe("운영자 콘텐츠 생성 입력 검증", () => {
 
         true,
       ),
-    ).toContain("정수")
-  })
-})
+    ).toContain("정수");
+  });
+});
 
 describe("운영자 회차 상태 처리", () => {
   it("예정된 SCHEDULED 회차에만 변경·취소를 허용한다", () => {
-    const now = Date.parse("2026-08-20T00:00:00Z")
+    const now = Date.parse("2026-08-20T00:00:00Z");
 
     expect(
       canManageSession(
@@ -102,7 +100,7 @@ describe("운영자 회차 상태 처리", () => {
 
         now,
       ),
-    ).toBe(true)
+    ).toBe(true);
 
     expect(
       canManageSession(
@@ -110,7 +108,7 @@ describe("운영자 회차 상태 처리", () => {
 
         now,
       ),
-    ).toBe(false)
+    ).toBe(false);
 
     expect(
       canManageSession(
@@ -118,7 +116,7 @@ describe("운영자 회차 상태 처리", () => {
 
         now,
       ),
-    ).toBe(false)
+    ).toBe(false);
 
     expect(
       canManageSession(
@@ -126,8 +124,8 @@ describe("운영자 회차 상태 처리", () => {
 
         now,
       ),
-    ).toBe(false)
-  })
+    ).toBe(false);
+  });
 
   it("중복 변경 요청과 재취소 충돌을 구체적으로 안내한다", () => {
     expect(
@@ -136,7 +134,7 @@ describe("운영자 회차 상태 처리", () => {
 
         "change",
       ),
-    ).toContain("이미 변경 요청이 심사 중")
+    ).toContain("이미 변경 요청이 심사 중");
 
     expect(
       sessionMutationErrorMessage(
@@ -144,18 +142,14 @@ describe("운영자 회차 상태 처리", () => {
 
         "cancel",
       ),
-    ).toContain("이미 취소")
-  })
-})
+    ).toContain("이미 취소");
+  });
+});
 
 describe("운영자 콘텐츠 중복 요청 처리", () => {
   it("중복 제출과 중복 수정본 생성을 구분해 안내한다", () => {
-    const conflict = new ApiError("상태 충돌", 409, "CONTENT_STATE_CONFLICT")
-    expect(contentMutationErrorMessage(conflict, "submit")).toContain(
-      "이미 심사 요청",
-    )
-    expect(contentMutationErrorMessage(conflict, "revision")).toContain(
-      "이미 심사 중인 수정본",
-    )
-  })
-})
+    const conflict = new ApiError("상태 충돌", 409, "CONTENT_STATE_CONFLICT");
+    expect(contentMutationErrorMessage(conflict, "submit")).toContain("이미 심사 요청");
+    expect(contentMutationErrorMessage(conflict, "revision")).toContain("이미 심사 중인 수정본");
+  });
+});

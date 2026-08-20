@@ -1,10 +1,10 @@
-import ExperienceCard, { type Experience } from "./ExperienceCard"
+import ExperienceCard, { type Experience } from "./ExperienceCard";
 
 interface ExperienceSectionProps {
-  title: string
-  items: Experience[]
-  right?: React.ReactNode
-  onImageRefresh: (failedUrl?: string) => void
+  title: string;
+  items: Experience[];
+  right?: React.ReactNode;
+  onImageRefresh: (failedUrl?: string) => void;
 }
 
 export default function ExperienceSection({
@@ -14,9 +14,7 @@ export default function ExperienceSection({
   onImageRefresh,
 }: ExperienceSectionProps) {
   return (
-    <section
-      style={{ maxWidth: 900, margin: "0 auto", padding: "0 24px 40px" }}
-    >
+    <section style={{ maxWidth: 900, margin: "0 auto", padding: "0 24px 40px" }}>
       {/* Section header */}
       <div
         style={{
@@ -26,9 +24,7 @@ export default function ExperienceSection({
           marginBottom: 16,
         }}
       >
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)" }}>
-          {title}
-        </h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)" }}>{title}</h2>
         {right && (
           <span
             style={{
@@ -51,11 +47,7 @@ export default function ExperienceSection({
           }}
         >
           {items.map((exp) => (
-            <ExperienceCard
-              key={exp.id}
-              exp={exp}
-              onImageRefresh={onImageRefresh}
-            />
+            <ExperienceCard key={exp.id} exp={exp} onImageRefresh={onImageRefresh} />
           ))}
         </div>
       ) : (
@@ -71,5 +63,5 @@ export default function ExperienceSection({
         </div>
       )}
     </section>
-  )
+  );
 }

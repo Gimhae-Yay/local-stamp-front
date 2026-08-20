@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
-import { getPublicContent, getPublicContents, PublicApiError } from "./public"
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { getPublicContent, getPublicContents, PublicApiError } from "./public";
 
 afterEach(() => {
-  vi.unstubAllGlobals()
-})
+  vi.unstubAllGlobals();
+});
 
 describe("public content API", () => {
   it("requests published event contents for the selected region", async () => {
@@ -17,16 +17,16 @@ describe("public content API", () => {
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       ),
-    )
-    vi.stubGlobal("fetch", fetchMock)
+    );
+    vi.stubGlobal("fetch", fetchMock);
 
-    await getPublicContents("region 1", true)
+    await getPublicContents("region 1", true);
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/contents?regionId=region+1&contentType=EVENT_EXPERIENCE&reservationAvailable=true",
       expect.objectContaining({ credentials: "include" }),
-    )
-  })
+    );
+  });
 
   it("encodes a content id before requesting its detail", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
@@ -39,16 +39,18 @@ describe("public content API", () => {
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       ),
-    )
-    vi.stubGlobal("fetch", fetchMock)
+    );
+    vi.stubGlobal("fetch", fetchMock);
 
-    await getPublicContent("content/1")
+    await getPublicContent("content/1");
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/v1/contents/content%2F1")
-  })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/v1/contents/content%2F1");
+  });
 
   it("exposes the backend error message when image-bearing content cannot load", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
         new Response(
           JSON.stringify({
             statusCode: 503,
@@ -58,7 +60,8 @@ describe("public content API", () => {
           }),
           { status: 503, headers: { "Content-Type": "application/json" } },
         ),
-      ))
+      ),
+    );
 
     await expect(getPublicContent("100")).rejects.toEqual(
       expect.objectContaining<Partial<PublicApiError>>({
@@ -66,6 +69,6 @@ describe("public content API", () => {
         status: 503,
         code: "IMAGE_STORAGE_UNAVAILABLE",
       }),
-    )
-  })
-})
+    );
+  });
+});

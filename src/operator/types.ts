@@ -1,459 +1,459 @@
 export interface OperatorAssignment {
-  role: "OPERATOR"
+  role: "OPERATOR";
 
-  regionId: string
+  regionId: string;
 
-  regionName: string | null
+  regionName: string | null;
 }
 
 export interface OperatorSession {
-  userId: string
+  userId: string;
 
-  assignment: OperatorAssignment
+  assignment: OperatorAssignment;
 }
 
 export interface ContentSummary {
-  contentId: string
+  contentId: string;
 
-  contentType: string
+  contentType: string;
 
-  title: string
+  title: string;
 
-  status: string
+  status: string;
 
-  createdAt: string
+  createdAt: string;
 }
 
 export interface ContentDetail {
-  contentId: string
+  contentId: string;
 
-  contentType: string
+  contentType: string;
 
-  status: string
+  status: string;
 
-  title: string
+  title: string;
 
-  description: string
+  description: string;
 
-  representativeImageUrl: string | null
+  representativeImageUrl: string | null;
 
-  representativeImageUrlExpiresAt: string | null
+  representativeImageUrlExpiresAt: string | null;
 
-  locationText: string
+  locationText: string;
 
-  operatingHoursText: string
+  operatingHoursText: string;
 
-  contactText: string
+  contactText: string;
 
-  precautions: string
+  precautions: string;
 
-  ageRequirement: string
+  ageRequirement: string;
 
-  materials: string
+  materials: string;
 
-  cancellationPolicyText: string
+  cancellationPolicyText: string;
 
-  publishAt: string
+  publishAt: string;
 
-  rejectionReason: string | null
+  rejectionReason: string | null;
 
-  createdAt: string
+  createdAt: string;
 
-  updatedAt: string
+  updatedAt: string;
 }
 
 export interface ContentSessionSummary {
-  sessionId: string
+  sessionId: string;
 
-  startsAt: string
+  startsAt: string;
 
-  endsAt: string
+  endsAt: string;
 }
 
 export interface CreatedContentSession extends ContentSessionSummary {
-  contentId: string
+  contentId: string;
 
-  status: string
+  status: string;
 
-  checkinOpenAt: string
+  checkinOpenAt: string;
 
-  checkinCloseAt: string
+  checkinCloseAt: string;
 
-  capacity: number
+  capacity: number;
 }
 
 export interface SessionChangeRequestResult {
-  revisionId: string
+  revisionId: string;
 
-  status: string
+  status: string;
 }
 
 export interface ContentRevisionResult {
-  revisionId: string
-  contentId: string
-  status: string
-  submittedAt?: string
-  updatedAt?: string
+  revisionId: string;
+  contentId: string;
+  status: string;
+  submittedAt?: string;
+  updatedAt?: string;
 }
 
 export interface WithdrawContentRevisionResult {
-  revisionId: string
-  contentId: string
-  status: string
-  withdrawalReason: string
-  withdrawnAt: string
+  revisionId: string;
+  contentId: string;
+  status: string;
+  withdrawalReason: string;
+  withdrawnAt: string;
 }
 
 export interface SessionInput {
-  startsAt: string
+  startsAt: string;
 
-  endsAt: string
+  endsAt: string;
 
-  checkinOpenAt: string
+  checkinOpenAt: string;
 
-  checkinCloseAt: string
+  checkinCloseAt: string;
 
-  capacity: number
+  capacity: number;
 }
 
 export interface ContentInput {
-  title: string
+  title: string;
 
-  description: string
+  description: string;
 
-  locationText: string
+  locationText: string;
 
-  operatingHoursText: string
+  operatingHoursText: string;
 
-  contactText: string
+  contactText: string;
 
-  precautions: string
+  precautions: string;
 
-  ageRequirement: string
+  ageRequirement: string;
 
-  materials: string
+  materials: string;
 
-  cancellationPolicyText: string
+  cancellationPolicyText: string;
 
-  reservationPrice: number
+  reservationPrice: number;
 
-  publishAt: string | null
+  publishAt: string | null;
 
-  representativeImageObjectId?: string
+  representativeImageObjectId?: string;
 }
 
 export interface SessionReservations {
-  contentId: string
+  contentId: string;
 
   session: {
-    sessionId: string
+    sessionId: string;
 
-    status: string
+    status: string;
 
-    startsAt: string
+    startsAt: string;
 
-    endsAt: string
+    endsAt: string;
 
-    checkinOpenAt: string
+    checkinOpenAt: string;
 
-    checkinCloseAt: string
-  }
+    checkinCloseAt: string;
+  };
 
   reservations: Array<{
-    reservationId: string
+    reservationId: string;
 
-    reservationNo: string
+    reservationNo: string;
 
-    status: string
+    status: string;
 
-    quantity: number
+    quantity: number;
 
-    confirmedAt: string | null
+    confirmedAt: string | null;
 
-    participant: { name: string, phone: string | null }
+    participant: { name: string; phone: string | null };
 
-    checkIn: { checkedIn: boolean, checkedAt: string | null }
-  }>
+    checkIn: { checkedIn: boolean; checkedAt: string | null };
+  }>;
 }
 
 export interface ReservationSearchResult {
-  reservationId: string
+  reservationId: string;
 
-  reservationNo: string
+  reservationNo: string;
 
-  status: string
+  status: string;
 
-  content: { contentId: string, title: string }
+  content: { contentId: string; title: string };
 
   session: {
-    sessionId: string
+    sessionId: string;
 
-    status: string
+    status: string;
 
-    startsAt: string
+    startsAt: string;
 
-    endsAt: string
+    endsAt: string;
 
-    checkinOpenAt: string
+    checkinOpenAt: string;
 
-    checkinCloseAt: string
-  }
+    checkinCloseAt: string;
+  };
 
-  participant: { name: string, phone: string | null }
+  participant: { name: string; phone: string | null };
 
   checkIn: {
-    checkedIn: boolean
+    checkedIn: boolean;
 
-    canCheckIn: boolean
+    canCheckIn: boolean;
 
-    checkedAt: string | null
-  }
+    checkedAt: string | null;
+  };
 }
 
 export interface ReservationPayment {
-  reservationId: string
+  reservationId: string;
 
-  reservationNo: string
+  reservationNo: string;
 
-  contentId: string
+  contentId: string;
 
-  sessionId: string
+  sessionId: string;
 
   payment: null | {
-    paymentId: string
+    paymentId: string;
 
-    status: string
+    status: string;
 
-    finalAmount: number
+    finalAmount: number;
 
-    currency: string
+    currency: string;
 
-    discrepancy: null | { discrepancyId: string, status: string }
-  }
+    discrepancy: null | { discrepancyId: string; status: string };
+  };
 
   refund: null | {
-    refundId: string
+    refundId: string;
 
-    status: string
+    status: string;
 
-    amount: number
+    amount: number;
 
-    requestedAt: string
+    requestedAt: string;
 
-    completedAt: string | null
-  }
+    completedAt: string | null;
+  };
 
-  updatedAt: string
+  updatedAt: string;
 }
 
 export interface CheckInResult {
-  visitId: string
+  visitId: string;
 
-  reservationId: string
+  reservationId: string;
 
-  sessionId: string
+  sessionId: string;
 
-  reservationStatus: string
+  reservationStatus: string;
 
-  checkInMethod: string
+  checkInMethod: string;
 
-  checkedAt: string
+  checkedAt: string;
 }
 
 export interface CouponPolicySummary {
-  couponPolicyId: string
+  couponPolicyId: string;
 
-  contentId: string
+  contentId: string;
 
-  name: string
+  name: string;
 
-  status: string
+  status: string;
 }
 
 export interface CouponPolicyDetail extends CouponPolicySummary {
-  regionId: string
+  regionId: string;
 
-  description: string | null
+  description: string | null;
 
-  issueSourceType: string
+  issueSourceType: string;
 
-  discountAmount: number
+  discountAmount: number;
 
-  minimumPaymentAmount: number
+  minimumPaymentAmount: number;
 
-  validDaysAfterIssue: number
+  validDaysAfterIssue: number;
 
-  issueStartsAt: string
+  issueStartsAt: string;
 
-  issueEndsAt: string
+  issueEndsAt: string;
 
-  totalIssueLimit: number | null
+  totalIssueLimit: number | null;
 
-  issuedCount: number
+  issuedCount: number;
 
-  publishedAt: string | null
+  publishedAt: string | null;
 
-  endedAt: string | null
+  endedAt: string | null;
 }
 
 export interface CreatedCouponPolicy extends CouponPolicySummary {
-  regionId: string
+  regionId: string;
 
-  issueSourceType: string
+  issueSourceType: string;
 
-  discountAmount: number
+  discountAmount: number;
 
-  minimumPaymentAmount: number
+  minimumPaymentAmount: number;
 
-  validDaysAfterIssue: number
+  validDaysAfterIssue: number;
 
-  issueStartsAt: string
+  issueStartsAt: string;
 
-  issueEndsAt: string
+  issueEndsAt: string;
 
-  totalIssueLimit: number | null
+  totalIssueLimit: number | null;
 
-  createdAt: string
+  createdAt: string;
 }
 
 export interface CouponPolicyInput {
-  contentId: string
+  contentId: string;
 
-  name: string
+  name: string;
 
-  description: string
+  description: string;
 
-  issueSourceType: string
+  issueSourceType: string;
 
-  discountAmount: number
+  discountAmount: number;
 
-  minimumPaymentAmount: number
+  minimumPaymentAmount: number;
 
-  validDaysAfterIssue: number
+  validDaysAfterIssue: number;
 
-  issueStartsAt: string
+  issueStartsAt: string;
 
-  issueEndsAt: string
+  issueEndsAt: string;
 
-  totalIssueLimit: number | null
+  totalIssueLimit: number | null;
 }
 
 export interface MissionSummary {
-  missionId: string
+  missionId: string;
 
-  status: string
+  status: string;
 
-  conditionType: string
+  conditionType: string;
 
-  endsAt: string
+  endsAt: string;
 }
 
 export interface MissionDetail extends MissionSummary {
-  title: string
+  title: string;
 
-  regionId: string
+  regionId: string;
 
-  requiredVisitCount: number | null
+  requiredVisitCount: number | null;
 
-  targetContents: Array<{ contentId: string, title: string }>
+  targetContents: Array<{ contentId: string; title: string }>;
 
-  rewardCouponPolicyId: string
+  rewardCouponPolicyId: string;
 
-  publishedAt: string | null
+  publishedAt: string | null;
 
-  endedAt: string | null
+  endedAt: string | null;
 }
 
 export interface MissionInput {
-  title: string
+  title: string;
 
-  conditionType: string
+  conditionType: string;
 
-  requiredVisitCount: number | null
+  requiredVisitCount: number | null;
 
-  targetContentIds: string[]
+  targetContentIds: string[];
 
-  rewardCouponPolicyId: string
+  rewardCouponPolicyId: string;
 
-  endsAt: string
+  endsAt: string;
 }
 
 export interface PageData<T> {
-  content: T[]
+  content: T[];
 
-  page: number
+  page: number;
 
-  size: number
+  size: number;
 
-  totalElements: number
+  totalElements: number;
 
-  totalPages: number
+  totalPages: number;
 }
 
 export interface StampbookDraft {
-  stampbookId: string
+  stampbookId: string;
 
-  status: string
+  status: string;
 
-  targetCount: number
+  targetCount: number;
 
-  createdAt: string
+  createdAt: string;
 }
 
 export interface StampbookInput {
-  title: string
+  title: string;
 
-  regionId: string
+  regionId: string;
 
-  contentIds: string[]
+  contentIds: string[];
 
-  rewardCouponPolicyId: string
+  rewardCouponPolicyId: string;
 
-  reason: string
+  reason: string;
 }
 
 export interface OperatorStampbookSummary {
-  stampbookId: string
+  stampbookId: string;
 
-  title: string
+  title: string;
 
-  regionId: string
+  regionId: string;
 
-  status: string
+  status: string;
 
-  targetCount: number
+  targetCount: number;
 
-  rewardCouponPolicyId: string
+  rewardCouponPolicyId: string;
 
-  publishedAt: string | null
+  publishedAt: string | null;
 
-  endedAt: string | null
+  endedAt: string | null;
 }
 
 export interface OperatorStampbookDetail {
-  stampbookId: string
+  stampbookId: string;
 
-  title: string
+  title: string;
 
-  regionId: string
+  regionId: string;
 
-  status: string
+  status: string;
 
   targetContents: Array<{
-    contentId: string
-    regionId: string
-    title: string
-    status: string
-  }>
+    contentId: string;
+    regionId: string;
+    title: string;
+    status: string;
+  }>;
 
   rewardCouponPolicy: {
-    couponPolicyId: string
-    regionId: string
-    issuanceType: string
-    status: string
-  }
+    couponPolicyId: string;
+    regionId: string;
+    issuanceType: string;
+    status: string;
+  };
 
-  publishedAt: string | null
+  publishedAt: string | null;
 
-  endedAt: string | null
+  endedAt: string | null;
 }

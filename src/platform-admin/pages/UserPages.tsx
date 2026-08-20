@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react"
-import { ApiError, apiRequest } from "../../admin/api"
+import { useMemo, useState } from "react";
+import { ApiError, apiRequest } from "../../admin/api";
 import {
   ApiErrorMessage,
   AsyncState,
@@ -10,44 +10,38 @@ import {
   StatusBadge,
   formatDate,
   usePlatformData,
-} from "../PlatformComponents"
-import type { PlatformRegion, PlatformUser } from "../types"
+} from "../PlatformComponents";
+import type { PlatformRegion, PlatformUser } from "../types";
 
-type RoleMode = "REGION_ADMIN" | "NONE"
+type RoleMode = "REGION_ADMIN" | "NONE";
 
 export default function UserListPage() {
-  const state = usePlatformData<{ users: PlatformUser[] }>(
-    "/api/v1/platform-admin/users",
-  )
-  const regions = usePlatformData<{ regions: PlatformRegion[] }>(
-    "/api/v1/platform-admin/regions",
-  )
-  const [query, setQuery] = useState("")
-  const [tab, setTab] = useState<"users" | "admins">("users")
-  const [selected, setSelected] = useState<PlatformUser | null>(null)
-  const [page, setPage] = useState(1)
+  const state = usePlatformData<{ users: PlatformUser[] }>("/api/v1/platform-admin/users");
+  const regions = usePlatformData<{ regions: PlatformRegion[] }>("/api/v1/platform-admin/regions");
+  const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<"users" | "admins">("users");
+  const [selected, setSelected] = useState<PlatformUser | null>(null);
+  const [page, setPage] = useState(1);
   const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase()
+    const normalized = query.trim().toLowerCase();
     return (state.data?.users ?? []).filter((user) => {
       const isPlatformAdmin = user.roleAssignments.some(
         (assignment) => assignment.role === "PLATFORM_ADMIN",
-      )
-      if ((tab === "admins") !== isPlatformAdmin) return false
+      );
+      if ((tab === "admins") !== isPlatformAdmin) return false;
       return (
         !normalized ||
-        `${user.name} ${user.loginIdentifier} ${user.userId}`
-          .toLowerCase()
-          .includes(normalized)
-      )
-    })
-  }, [query, state.data, tab])
-  const pageSize = 8
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const rows = filtered.slice((page - 1) * pageSize, page * pageSize)
+        `${user.name} ${user.loginIdentifier} ${user.userId}`.toLowerCase().includes(normalized)
+      );
+    });
+  }, [query, state.data, tab]);
+  const pageSize = 8;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const rows = filtered.slice((page - 1) * pageSize, page * pageSize);
   const chooseTab = (value: typeof tab) => {
-    setTab(value)
-    setPage(1)
-  }
+    setTab(value);
+    setPage(1);
+  };
 
   return (
     <main className="pa-content">
@@ -56,16 +50,10 @@ export default function UserListPage() {
         description="활성 일반 계정의 현재 역할과 담당 지역을 확인합니다."
       />
       <div className="pa-tabs">
-        <button
-          className={tab === "users" ? "active" : ""}
-          onClick={() => chooseTab("users")}
-        >
+        <button className={tab === "users" ? "active" : ""} onClick={() => chooseTab("users")}>
           일반 사용자·지역 관리자 역할
         </button>
-        <button
-          className={tab === "admins" ? "active" : ""}
-          onClick={() => chooseTab("admins")}
-        >
+        <button className={tab === "admins" ? "active" : ""} onClick={() => chooseTab("admins")}>
           ▣ 전체 관리자 계정
         </button>
       </div>
@@ -75,8 +63,8 @@ export default function UserListPage() {
           <input
             value={query}
             onChange={(event) => {
-              setQuery(event.target.value)
-              setPage(1)
+              setQuery(event.target.value);
+              setPage(1);
             }}
             placeholder="이름, 이메일 또는 사용자 ID 검색"
           />
@@ -90,8 +78,8 @@ export default function UserListPage() {
               {rows.map((user) => {
                 const regionRole = user.roleAssignments.find(
                   (assignment) => assignment.role === "REGION_ADMIN",
-                )
-                const displayRole = regionRole ?? user.roleAssignments[0]
+                );
+                const displayRole = regionRole ?? user.roleAssignments[0];
                 return (
                   <article
                     className={`pa-list-row pa-user-row ${
@@ -130,7 +118,7 @@ export default function UserListPage() {
                       역할 변경
                     </button>
                   </article>
-                )
+                );
               })}
             </section>
             <Pagination page={page} total={totalPages} onChange={setPage} />
@@ -143,13 +131,13 @@ export default function UserListPage() {
           regions={regions.data?.regions ?? []}
           onClose={() => setSelected(null)}
           onSuccess={() => {
-            setSelected(null)
-            state.reload()
+            setSelected(null);
+            state.reload();
           }}
         />
       )}
     </main>
-  )
+  );
 }
 
 function RoleModal({
@@ -158,40 +146,34 @@ function RoleModal({
   onClose,
   onSuccess,
 }: {
-  user: PlatformUser
-  regions: PlatformRegion[]
-  onClose: () => void
-  onSuccess: () => void
+  user: PlatformUser;
+  regions: PlatformRegion[];
+  onClose: () => void;
+  onSuccess: () => void;
 }) {
-  const current = user.roleAssignments.find(
-    (assignment) => assignment.role === "REGION_ADMIN",
-  )
-  const [role, setRole] = useState<RoleMode>(
-    current ? "REGION_ADMIN" : "REGION_ADMIN",
-  )
-  const [regionId, setRegionId] = useState(
-    current?.regionId ?? regions[0]?.regionId ?? "",
-  )
+  const current = user.roleAssignments.find((assignment) => assignment.role === "REGION_ADMIN");
+  const [role, setRole] = useState<RoleMode>(current ? "REGION_ADMIN" : "REGION_ADMIN");
+  const [regionId, setRegionId] = useState(current?.regionId ?? regions[0]?.regionId ?? "");
   const [reasonCode, setReasonCode] = useState(
     current ? "REGION_ADMIN_REASSIGNMENT" : "REGION_ADMIN_APPOINTMENT",
-  )
-  const [evidenceReference, setEvidenceReference] = useState("")
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState("")
+  );
+  const [evidenceReference, setEvidenceReference] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const changeRole = (next: RoleMode) => {
-    setRole(next)
+    setRole(next);
     setReasonCode(
       next === "NONE"
         ? "REGION_ADMIN_REVOCATION"
         : current
           ? "REGION_ADMIN_REASSIGNMENT"
           : "REGION_ADMIN_APPOINTMENT",
-    )
-  }
+    );
+  };
   const submit = async (event: React.FormEvent) => {
-    event.preventDefault()
-    setSubmitting(true)
-    setError("")
+    event.preventDefault();
+    setSubmitting(true);
+    setError("");
     try {
       await apiRequest(`/api/v1/platform-admin/users/${user.userId}/role`, {
         method: "PATCH",
@@ -201,18 +183,14 @@ function RoleModal({
           reasonCode,
           evidenceReference,
         }),
-      })
-      onSuccess()
+      });
+      onSuccess();
     } catch (caught) {
-      setError(
-        caught instanceof ApiError
-          ? caught.message
-          : "역할을 변경하지 못했습니다.",
-      )
+      setError(caught instanceof ApiError ? caught.message : "역할을 변경하지 못했습니다.");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
   return (
     <Modal
       title="지역 관리자 역할 변경"
@@ -239,10 +217,7 @@ function RoleModal({
           </div>
         </div>
         <Field label="변경 목표 *">
-          <select
-            value={role}
-            onChange={(event) => changeRole(event.target.value as RoleMode)}
-          >
+          <select value={role} onChange={(event) => changeRole(event.target.value as RoleMode)}>
             <option value="REGION_ADMIN">
               {current ? "다른 지역으로 재배정" : "지역 관리자 신규 임명"}
             </option>
@@ -251,11 +226,7 @@ function RoleModal({
         </Field>
         {role === "REGION_ADMIN" && (
           <Field label="대상 지역 *">
-            <select
-              value={regionId}
-              onChange={(event) => setRegionId(event.target.value)}
-              required
-            >
+            <select value={regionId} onChange={(event) => setRegionId(event.target.value)} required>
               {regions.map((region) => (
                 <option key={region.regionId} value={region.regionId}>
                   {region.name} · 지역 ID {region.regionId}
@@ -267,18 +238,13 @@ function RoleModal({
         <Field label="변경 사유 코드 *" help="영문 대문자와 밑줄만 입력합니다.">
           <input
             value={reasonCode}
-            onChange={(event) =>
-              setReasonCode(event.target.value.toUpperCase())
-            }
+            onChange={(event) => setReasonCode(event.target.value.toUpperCase())}
             maxLength={100}
             pattern="[A-Z][A-Z0-9_]*"
             required
           />
         </Field>
-        <Field
-          label="증빙 참조 *"
-          help="개인정보·토큰·비밀값을 입력하지 마세요."
-        >
+        <Field label="증빙 참조 *" help="개인정보·토큰·비밀값을 입력하지 마세요.">
           <textarea
             value={evidenceReference}
             onChange={(event) => setEvidenceReference(event.target.value)}
@@ -289,8 +255,8 @@ function RoleModal({
         <div className="pa-notice pa-notice-orange">
           <strong>마지막 관리자 보호</strong>
           <span>
-            비삭제 콘텐츠가 있는 기존 지역의 마지막 활성 지역 관리자는
-            재배정하거나 회수할 수 없습니다.
+            비삭제 콘텐츠가 있는 기존 지역의 마지막 활성 지역 관리자는 재배정하거나 회수할 수
+            없습니다.
           </span>
         </div>
         <ApiErrorMessage error={error} />
@@ -299,19 +265,13 @@ function RoleModal({
             취소
           </button>
           <button
-            className={`pa-button ${
-              role === "NONE" ? "pa-button-danger" : "pa-button-primary"
-            }`}
+            className={`pa-button ${role === "NONE" ? "pa-button-danger" : "pa-button-primary"}`}
             disabled={submitting}
           >
-            {submitting
-              ? "요청 중…"
-              : role === "NONE"
-                ? "역할 회수 실행"
-                : "역할 변경 요청"}
+            {submitting ? "요청 중…" : role === "NONE" ? "역할 회수 실행" : "역할 변경 요청"}
           </button>
         </div>
       </form>
     </Modal>
-  )
+  );
 }

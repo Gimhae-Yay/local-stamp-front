@@ -1,9 +1,9 @@
-import { useState } from "react"
+import { useState } from "react";
 
 export interface RegionOption {
-  regionId: string
-  regionCode: string
-  name: string
+  regionId: string;
+  regionCode: string;
+  name: string;
 }
 
 export default function RegionDialog({
@@ -12,15 +12,13 @@ export default function RegionDialog({
   onSelect,
   onClose,
 }: {
-  regions: RegionOption[]
-  regionId: string
-  onSelect: (region: RegionOption) => void
-  onClose: () => void
+  regions: RegionOption[];
+  regionId: string;
+  onSelect: (region: RegionOption) => void;
+  onClose: () => void;
 }) {
-  const [query, setQuery] = useState("")
-  const visibleRegions = regions.filter((region) =>
-    region.name.includes(query.trim()),
-  )
+  const [query, setQuery] = useState("");
+  const visibleRegions = regions.filter((region) => region.name.includes(query.trim()));
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
@@ -49,12 +47,10 @@ export default function RegionDialog({
           {visibleRegions.map((item) => (
             <button
               key={item.regionId}
-              className={`region-option${
-                item.regionId === regionId ? " selected" : ""
-              }`}
+              className={`region-option${item.regionId === regionId ? " selected" : ""}`}
               onClick={() => {
-                onSelect(item)
-                onClose()
+                onSelect(item);
+                onClose();
               }}
             >
               <span className="region-mark">✦</span>
@@ -67,10 +63,10 @@ export default function RegionDialog({
           {visibleRegions.length === 0 && <p>검색 결과가 없습니다.</p>}
         </div>
         <p className="dialog-footnote">
-          새로운 지역을 계속 추가하고 있어요. 원하는 지역의 행사·체험은 해당
-          지자체 서비스 시작 후 확인할 수 있습니다.
+          새로운 지역을 계속 추가하고 있어요. 원하는 지역의 행사·체험은 해당 지자체 서비스 시작 후
+          확인할 수 있습니다.
         </p>
       </section>
     </div>
-  )
+  );
 }

@@ -1,51 +1,47 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
-import { ApiError, apiRequest } from "./api"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ApiError, apiRequest } from "./api";
 
 export function useApiData<T>(path: string | null) {
-  const [data, setData] = useState<T | null>(null)
-  const [loading, setLoading] = useState(Boolean(path))
-  const [error, setError] = useState<ApiError | null>(null)
-  const [revision, setRevision] = useState(0)
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(Boolean(path));
+  const [error, setError] = useState<ApiError | null>(null);
+  const [revision, setRevision] = useState(0);
 
-  const reload = useCallback(() => setRevision((value) => value + 1), [])
+  const reload = useCallback(() => setRevision((value) => value + 1), []);
 
   useEffect(() => {
     if (!path) {
-      setLoading(false)
-      setError(null)
-      return
+      setLoading(false);
+      setError(null);
+      return;
     }
-    let active = true
-    const controller = new AbortController()
-    setLoading(true)
-    setError(null)
+    let active = true;
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
     apiRequest<T>(path, { signal: controller.signal })
       .then((value) => {
-        if (active) setData(value)
+        if (active) setData(value);
       })
       .catch((caught) => {
         if (active && !controller.signal.aborted)
           setError(
             caught instanceof ApiError
               ? caught
-              : new ApiError(
-                  "데이터를 불러오지 못했습니다.",
-                  0,
-                  "NETWORK_ERROR",
-                ),
-          )
+              : new ApiError("데이터를 불러오지 못했습니다.", 0, "NETWORK_ERROR"),
+          );
       })
       .finally(() => {
-        if (active) setLoading(false)
-      })
+        if (active) setLoading(false);
+      });
     return () => {
-      active = false
-      controller.abort()
-    }
-  }, [path, revision])
+      active = false;
+      controller.abort();
+    };
+  }, [path, revision]);
 
-  return { data, loading, error, reload }
+  return { data, loading, error, reload };
 }
 
 export function PageHeader({
@@ -53,35 +49,29 @@ export function PageHeader({
   description,
   actions,
 }: {
-  title: string
-  description: string
-  actions?: ReactNode
+  title: string;
+  description: string;
+  actions?: ReactNode;
 }) {
-  const location = useLocation()
-  const navigate = useNavigate()
+  const location = useLocation();
+  const navigate = useNavigate();
   const routeState = location.state as {
-    completed?: boolean
-    successMessage?: string
-  } | null
+    completed?: boolean;
+    successMessage?: string;
+  } | null;
   const incomingCompletion = routeState?.completed
     ? (routeState.successMessage ?? "요청 처리가 완료되었습니다.")
-    : null
-  const [completion, setCompletion] = useState(incomingCompletion)
+    : null;
+  const [completion, setCompletion] = useState(incomingCompletion);
 
   useEffect(() => {
-    if (!incomingCompletion) return
-    setCompletion(incomingCompletion)
+    if (!incomingCompletion) return;
+    setCompletion(incomingCompletion);
     navigate(`${location.pathname}${location.search}${location.hash}`, {
       replace: true,
       state: null,
-    })
-  }, [
-    incomingCompletion,
-    location.hash,
-    location.pathname,
-    location.search,
-    navigate,
-  ])
+    });
+  }, [incomingCompletion, location.hash, location.pathname, location.search, navigate]);
 
   return (
     <>
@@ -103,17 +93,11 @@ export function PageHeader({
         </div>
       )}
     </>
-  )
+  );
 }
 
-export function StatusBadge({
-  value,
-  label,
-}: {
-  value: string
-  label?: string
-}) {
-  const normalized = value.toLowerCase().replace(/_/g, "-")
+export function StatusBadge({ value, label }: { value: string; label?: string }) {
+  const normalized = value.toLowerCase().replace(/_/g, "-");
   const labels: Record<string, string> = {
     PENDING: "승인 대기",
     PENDING_REVIEW: "심사 대기",
@@ -136,12 +120,10 @@ export function StatusBadge({
     EVENT_EXPERIENCE: "행사·체험",
     PUBLISHED_REVISION: "공개 콘텐츠 수정",
     PRE_PUBLIC_REVISION: "공개 전 수정",
-  }
+  };
   return (
-    <span className={`ra-badge ra-badge-${normalized}`}>
-      {label ?? labels[value] ?? value}
-    </span>
-  )
+    <span className={`ra-badge ra-badge-${normalized}`}>{label ?? labels[value] ?? value}</span>
+  );
 }
 
 export function LoadingState({ detail = false }: { detail?: boolean }) {
@@ -153,7 +135,7 @@ export function LoadingState({ detail = false }: { detail?: boolean }) {
         <p>담당 지역의 최신 데이터를 확인하고 있습니다.</p>
       </div>
     </div>
-  )
+  );
 }
 
 export function EmptyState({
@@ -161,9 +143,9 @@ export function EmptyState({
   description,
   filtered = false,
 }: {
-  title?: string
-  description?: string
-  filtered?: boolean
+  title?: string;
+  description?: string;
+  filtered?: boolean;
 }) {
   return (
     <div className="ra-state">
@@ -178,16 +160,10 @@ export function EmptyState({
         </p>
       </div>
     </div>
-  )
+  );
 }
 
-export function ErrorState({
-  error,
-  onRetry,
-}: {
-  error: ApiError
-  onRetry: () => void
-}) {
+export function ErrorState({ error, onRetry }: { error: ApiError; onRetry: () => void }) {
   return (
     <div className="ra-alert" role="alert">
       <strong>정보를 불러오지 못했습니다.</strong>
@@ -198,7 +174,7 @@ export function ErrorState({
         다시 시도
       </button>
     </div>
-  )
+  );
 }
 
 export function AsyncContent<T>({
@@ -209,41 +185,30 @@ export function AsyncContent<T>({
   emptyDescription,
   emptyFiltered = false,
 }: {
-  state: ReturnType<typeof useApiData<T>>
-  children: (data: T) => ReactNode
-  empty?: (data: T) => boolean
-  emptyTitle?: string
-  emptyDescription?: string
-  emptyFiltered?: boolean
+  state: ReturnType<typeof useApiData<T>>;
+  children: (data: T) => ReactNode;
+  empty?: (data: T) => boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  emptyFiltered?: boolean;
 }) {
-  if (state.loading && !state.data) return <LoadingState />
-  if (state.error && !state.data)
-    return <ErrorState error={state.error} onRetry={state.reload} />
+  if (state.loading && !state.data) return <LoadingState />;
+  if (state.error && !state.data) return <ErrorState error={state.error} onRetry={state.reload} />;
   if (!state.data || empty?.(state.data))
     return (
-      <EmptyState
-        title={emptyTitle}
-        description={emptyDescription}
-        filtered={emptyFiltered}
-      />
-    )
+      <EmptyState title={emptyTitle} description={emptyDescription} filtered={emptyFiltered} />
+    );
   return (
     <>
       {state.error && (
-        <div className="ra-inline-warning">
-          새로고침에 실패해 이전 데이터를 표시합니다.
-        </div>
+        <div className="ra-inline-warning">새로고침에 실패해 이전 데이터를 표시합니다.</div>
       )}
       {children(state.data)}
     </>
-  )
+  );
 }
 
-export function KeyValueGrid({
-  items,
-}: {
-  items: Array<[string, ReactNode, boolean?]>
-}) {
+export function KeyValueGrid({ items }: { items: Array<[string, ReactNode, boolean?]> }) {
   return (
     <dl className="ra-kv-grid">
       {items.map(([label, value, full]) => (
@@ -253,7 +218,7 @@ export function KeyValueGrid({
         </div>
       ))}
     </dl>
-  )
+  );
 }
 
 export function Panel({
@@ -261,9 +226,9 @@ export function Panel({
   children,
   action,
 }: {
-  title: string
-  children: ReactNode
-  action?: ReactNode
+  title: string;
+  children: ReactNode;
+  action?: ReactNode;
 }) {
   return (
     <section className="ra-panel">
@@ -273,29 +238,29 @@ export function Panel({
       </header>
       <div className="ra-panel-body">{children}</div>
     </section>
-  )
+  );
 }
 
 export interface ActionConfig {
-  title: string
-  description: string
-  confirmLabel: string
-  endpoint: string
-  method?: "POST" | "DELETE"
-  tone?: "admin" | "danger" | "primary"
+  title: string;
+  description: string;
+  confirmLabel: string;
+  endpoint: string;
+  method?: "POST" | "DELETE";
+  tone?: "admin" | "danger" | "primary";
   reason?: {
-    label: string
-    field: string
-    required?: boolean
-    maxLength?: number
-    placeholder?: string
-    options?: Array<{ value: string, label: string }>
-  }
-  body?: Record<string, unknown>
-  target?: string
-  result?: string
-  warning?: string
-  errorMessages?: Record<string, string>
+    label: string;
+    field: string;
+    required?: boolean;
+    maxLength?: number;
+    placeholder?: string;
+    options?: Array<{ value: string; label: string }>;
+  };
+  body?: Record<string, unknown>;
+  target?: string;
+  result?: string;
+  warning?: string;
+  errorMessages?: Record<string, string>;
 }
 
 export function ActionModal({
@@ -303,110 +268,108 @@ export function ActionModal({
   onClose,
   onSuccess,
 }: {
-  config: ActionConfig
-  onClose: () => void
-  onSuccess: () => void
+  config: ActionConfig;
+  onClose: () => void;
+  onSuccess: () => void;
 }) {
-  const [reason, setReason] = useState("")
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState("")
-  const dialogRef = useRef<HTMLElement>(null)
-  const onCloseRef = useRef(onClose)
-  const submittingRef = useRef(submitting)
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const dialogRef = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
+  const submittingRef = useRef(submitting);
 
   useEffect(() => {
-    onCloseRef.current = onClose
-  }, [onClose])
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
-    submittingRef.current = submitting
-  }, [submitting])
+    submittingRef.current = submitting;
+  }, [submitting]);
 
   useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null
-    const dialog = dialogRef.current
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
     const focusableSelector =
-      'button:not([disabled]), textarea:not([disabled]), select:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+      'button:not([disabled]), textarea:not([disabled]), select:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 
     const focusDialog = () => {
-      if (!dialog?.contains(document.activeElement)) dialog?.focus()
-    }
-    queueMicrotask(focusDialog)
+      if (!dialog?.contains(document.activeElement)) dialog?.focus();
+    };
+    queueMicrotask(focusDialog);
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !submittingRef.current) {
-        event.preventDefault()
-        onCloseRef.current()
-        return
+        event.preventDefault();
+        onCloseRef.current();
+        return;
       }
-      if (event.key !== "Tab" || !dialog) return
+      if (event.key !== "Tab" || !dialog) return;
 
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(focusableSelector),
-      )
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector));
       if (!focusable.length) {
-        event.preventDefault()
-        dialog.focus()
-        return
+        event.preventDefault();
+        dialog.focus();
+        return;
       }
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
       if (
         event.shiftKey &&
         (document.activeElement === first || document.activeElement === dialog)
       ) {
-        event.preventDefault()
-        last.focus()
+        event.preventDefault();
+        last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
+        event.preventDefault();
+        first.focus();
       }
-    }
+    };
 
-    document.addEventListener("keydown", handleKeyDown)
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener("keydown", handleKeyDown)
-      previouslyFocused?.focus()
-    }
-  }, [])
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, []);
 
   const submit = async () => {
-    if (submittingRef.current) return
+    if (submittingRef.current) return;
     if (config.reason?.required && !reason.trim()) {
-      setError(`${config.reason.label}을 입력해 주세요.`)
-      return
+      setError(`${config.reason.label}을 입력해 주세요.`);
+      return;
     }
-    submittingRef.current = true
-    setSubmitting(true)
-    setError("")
+    submittingRef.current = true;
+    setSubmitting(true);
+    setError("");
     const body = {
       ...config.body,
       ...(config.reason ? { [config.reason.field]: reason.trim() } : {}),
-    }
+    };
     try {
       await apiRequest(config.endpoint, {
         method: config.method ?? "POST",
         body: Object.keys(body).length ? JSON.stringify(body) : undefined,
-      })
-      onSuccess()
+      });
+      onSuccess();
     } catch (caught) {
       setError(
         caught instanceof ApiError
           ? (config.errorMessages?.[caught.code] ?? caught.message)
           : "처리하지 못했습니다.",
-      )
+      );
     } finally {
-      submittingRef.current = false
-      setSubmitting(false)
+      submittingRef.current = false;
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <div
       className="ra-modal-backdrop"
       role="presentation"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !submitting) onClose()
+        if (event.target === event.currentTarget && !submitting) onClose();
       }}
     >
       <section
@@ -439,9 +402,7 @@ export function ActionModal({
               )}
             </dl>
           )}
-          {config.warning && (
-            <div className="ra-modal-warning">{config.warning}</div>
-          )}
+          {config.warning && <div className="ra-modal-warning">{config.warning}</div>}
           {config.reason && (
             <label className="ra-field">
               {config.reason.label}
@@ -483,12 +444,7 @@ export function ActionModal({
           )}
         </div>
         <footer>
-          <button
-            className="ra-button"
-            type="button"
-            onClick={onClose}
-            disabled={submitting}
-          >
+          <button className="ra-button" type="button" onClick={onClose} disabled={submitting}>
             취소
           </button>
           <button
@@ -502,18 +458,18 @@ export function ActionModal({
         </footer>
       </section>
     </div>
-  )
+  );
 }
 
 export function formatDate(value: string | null | undefined) {
-  if (!value) return "—"
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("ko-KR", {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: "Asia/Seoul",
-  }).format(date)
+  }).format(date);
 }
 
 export function formatMoney(value: number) {
@@ -521,5 +477,5 @@ export function formatMoney(value: number) {
     style: "currency",
     currency: "KRW",
     maximumFractionDigits: 0,
-  }).format(value)
+  }).format(value);
 }

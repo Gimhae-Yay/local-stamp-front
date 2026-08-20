@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react"
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
-import { useOperatorAuth } from "./OperatorAuth"
+import { useEffect, useRef, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useOperatorAuth } from "./OperatorAuth";
 
 const navigation = [
   {
@@ -40,41 +40,37 @@ const navigation = [
     icon: "▣",
     path: "/operator/stampbooks",
   },
-]
+];
 
 export default function OperatorLayout() {
-  const { session, logout } = useOperatorAuth()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const location = useLocation()
-  const navigate = useNavigate()
-  const assignment = session!.assignment
+  const { session, logout } = useOperatorAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const assignment = session!.assignment;
 
   useEffect(() => {
     const outside = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false)
-    }
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
     const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false)
-    }
-    document.addEventListener("mousedown", outside)
-    document.addEventListener("keydown", escape)
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", outside);
+    document.addEventListener("keydown", escape);
     return () => {
-      document.removeEventListener("mousedown", outside)
-      document.removeEventListener("keydown", escape)
-    }
-  }, [])
+      document.removeEventListener("mousedown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, []);
 
   const active = (path: string) => {
     if (path === "/operator")
-      return (
-        location.pathname === path ||
-        location.pathname.startsWith("/operator/contents")
-      )
-    if (path === "/operator/reservations")
-      return location.pathname.startsWith(path)
-    return location.pathname.startsWith(path)
-  }
+      return location.pathname === path || location.pathname.startsWith("/operator/contents");
+    if (path === "/operator/reservations") return location.pathname.startsWith(path);
+    return location.pathname.startsWith(path);
+  };
 
   return (
     <div className="op-shell">
@@ -108,14 +104,12 @@ export default function OperatorLayout() {
                 <small>사용자 {session!.userId}</small>
                 <div>
                   <span>담당 지역</span>
-                  <strong>
-                    {assignment.regionName ?? `지역 #${assignment.regionId}`}
-                  </strong>
+                  <strong>{assignment.regionName ?? `지역 #${assignment.regionId}`}</strong>
                 </div>
                 <button
                   onClick={async () => {
-                    await logout()
-                    navigate("/operator/login", { replace: true })
+                    await logout();
+                    navigate("/operator/login", { replace: true });
                   }}
                 >
                   로그아웃
@@ -145,8 +139,8 @@ export default function OperatorLayout() {
           </section>
         ))}
         <div className="op-sidebar-note">
-          <strong>{assignment.regionName ?? "담당 지역"}</strong>본인 소유
-          콘텐츠와 담당 지역 범위 안에서만 업무를 처리합니다.
+          <strong>{assignment.regionName ?? "담당 지역"}</strong>본인 소유 콘텐츠와 담당 지역 범위
+          안에서만 업무를 처리합니다.
         </div>
       </aside>
       <main className="op-main">
@@ -155,5 +149,5 @@ export default function OperatorLayout() {
         </div>
       </main>
     </div>
-  )
+  );
 }

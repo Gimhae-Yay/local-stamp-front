@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest"
-import { adminLoginDestination, adminReturnPath } from "./AdminAuth"
+import { describe, expect, it } from "vitest";
+import { adminLoginDestination, adminReturnPath } from "./AdminAuth";
 
 describe("adminReturnPath", () => {
   it("preserves filters and fragments across login", () => {
@@ -9,9 +9,9 @@ describe("adminReturnPath", () => {
         search: "?status=APPROVED",
         hash: "#result",
       }),
-    ).toBe("/region-admin/contents/review?status=APPROVED#result")
-  })
-})
+    ).toBe("/region-admin/contents/review?status=APPROVED#result");
+  });
+});
 
 describe("adminLoginDestination", () => {
   it("restores a protected regional admin URL", () => {
@@ -19,8 +19,8 @@ describe("adminLoginDestination", () => {
       adminLoginDestination({
         from: "/region-admin/missions?status=PENDING_REVIEW&page=1#review",
       }),
-    ).toBe("/region-admin/missions?status=PENDING_REVIEW&page=1#review")
-  })
+    ).toBe("/region-admin/missions?status=PENDING_REVIEW&page=1#review");
+  });
 
   it.each([
     null,
@@ -29,6 +29,6 @@ describe("adminLoginDestination", () => {
     { from: "/operator" },
     { from: "/region-admin/login" },
   ])("falls back to the regional admin home for %o", (state) => {
-    expect(adminLoginDestination(state)).toBe("/region-admin")
-  })
-})
+    expect(adminLoginDestination(state)).toBe("/region-admin");
+  });
+});

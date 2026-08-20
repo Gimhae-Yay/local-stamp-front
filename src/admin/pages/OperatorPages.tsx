@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ActionModal,
   AsyncContent,
@@ -10,13 +10,13 @@ import {
   formatDate,
   useApiData,
   type ActionConfig,
-} from "../AdminComponents"
-import type { OperatorRequest, OperatorRequestDetail } from "../types"
+} from "../AdminComponents";
+import type { OperatorRequest, OperatorRequestDetail } from "../types";
 
 export function OperatorRequestListPage() {
   const state = useApiData<{ operatorRequests: OperatorRequest[] }>(
     "/api/v1/region-admin/operator-requests?status=PENDING",
-  )
+  );
   return (
     <>
       <PageHeader
@@ -74,16 +74,16 @@ export function OperatorRequestListPage() {
         )}
       </AsyncContent>
     </>
-  )
+  );
 }
 
 export function OperatorRequestDetailPage() {
-  const { requestId = "" } = useParams()
-  const navigate = useNavigate()
+  const { requestId = "" } = useParams();
+  const navigate = useNavigate();
   const state = useApiData<OperatorRequestDetail>(
     `/api/v1/region-admin/operator-requests/${requestId}`,
-  )
-  const [action, setAction] = useState<ActionConfig | null>(null)
+  );
+  const [action, setAction] = useState<ActionConfig | null>(null);
   const actions = useMemo(
     () => ({
       approve: {
@@ -113,7 +113,7 @@ export function OperatorRequestDetailPage() {
       },
     }),
     [requestId],
-  )
+  );
 
   return (
     <>
@@ -130,10 +130,7 @@ export function OperatorRequestDetailPage() {
         {(detail) => (
           <div className="ra-detail-layout">
             <div className="ra-detail-main">
-              <Panel
-                title="신청 정보"
-                action={<StatusBadge value={detail.status} />}
-              >
+              <Panel title="신청 정보" action={<StatusBadge value={detail.status} />}>
                 <KeyValueGrid
                   items={[
                     ["신청 ID", detail.operatorApplicationId],
@@ -144,19 +141,12 @@ export function OperatorRequestDetailPage() {
                     [
                       "사업자 정보",
                       <span className="ra-preline">
-                        {detail.businessInformation ??
-                          "신청자 탈퇴로 확인할 수 없습니다."}
+                        {detail.businessInformation ?? "신청자 탈퇴로 확인할 수 없습니다."}
                       </span>,
                       true,
                     ],
                     ...(detail.rejectedReason
-                      ? [
-                          [
-                            "반려 사유",
-                            detail.rejectedReason,
-                            true,
-                          ] as [string, string, boolean],
-                        ]
+                      ? [["반려 사유", detail.rejectedReason, true] as [string, string, boolean]]
                       : []),
                   ]}
                 />
@@ -168,9 +158,7 @@ export function OperatorRequestDetailPage() {
                   <h2>처리 상태</h2>
                   <StatusBadge value={detail.status} />
                 </div>
-                <p>
-                  서버가 처리 시점의 상태와 담당 지역 권한을 다시 검증합니다.
-                </p>
+                <p>서버가 처리 시점의 상태와 담당 지역 권한을 다시 검증합니다.</p>
                 {detail.status === "PENDING" ? (
                   <>
                     <button
@@ -211,5 +199,5 @@ export function OperatorRequestDetailPage() {
         />
       )}
     </>
-  )
+  );
 }
