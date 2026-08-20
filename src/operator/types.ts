@@ -409,3 +409,49 @@ export interface StampbookInput {
 
   reason: string
 }
+
+export interface OperatorStampbookSummary {
+  stampbookId: string
+
+  title: string
+
+  regionId: string
+
+  status: string
+
+  targetCount: number
+
+  rewardCouponPolicyId: string
+
+  publishedAt: string | null
+
+  endedAt: string | null
+}
+
+export interface OperatorStampbookDetail {
+  stampbookId: string
+
+  title: string
+
+  regionId: string
+
+  status: string
+
+  targetContents: Array<{
+    contentId: string
+    regionId: string
+    title: string
+    status: string
+  }>
+
+  rewardCouponPolicy: {
+    couponPolicyId: string
+    regionId: string
+    issuanceType: string
+    status: string
+  }
+
+  publishedAt: string | null
+
+  endedAt: string | null
+}

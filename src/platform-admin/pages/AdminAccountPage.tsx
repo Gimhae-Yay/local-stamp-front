@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { ApiError, apiRequest } from "../../admin/api"
 import {
   ApiErrorMessage,
@@ -10,24 +10,18 @@ import {
   formatDate,
   usePlatformData,
 } from "../PlatformComponents"
-import type { PlatformUser } from "../types"
+import type { PlatformAdminAccount } from "../types"
 
 export default function AdminAccountPage() {
-  const state = usePlatformData<{ users: PlatformUser[] }>(
-    "/api/v1/platform-admin/users",
+  const state = usePlatformData<{ adminAccounts: PlatformAdminAccount[] }>(
+    "/api/v1/platform-admin/admin-accounts",
   )
   const [creating, setCreating] = useState(false)
-  const [deactivating, setDeactivating] = useState<PlatformUser | null>(null)
-  const [deactivatingById, setDeactivatingById] = useState(false)
-  const administrators = useMemo(
-    () =>
-      (state.data?.users ?? []).filter((user) =>
-        user.roleAssignments.some(
-          (assignment) => assignment.role === "PLATFORM_ADMIN",
-        ),
-      ),
-    [state.data],
-  )
+  const [deactivating, setDeactivating] =
+    useState<PlatformAdminAccount | null>(null)
+  const administrators = state.data?.adminAccounts ?? []
+  const gradeLabel = (grade: PlatformAdminAccount["grade"]) =>
+    grade === "SUPER_ADMIN" ? "최고 관리자" : "플랫폼 관리자"
   return (
     <main className="pa-content">
       <PageHeader
@@ -35,12 +29,6 @@ export default function AdminAccountPage() {
         description="최고 관리자만 전체 관리자 계정을 생성하거나 비활성화할 수 있습니다."
         action={
           <div className="pa-header-actions">
-            <button
-              className="pa-button pa-button-danger-outline"
-              onClick={() => setDeactivatingById(true)}
-            >
-              계정 비활성화
-            </button>
             <button
               className="pa-button pa-button-primary"
               onClick={() => setCreating(true)}
@@ -53,30 +41,39 @@ export default function AdminAccountPage() {
       <div className="pa-notice pa-notice-orange">
         <strong>최고 관리자 전용</strong>
         <span>
-          현재 백엔드는 관리자 등급 조회값을 제공하지 않습니다. 생성·비활성화
-          권한은 요청 시 서버가 최종 검증하며, 비활성화 대상은 사용자 ID로
-          지정합니다.
+          활성·비활성 전체 관리자 계정을 확인하고 계정별 작업을 수행할 수
+          있습니다.
         </span>
       </div>
-      <AsyncState state={state} empty={() => administrators.length === 0}>
+      <AsyncState
+        state={state}
+        empty={(value) => value.adminAccounts.length === 0}
+      >
         {() => (
           <section className="pa-list">
-            {administrators.map((user) => (
-              <article className="pa-list-row pa-admin-row" key={user.userId}>
+            {administrators.map((account) => (
+              <article
+                className="pa-list-row pa-admin-row"
+                key={account.userId}
+              >
                 <span className="pa-account-avatar">관</span>
                 <div>
-                  <strong>{user.name}</strong>
+                  <strong>{account.name}</strong>
                   <small>
-                    {user.loginIdentifier} · 사용자 ID {user.userId}
+                    {account.loginIdentifier} · 사용자 ID {account.userId}
                   </small>
                 </div>
-                <StatusBadge value="ACTIVE" />
-                <span>{formatDate(user.createdAt)}</span>
+                <div>
+                  <StatusBadge value={account.status} />
+                  <small>{gradeLabel(account.grade)}</small>
+                </div>
+                <span>{formatDate(account.createdAt)}</span>
                 <button
                   className="pa-button pa-button-danger-outline"
-                  onClick={() => setDeactivating(user)}
+                  onClick={() => setDeactivating(account)}
+                  disabled={account.status !== "ACTIVE"}
                 >
-                  비활성화
+                  {account.status === "ACTIVE" ? "비활성화" : "비활성화됨"}
                 </button>
               </article>
             ))}
@@ -98,15 +95,6 @@ export default function AdminAccountPage() {
           onClose={() => setDeactivating(null)}
           onSuccess={() => {
             setDeactivating(null)
-            state.reload()
-          }}
-        />
-      )}
-      {deactivatingById && (
-        <DeactivateAdminModal
-          onClose={() => setDeactivatingById(false)}
-          onSuccess={() => {
-            setDeactivatingById(false)
             state.reload()
           }}
         />
@@ -137,6 +125,19 @@ function CreateAdminModal({
     setForm((current) => ({ ...current, [field]: value }))
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
+    const phoneDigits = form.phone.replace(/\D/g, "")
+    if (
+      !/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9])[!-~]{8,64}$/.test(
+        form.password,
+      )
+    ) {
+      setError("비밀번호에는 영문자·숫자·특수문자가 모두 포함되어야 합니다.")
+      return
+    }
+    if (!/^\d{10,11}$/.test(phoneDigits)) {
+      setError("전화번호는 숫자 10~11자리로 입력해 주세요.")
+      return
+    }
     setSubmitting(true)
     setError("")
     try {
@@ -185,6 +186,9 @@ function CreateAdminModal({
               update("phone", event.target.value.replace(/[^0-9-]/g, ""))
             }
             placeholder="010-1234-5678"
+            inputMode="tel"
+            minLength={10}
+            maxLength={13}
             required
           />
         </Field>
@@ -250,11 +254,11 @@ function DeactivateAdminModal({
   onClose,
   onSuccess,
 }: {
-  user?: PlatformUser
+  user: PlatformAdminAccount
   onClose: () => void
   onSuccess: () => void
 }) {
-  const [userId, setUserId] = useState(user?.userId ?? "")
+  const userId = user.userId
   const [reasonCode, setReasonCode] = useState("ADMIN_ACCOUNT_DEACTIVATION")
   const [evidenceReference, setEvidenceReference] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -285,11 +289,7 @@ function DeactivateAdminModal({
   return (
     <Modal
       title="전체 관리자 계정 비활성화"
-      description={
-        user
-          ? `${user.name} · ${user.loginIdentifier}`
-          : "비활성화할 전체 관리자 계정의 사용자 ID를 입력합니다."
-      }
+      description={`${user.name} · ${user.loginIdentifier}`}
       onClose={onClose}
     >
       <form className="pa-drawer-form" onSubmit={submit}>
@@ -300,15 +300,7 @@ function DeactivateAdminModal({
           </span>
         </div>
         <Field label="사용자 ID *">
-          <input
-            value={userId}
-            onChange={(event) =>
-              setUserId(event.target.value.replace(/\D/g, ""))
-            }
-            inputMode="numeric"
-            disabled={Boolean(user)}
-            required
-          />
+          <input value={userId} inputMode="numeric" disabled required />
         </Field>
         <Field label="비활성화 사유 코드 *">
           <input

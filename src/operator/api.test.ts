@@ -4,6 +4,8 @@ import {
   checkInByQr,
   checkInManually,
   isLocalFakeImageStorageUrl,
+  getStampbook,
+  listStampbooks,
   updateContentRevision,
   withdrawContentRevision,
 } from "./api"
@@ -161,5 +163,27 @@ describe("운영자 콘텐츠 수정본 명령", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[1]![1]?.body))).toEqual({
       reason: "일정 변경",
     })
+  })
+})
+
+describe("운영자 스탬프북 조회", () => {
+  it("dev 계약의 목록·상세 GET URL을 호출한다", async () => {
+    const fetchMock = vi.fn(
+      (_: RequestInfo | URL, _init?: RequestInit) =>
+        success({ stampbooks: [] }),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await listStampbooks()
+    await getStampbook("801")
+
+    expect(String(fetchMock.mock.calls[0]![0])).toContain(
+      "/api/v1/operator/stampbooks",
+    )
+    expect(String(fetchMock.mock.calls[1]![0])).toContain(
+      "/api/v1/operator/stampbooks/801",
+    )
+    expect(fetchMock.mock.calls[0]![1]?.method).toBeUndefined()
+    expect(fetchMock.mock.calls[1]![1]?.method).toBeUndefined()
   })
 })

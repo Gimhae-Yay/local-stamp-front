@@ -15,9 +15,11 @@ import {
   logout as logoutRequest,
   storedUserId,
 } from "../admin/api"
+import type { PlatformAdminAccount, PlatformAdminGrade } from "./types"
 
 interface PlatformSession {
   userId: string
+  grade: PlatformAdminGrade
 }
 
 interface PlatformAuthValue {
@@ -36,8 +38,23 @@ export function usePlatformAuth() {
   return value
 }
 
-async function verifyPlatformAccess() {
+async function verifyPlatformAccess(
+  userId: string,
+): Promise<PlatformAdminGrade> {
   await apiRequest<{ regions: unknown[] }>("/api/v1/platform-admin/regions")
+  const result = await apiRequest<{ adminAccounts: PlatformAdminAccount[] }>(
+    "/api/v1/platform-admin/admin-accounts",
+  )
+  const currentAccount = result.adminAccounts.find(
+    (account) => account.userId === userId && account.status === "ACTIVE",
+  )
+  if (!currentAccount)
+    throw new ApiError(
+      "활성 전체 관리자 계정을 확인할 수 없습니다.",
+      403,
+      "PLATFORM_ADMIN_REQUIRED",
+    )
+  return currentAccount.grade
 }
 
 export function PlatformAuthProvider({ children }: { children: ReactNode }) {
@@ -51,9 +68,9 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
       return
     }
     let active = true
-    verifyPlatformAccess()
-      .then(() => {
-        if (active) setSession({ userId })
+    verifyPlatformAccess(userId)
+      .then((grade) => {
+        if (active) setSession({ userId, grade })
       })
       .catch(() => {
         if (active) clearLogin()
@@ -73,8 +90,8 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
       login: async (email, password) => {
         const result = await loginRequest(email, password)
         try {
-          await verifyPlatformAccess()
-          setSession({ userId: result.userId })
+          const grade = await verifyPlatformAccess(result.userId)
+          setSession({ userId: result.userId, grade })
         } catch (error) {
           clearLogin()
           throw error
@@ -113,6 +130,13 @@ export function PlatformGuard() {
         state={{ from: `${location.pathname}${location.search}` }}
       />
     )
+  return <Outlet />
+}
+
+export function SuperAdminGuard() {
+  const { session } = usePlatformAuth()
+  if (session?.grade !== "SUPER_ADMIN")
+    return <Navigate to="/admin" replace />
   return <Outlet />
 }
 

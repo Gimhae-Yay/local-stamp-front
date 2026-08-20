@@ -40,6 +40,7 @@ import {
 import { useOperatorAuth } from "../OperatorAuth"
 import {
   mergeContentSessionSnapshots,
+  isContentRevisionReviewFresh,
   readContentRevisionSnapshot,
   readContentSessionSnapshots,
   readLatestContentRevisionSnapshot,
@@ -497,6 +498,13 @@ export function ContentDetailPage() {
           loadedSessions.unshift(createdSession)
         }
 
+        if (session)
+          writeContentSessionSnapshots(
+            session.userId,
+            contentId,
+            loadedSessions as ContentSessionSnapshot[],
+          )
+
         setSessions(loadedSessions)
 
         if (navigationState?.notice) setNotice(navigationState.notice)
@@ -530,7 +538,9 @@ export function ContentDetailPage() {
   const latestRevision = session
     ? readLatestContentRevisionSnapshot(session.userId, contentId)
     : null
-  const revisionPending = latestRevision?.status === "EDIT_REQUESTED"
+  const revisionPending = isContentRevisionReviewFresh(latestRevision)
+  const revisionStateUnknown =
+    latestRevision?.status === "EDIT_REQUESTED" && !revisionPending
   const revisionCreatable =
     ["APPROVED", "PUBLISHED"].includes(content.status) && !revisionPending
   const editable = content.status === "REJECTED" || revisionCreatable
@@ -657,6 +667,8 @@ export function ContentDetailPage() {
 
                     const changePending =
                       session.changeRequestStatus === "PENDING"
+                    const changeUnknown =
+                      session.changeRequestStatus === "UNKNOWN"
 
                     return (
                       <div className="op-list-card" key={session.sessionId}>
@@ -670,6 +682,11 @@ export function ContentDetailPage() {
                           {changePending && (
                             <small>
                               변경 요청 {session.changeRequestId} · 심사 대기
+                            </small>
+                          )}
+                          {changeUnknown && (
+                            <small>
+                              변경 요청 {session.changeRequestId} · 결과 미확인
                             </small>
                           )}
                         </div>
@@ -725,6 +742,12 @@ export function ContentDetailPage() {
               수정본 {latestRevision.revisionId} ·{" "}
               {statusLabel(latestRevision.status)}
             </Link>
+          )}
+          {revisionStateUnknown && (
+            <div className="op-notice">
+              마지막 수정본 요청 후 1시간이 지나 서버 상태를 확인할 수 없습니다.
+              다시 요청하면 Backend가 중복 여부를 최종 검증합니다.
+            </div>
           )}
           {editable && (
             <Link
@@ -829,6 +852,7 @@ export function ContentDetailPage() {
                       changeRequestId: result.revisionId,
                       changeRequestStatus: result.status,
                       changeCandidate: candidate,
+                      changeRequestedAt: new Date().toISOString(),
                     }
                   : session,
               )
@@ -1009,7 +1033,22 @@ export function ContentFormPage() {
             )
           : null
 
-        const canRestorePrice = Number.isFinite(storedPrice?.value)
+        const latestRevision = session
+          ? readLatestContentRevisionSnapshot(session.userId, contentId)
+          : null
+        const revisionPrice =
+          latestRevision &&
+          !["EDIT_WITHDRAWN", "EDIT_INVALIDATED"].includes(
+            latestRevision.status,
+          )
+            ? latestRevision.candidate.reservationPrice
+            : undefined
+        const restoredPriceValue =
+          typeof storedPrice?.value === "number" &&
+          Number.isFinite(storedPrice.value)
+            ? storedPrice.value
+            : revisionPrice
+        const canRestorePrice = Number.isFinite(restoredPriceValue)
 
         setSource(detail)
 
@@ -1034,7 +1073,7 @@ export function ContentFormPage() {
 
           cancellationPolicyText: detail.cancellationPolicyText,
 
-          reservationPrice: canRestorePrice ? String(storedPrice?.value) : "",
+          reservationPrice: canRestorePrice ? String(restoredPriceValue) : "",
 
           publishAt:
             detail.status === "PUBLISHED"
@@ -1505,6 +1544,9 @@ export function ContentRevisionPage() {
     (location.state as { notice?: string } | null)?.notice ?? "",
   )
   const [modal, setModal] = useState<"withdraw" | "resubmit" | null>(null)
+  const revisionStateUnknown =
+    snapshot?.status === "EDIT_REQUESTED" &&
+    !isContentRevisionReviewFresh(snapshot)
 
   if (!session || !snapshot) {
     return (
@@ -1568,7 +1610,11 @@ export function ContentRevisionPage() {
       setEditing(false)
       setNotice("수정본 데이터가 저장되었습니다.")
     } catch (caught) {
-      setError(apiErrorMessage(caught, "수정본을 저장하지 못했습니다."))
+      setError(
+        caught instanceof ApiError && caught.code === "CONTENT_STATE_CONFLICT"
+          ? "아직 심사 중이거나 편집할 수 없는 수정본입니다. 최신 심사 결과를 확인해 주세요."
+          : apiErrorMessage(caught, "수정본을 저장하지 못했습니다."),
+      )
     } finally {
       setSubmitting(false)
     }
@@ -1621,11 +1667,22 @@ export function ContentRevisionPage() {
           {notice}
         </div>
       )}
+      {revisionStateUnknown && (
+        <div className="op-notice">
+          마지막 요청 후 1시간이 지나 현재 심사 상태를 확인할 수 없습니다. 편집
+          저장을 시도하면 Backend가 반려 여부를 최종 확인하며, 아직 심사 중이면
+          저장하지 않고 안내합니다.
+        </div>
+      )}
       {editing ? (
         <form className="op-form-shell" onSubmit={saveRevision}>
           <article className="op-panel">
             <header>
-              <h2>반려 수정본 편집</h2>
+              <h2>
+                {snapshot.status === "EDIT_REJECTED"
+                  ? "반려 수정본 편집"
+                  : "수정본 편집 상태 확인"}
+              </h2>
               <StatusBadge value={snapshot.status} />
             </header>
             <div className="op-panel-body">
@@ -1808,12 +1865,22 @@ export function ContentRevisionPage() {
           <aside className="op-action-card">
             <h2>가능한 처리</h2>
             {snapshot.status === "EDIT_REQUESTED" && (
-              <button
-                className="op-button op-button-danger-outline"
-                onClick={() => setModal("withdraw")}
-              >
-                수정본 철회
-              </button>
+              <>
+                <button
+                  className="op-button op-button-danger-outline"
+                  onClick={() => setModal("withdraw")}
+                >
+                  수정본 철회
+                </button>
+                {revisionStateUnknown && (
+                  <button
+                    className="op-button op-button-primary"
+                    onClick={() => setEditing(true)}
+                  >
+                    반려 여부 확인하며 편집
+                  </button>
+                )}
+              </>
             )}
             {snapshot.status === "EDIT_REJECTED" && (
               <>

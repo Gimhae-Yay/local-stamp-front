@@ -12,6 +12,7 @@ const statusLabels: Record<string, string> = {
   EDIT_REJECTED: "수정 반려",
   EDIT_WITHDRAWN: "수정 철회",
   EDIT_INVALIDATED: "수정 무효",
+  REVIEW_UNKNOWN: "심사 결과 확인 필요",
   APPROVED: "승인",
 
   PUBLISHED: "공개 중",
@@ -59,7 +60,11 @@ export function statusTone(value: string) {
   )
     return "success"
 
-  if (["PENDING", "EDIT_REQUESTED", "PROCESSING"].includes(value))
+  if (
+    ["PENDING", "EDIT_REQUESTED", "REVIEW_UNKNOWN", "PROCESSING"].includes(
+      value,
+    )
+  )
     return "pending"
 
   if (
@@ -204,6 +209,8 @@ export function ActionModal({
 
   initialReason = "",
 
+  reasonOptions,
+
   onClose,
 
   onConfirm,
@@ -221,6 +228,8 @@ export function ActionModal({
   tone?: "admin" | "danger" | "primary"
 
   initialReason?: string
+
+  reasonOptions?: Array<{ value: string; label: string }>
 
   onClose: () => void
 
@@ -293,15 +302,32 @@ export function ActionModal({
         <div className="op-modal-body">
           <label className="op-field">
             {label}
-            <textarea
-              className="op-control"
-              value={reason}
-              placeholder={placeholder}
-              maxLength={500}
-              onChange={(event) => setReason(event.target.value)}
-              autoFocus
-            />
-            <small>{reason.length} / 500자</small>
+            {reasonOptions ? (
+              <select
+                className="op-control"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                autoFocus
+              >
+                {reasonOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>
+                <textarea
+                  className="op-control"
+                  value={reason}
+                  placeholder={placeholder}
+                  maxLength={500}
+                  onChange={(event) => setReason(event.target.value)}
+                  autoFocus
+                />
+                <small>{reason.length} / 500자</small>
+              </>
+            )}
           </label>
           {error && (
             <div className="op-alert" role="alert">

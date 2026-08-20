@@ -23,6 +23,8 @@ import type {
   SessionReservations,
   StampbookDraft,
   StampbookInput,
+  OperatorStampbookDetail,
+  OperatorStampbookSummary,
   WithdrawContentRevisionResult,
 } from "./types"
 
@@ -401,6 +403,20 @@ export function createStampbook(input: StampbookInput) {
 
     body: jsonBody(input),
   })
+}
+
+export function listStampbooks(signal?: AbortSignal) {
+  return apiRequest<{ stampbooks: OperatorStampbookSummary[] }>(
+    "/api/v1/operator/stampbooks",
+    { signal },
+  )
+}
+
+export function getStampbook(id: string, signal?: AbortSignal) {
+  return apiRequest<OperatorStampbookDetail>(
+    `/api/v1/operator/stampbooks/${encodeURIComponent(id)}`,
+    { signal },
+  )
 }
 
 export function updateStampbook(id: string, input: StampbookInput) {

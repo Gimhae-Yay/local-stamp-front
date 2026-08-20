@@ -23,7 +23,9 @@ import {
   CouponListPage,
   MissionFormPage,
   MissionListPage,
-  StampbookPage,
+  StampbookDetailPage,
+  StampbookFormPage,
+  StampbookListPage,
 } from "./pages/BenefitPages"
 
 import "./operator.css"
@@ -64,7 +66,16 @@ export default function OperatorApp() {
               path="missions/:missionId/edit"
               element={<MissionFormPage />}
             />
-            <Route path="stampbooks" element={<StampbookPage />} />
+            <Route path="stampbooks" element={<StampbookListPage />} />
+            <Route path="stampbooks/new" element={<StampbookFormPage />} />
+            <Route
+              path="stampbooks/:stampbookId"
+              element={<StampbookDetailPage />}
+            />
+            <Route
+              path="stampbooks/:stampbookId/edit"
+              element={<StampbookFormPage />}
+            />
             <Route path="*" element={<Navigate to="/operator" replace />} />
           </Route>
         </Route>
