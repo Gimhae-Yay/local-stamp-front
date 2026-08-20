@@ -41,6 +41,9 @@ describe("regional admin authentication transitions", () => {
       const url = String(input)
       if (url.endsWith("/api/v1/auth/refresh")) {
         refreshCalls += 1
+        expect(new Headers(init?.headers).get("Accept")).toBe(
+          "application/json",
+        )
         return success({ accessToken: "refreshed-token" })
       }
       protectedCalls += 1
@@ -60,6 +63,36 @@ describe("regional admin authentication transitions", () => {
 
     expect(refreshCalls).toBe(1)
     expect(protectedCalls).toBe(4)
+  })
+
+  it("sends JSON as the default accepted response type", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        expect(new Headers(init?.headers).get("Accept")).toBe(
+          "application/json",
+        )
+        return success({ ok: true })
+      },
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    const { apiRequest } = await import("./api")
+    await apiRequest("/api/v1/example")
+  })
+
+  it("preserves an explicitly requested response type", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        expect(new Headers(init?.headers).get("Accept")).toBe("text/csv")
+        return success({ ok: true })
+      },
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    const { apiRequest } = await import("./api")
+    await apiRequest("/api/v1/example", {
+      headers: { Accept: "text/csv" },
+    })
   })
 
   it("waits for an in-flight refresh before logout", async () => {

@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@portone/browser-sdk": "^0.1.9",
     "@types/qrcode": "^1.5.6",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",

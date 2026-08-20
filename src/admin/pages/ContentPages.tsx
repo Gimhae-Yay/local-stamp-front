@@ -69,7 +69,7 @@ function ContentTabs({
   )
 }
 
-function ContentImage({ src, alt }: { src: string | null alt: string }) {
+function ContentImage({ src, alt }: { src: string | null, alt: string }) {
   return src ? (
     <img className="ra-content-image" src={src} alt={alt} />
   ) : (

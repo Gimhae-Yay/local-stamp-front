@@ -1,40 +1,58 @@
 import { useState } from "react"
+
 import { Link, NavLink, useNavigate } from "react-router-dom"
+
 import type { AuthenticatedUser } from "../api/auth"
 
 interface NavbarProps {
   loggedIn: boolean
+
   user: AuthenticatedUser | null
+
   onLogout: () => Promise<void>
+
   onDeleteAccount: () => Promise<void>
 }
 
 export default function Navbar({
   loggedIn,
+
   user,
+
   onLogout,
+
   onDeleteAccount,
 }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
+
   const [busy, setBusy] = useState(false)
+
   const navigate = useNavigate()
+
   const visitorRole = user?.roleAssignments.find(
     (assignment) => assignment.role === "VISITOR",
   )
+
   const operatorRole = user?.roleAssignments.find(
     (assignment) => assignment.role === "OPERATOR",
   )
+
   const links = [
     ["홈", "/"],
+
     ["행사·체험", "/events"],
+
     ["지역 미션", "/missions"],
   ]
 
   const logout = async () => {
     setBusy(true)
+
     try {
       await onLogout()
+
       setMenuOpen(false)
+
       navigate("/")
     } catch (error) {
       window.alert(
@@ -49,10 +67,14 @@ export default function Navbar({
     if (!window.confirm("회원탈퇴 후 계정은 복구할 수 없습니다. 탈퇴할까요?")) {
       return
     }
+
     setBusy(true)
+
     try {
       await onDeleteAccount()
+
       setMenuOpen(false)
+
       navigate("/")
     } catch (error) {
       window.alert(
@@ -69,22 +91,34 @@ export default function Navbar({
     <nav
       style={{
         position: "sticky",
+
         top: 0,
+
         zIndex: 100,
+
         background: "rgba(247,248,245,0.92)",
+
         borderBottom: "1px solid var(--border)",
+
         backdropFilter: "blur(12px)",
+
         WebkitBackdropFilter: "blur(12px)",
       }}
     >
       <div
         style={{
           maxWidth: 900,
+
           margin: "0 auto",
+
           padding: "0 24px",
+
           height: 60,
+
           display: "flex",
+
           alignItems: "center",
+
           justifyContent: "space-between",
         }}
       >
@@ -92,16 +126,27 @@ export default function Navbar({
           <div
             style={{
               width: 28,
+
               height: 28,
+
               borderRadius: 7,
+
               background: "var(--green)",
+
               display: "flex",
+
               alignItems: "center",
+
               justifyContent: "center",
+
               fontSize: 13,
+
               fontWeight: 700,
+
               color: "#fff",
+
               fontFamily: "Outfit, sans-serif",
+
               flexShrink: 0,
             }}
           >
@@ -110,8 +155,11 @@ export default function Navbar({
           <span
             style={{
               fontSize: 16,
+
               fontWeight: 700,
+
               color: "var(--text)",
+
               fontFamily: "Outfit, sans-serif",
             }}
           >
@@ -155,18 +203,24 @@ export default function Navbar({
                   ...(operatorRole
                     ? [
                         ["내 콘텐츠 관리", "/operator/contents"],
-                        ["예약번호 검색", "/operator/reservations/search"],
+                        ["예약번호 검색", "/operator/reservations"],
                       ]
                     : []),
+
                   ...(visitorRole
                     ? [
                         ["내 예약", "/reservations"],
+
                         ["내 방문 후기", "/reservations?tab=past"],
+
                         ["내 스탬프북", "/stampbook"],
+
                         ["내 지역 미션", "/missions"],
+
                         ["쿠폰함", "/coupons"],
                       ]
                     : []),
+
                   ...(!operatorRole
                     ? [["운영자 재신청", "/operator-request"]]
                     : []),

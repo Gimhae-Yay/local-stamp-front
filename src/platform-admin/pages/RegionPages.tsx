@@ -156,7 +156,7 @@ function CreateRegionModal({
 }) {
   const [regionCode, setRegionCode] = useState("")
   const [name, setName] = useState("")
-  const [reasonCode, setReasonCode] = useState(createReasons[0][0])
+  const [reasonCode, setReasonCode] = useState<string>(createReasons[0][0])
   const [evidenceReference, setEvidenceReference] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
