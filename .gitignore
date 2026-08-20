@@ -20,6 +20,9 @@ dist/
 # Codex local workspace settings
 .codex/
 
+# Local verification notes
+/전체관리자 수정방향.md
+
 # OS files
 .DS_Store
 Thumbs.db

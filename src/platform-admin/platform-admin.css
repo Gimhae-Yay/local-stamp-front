@@ -109,7 +109,9 @@
 .pa-region-row { grid-template-columns: 100px minmax(240px,1fr) minmax(240px,.8fr) auto; }
 .pa-user-row { grid-template-columns: minmax(210px,1.2fr) 100px minmax(180px,1fr) 150px auto; }
 .pa-user-row.selected { box-shadow: inset 3px 0 var(--pa-orange); background: var(--pa-orange-soft); }
-.pa-admin-row { grid-template-columns: auto minmax(220px,1fr) 100px 180px auto; }
+.pa-admin-row { grid-template-columns: auto minmax(220px,1fr) minmax(150px,max-content) minmax(180px,max-content) auto; }
+.pa-admin-meta { display: flex; flex-direction: row !important; align-items: center; gap: 6px; }
+.pa-readonly-action { color: var(--pa-muted); font-size: 12px; font-weight: 700; text-align: center; }
 .pa-transaction-row { grid-template-columns: 90px minmax(220px,1.2fr) minmax(160px,.8fr) 162px 150px; }
 .pa-row-date { gap: 2px; }
 

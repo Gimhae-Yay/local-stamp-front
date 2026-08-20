@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 function success<T>(data: T) {
   return new Response(
@@ -28,6 +28,10 @@ describe("regional admin authentication transitions", () => {
   beforeEach(() => {
     vi.resetModules()
     window.localStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it("shares one refresh request between concurrent unauthorized requests", async () => {
@@ -91,5 +95,60 @@ describe("regional admin authentication transitions", () => {
     resolveRefresh(success({ accessToken: "refreshed-token" }))
     await Promise.all([protectedRequest, logoutRequest])
     expect(calls).toEqual(["refresh", "logout"])
+  })
+
+  it("clears the stored session when refresh fails", async () => {
+    let protectedCalls = 0
+    let refreshCalls = 0
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith("/api/v1/auth/login")) {
+        return success({ userId: "41", roles: [], accessToken: "expired-token" })
+      }
+      if (url.endsWith("/api/v1/auth/refresh")) {
+        refreshCalls += 1
+        return unauthenticated()
+      }
+      protectedCalls += 1
+      return unauthenticated()
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const { apiRequest, login, storedUserId } = await import("./api")
+    await login("admin@example.com", "Password1!")
+    expect(storedUserId()).toBe("41")
+
+    await expect(apiRequest("/api/v1/protected")).rejects.toMatchObject({
+      status: 401,
+      code: "UNAUTHENTICATED",
+    })
+
+    expect(refreshCalls).toBe(1)
+    expect(protectedCalls).toBe(1)
+    expect(storedUserId()).toBeNull()
+  })
+
+  it("retries the original request only once after refresh", async () => {
+    let protectedCalls = 0
+    let refreshCalls = 0
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith("/api/v1/auth/refresh")) {
+        refreshCalls += 1
+        return success({ accessToken: "refreshed-token" })
+      }
+      protectedCalls += 1
+      return unauthenticated()
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const { apiRequest } = await import("./api")
+    await expect(apiRequest("/api/v1/protected")).rejects.toMatchObject({
+      status: 401,
+      code: "UNAUTHENTICATED",
+    })
+
+    expect(refreshCalls).toBe(1)
+    expect(protectedCalls).toBe(2)
   })
 })

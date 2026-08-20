@@ -359,6 +359,7 @@ export function ManualRefundPage() {
   const [paymentId, setPaymentId] = useState(params.get("paymentId") ?? "")
   const [evidenceReference, setEvidenceReference] = useState("")
   const [reason, setReason] = useState("")
+  const [confirming, setConfirming] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [result, setResult] = useState<{
@@ -367,8 +368,14 @@ export function ManualRefundPage() {
     amount: number
     requestedAt: string
   } | null>(null)
-  const submit = async (event: React.FormEvent) => {
+  const submit = (event: React.FormEvent) => {
     event.preventDefault()
+    if (submitting || result) return
+    setError("")
+    setConfirming(true)
+  }
+  const requestRefund = async () => {
+    if (submitting || result) return
     setSubmitting(true)
     setError("")
     try {
@@ -382,6 +389,7 @@ export function ManualRefundPage() {
         body: JSON.stringify({ evidenceReference, reason }),
       })
       setResult(response)
+      setConfirming(false)
     } catch (caught) {
       setError(
         caught instanceof ApiError
@@ -443,8 +451,15 @@ export function ManualRefundPage() {
           >
             취소
           </button>
-          <button className="pa-button pa-button-danger" disabled={submitting}>
-            {submitting ? "환불 요청 중…" : "전액 환불 요청"}
+          <button
+            className="pa-button pa-button-danger"
+            disabled={submitting || Boolean(result)}
+          >
+            {submitting
+              ? "환불 요청 중…"
+              : result
+                ? "환불 요청 완료"
+                : "전액 환불 요청"}
           </button>
         </div>
       </form>
@@ -463,6 +478,52 @@ export function ManualRefundPage() {
             환불 상세로 이동
           </Link>
         </div>
+      )}
+      {confirming && (
+        <Modal
+          title="전액 환불 최종 확인"
+          description="아래 내용을 확인한 뒤에만 환불 요청을 전송합니다."
+          onClose={() => {
+            if (!submitting) setConfirming(false)
+          }}
+        >
+          <div className="pa-drawer-form">
+            <div className="pa-notice pa-notice-danger">
+              <strong>결제 ID {paymentId} 전액 환불</strong>
+              <span>
+                이 작업은 외부 결제 환불을 시작합니다. 결제 ID와 입력한 사유를
+                다시 확인해 주세요.
+              </span>
+            </div>
+            <div className="pa-target-card">
+              <strong>증빙 참조</strong>
+              <span>{evidenceReference}</span>
+            </div>
+            <div className="pa-target-card">
+              <strong>환불 사유</strong>
+              <span>{reason}</span>
+            </div>
+            <ApiErrorMessage error={error} />
+            <div className="pa-form-actions">
+              <button
+                type="button"
+                className="pa-button"
+                onClick={() => setConfirming(false)}
+                disabled={submitting}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="pa-button pa-button-danger"
+                onClick={requestRefund}
+                disabled={submitting}
+              >
+                {submitting ? "환불 요청 중…" : "최종 환불 요청"}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </main>
   )
@@ -502,10 +563,18 @@ export function RefundFailureDetailPage() {
         {(detail) => {
           const canRetry =
             detail.refund.status === "FAILED" && detail.attempts.length < 3
+          const pageTitle =
+            detail.refund.status === "FAILED"
+              ? "환불 실패"
+              : detail.refund.status === "DISCREPANT"
+                ? "환불 결과 불일치"
+                : detail.refund.status === "SUCCEEDED"
+                  ? "환불 상세"
+                  : "환불 처리"
           return (
             <>
               <PageHeader
-                title={`환불 실패 #${detail.refund.refundId}`}
+                title={`${pageTitle} #${detail.refund.refundId}`}
                 description="환불·결제 정보와 외부 호출 시도를 확인하고 실제 결과를 처리합니다."
                 status={<StatusBadge value={detail.refund.status} />}
               />
@@ -636,7 +705,7 @@ export function RefundFailureDetailPage() {
                 </div>
               )}
               <button className="pa-back-link" onClick={() => navigate(-1)}>
-                ← 환불 실패 목록으로
+                ← 이전 화면으로
               </button>
               {confirming && (
                 <ConfirmRefundModal

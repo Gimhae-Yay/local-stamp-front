@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react"
-import { ApiError, apiRequest } from "../../admin/api"
+import { useState } from "react"
+import { ApiError, apiRequest, storedUserId } from "../../admin/api"
 import {
   ApiErrorMessage,
   AsyncState,
@@ -10,80 +10,102 @@ import {
   formatDate,
   usePlatformData,
 } from "../PlatformComponents"
-import type { PlatformUser } from "../types"
+import type { PlatformAdminAccount } from "../types"
 
 export default function AdminAccountPage() {
-  const state = usePlatformData<{ users: PlatformUser[] }>(
-    "/api/v1/platform-admin/users",
+  const currentUserId = storedUserId()
+  const state = usePlatformData<{ adminAccounts: PlatformAdminAccount[] }>(
+    "/api/v1/platform-admin/admin-accounts",
+  )
+  const canManageAccounts = state.data?.adminAccounts.some(
+    (account) =>
+      account.userId === currentUserId &&
+      account.grade === "SUPER_ADMIN" &&
+      account.status === "ACTIVE",
   )
   const [creating, setCreating] = useState(false)
-  const [deactivating, setDeactivating] = useState<PlatformUser | null>(null)
-  const [deactivatingById, setDeactivatingById] = useState(false)
-  const administrators = useMemo(
-    () =>
-      (state.data?.users ?? []).filter((user) =>
-        user.roleAssignments.some(
-          (assignment) => assignment.role === "PLATFORM_ADMIN",
-        ),
-      ),
-    [state.data],
-  )
+  const [deactivating, setDeactivating] =
+    useState<PlatformAdminAccount | null>(null)
   return (
     <main className="pa-content">
       <PageHeader
         title="전체 관리자 계정"
         description="최고 관리자만 전체 관리자 계정을 생성하거나 비활성화할 수 있습니다."
-        action={
-          <div className="pa-header-actions">
-            <button
-              className="pa-button pa-button-danger-outline"
-              onClick={() => setDeactivatingById(true)}
-            >
-              계정 비활성화
-            </button>
-            <button
-              className="pa-button pa-button-primary"
-              onClick={() => setCreating(true)}
-            >
-              ＋ 전체 관리자 계정 생성
-            </button>
-          </div>
-        }
+        action={canManageAccounts ? (
+          <button
+            className="pa-button pa-button-primary"
+            onClick={() => setCreating(true)}
+          >
+            ＋ 전체 관리자 계정 생성
+          </button>
+        ) : undefined}
       />
       <div className="pa-notice pa-notice-orange">
-        <strong>최고 관리자 전용</strong>
+        <strong>{canManageAccounts ? "최고 관리자 전용" : "조회 전용"}</strong>
         <span>
-          현재 백엔드는 관리자 등급 조회값을 제공하지 않습니다. 생성·비활성화
-          권한은 요청 시 서버가 최종 검증하며, 비활성화 대상은 사용자 ID로
-          지정합니다.
+          {canManageAccounts
+            ? "관리자 등급과 활성 상태는 서버의 관리자 계정 목록을 기준으로 표시합니다. 생성·비활성화 권한은 요청 시 서버가 최종 검증합니다."
+            : "현재 계정은 관리자 목록을 조회할 수 있지만 계정을 생성하거나 비활성화할 수 없습니다."}
         </span>
       </div>
-      <AsyncState state={state} empty={() => administrators.length === 0}>
-        {() => (
+      <AsyncState
+        state={state}
+        empty={(value) => value.adminAccounts.length === 0}
+      >
+        {(value) => (
           <section className="pa-list">
-            {administrators.map((user) => (
-              <article className="pa-list-row pa-admin-row" key={user.userId}>
+            {value.adminAccounts.map((account) => (
+              <article
+                className="pa-list-row pa-admin-row"
+                key={account.userId}
+              >
                 <span className="pa-account-avatar">관</span>
                 <div>
-                  <strong>{user.name}</strong>
+                  <strong>{account.name}</strong>
                   <small>
-                    {user.loginIdentifier} · 사용자 ID {user.userId}
+                    {account.loginIdentifier} · 사용자 ID {account.userId}
                   </small>
                 </div>
-                <StatusBadge value="ACTIVE" />
-                <span>{formatDate(user.createdAt)}</span>
-                <button
-                  className="pa-button pa-button-danger-outline"
-                  onClick={() => setDeactivating(user)}
-                >
-                  비활성화
-                </button>
+                <div className="pa-admin-meta">
+                  <StatusBadge
+                    value={account.grade}
+                    label={
+                      account.grade === "SUPER_ADMIN"
+                        ? "최고 관리자"
+                        : "플랫폼 관리자"
+                    }
+                  />
+                  <StatusBadge value={account.status} />
+                </div>
+                <span>
+                  {account.status === "INACTIVE"
+                    ? `비활성화 ${formatDate(account.inactivatedAt)}`
+                    : `생성 ${formatDate(account.createdAt)}`}
+                </span>
+                {canManageAccounts ? (
+                  <button
+                    className="pa-button pa-button-danger-outline"
+                    onClick={() => setDeactivating(account)}
+                    disabled={
+                      account.status === "INACTIVE" ||
+                      account.userId === currentUserId
+                    }
+                  >
+                    {account.userId === currentUserId
+                      ? "현재 계정"
+                      : account.status === "INACTIVE"
+                        ? "비활성화됨"
+                        : "비활성화"}
+                  </button>
+                ) : (
+                  <span className="pa-readonly-action">조회 전용</span>
+                )}
               </article>
             ))}
           </section>
         )}
       </AsyncState>
-      {creating && (
+      {canManageAccounts && creating && (
         <CreateAdminModal
           onClose={() => setCreating(false)}
           onSuccess={() => {
@@ -92,21 +114,12 @@ export default function AdminAccountPage() {
           }}
         />
       )}
-      {deactivating && (
+      {canManageAccounts && deactivating && (
         <DeactivateAdminModal
           user={deactivating}
           onClose={() => setDeactivating(null)}
           onSuccess={() => {
             setDeactivating(null)
-            state.reload()
-          }}
-        />
-      )}
-      {deactivatingById && (
-        <DeactivateAdminModal
-          onClose={() => setDeactivatingById(false)}
-          onSuccess={() => {
-            setDeactivatingById(false)
             state.reload()
           }}
         />
@@ -250,11 +263,10 @@ function DeactivateAdminModal({
   onClose,
   onSuccess,
 }: {
-  user?: PlatformUser
+  user: PlatformAdminAccount
   onClose: () => void
   onSuccess: () => void
 }) {
-  const [userId, setUserId] = useState(user?.userId ?? "")
   const [reasonCode, setReasonCode] = useState("ADMIN_ACCOUNT_DEACTIVATION")
   const [evidenceReference, setEvidenceReference] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -265,7 +277,7 @@ function DeactivateAdminModal({
     setError("")
     try {
       await apiRequest(
-        `/api/v1/platform-admin/admin-accounts/${userId}/deactivate`,
+        `/api/v1/platform-admin/admin-accounts/${user.userId}/deactivate`,
         {
           method: "POST",
           body: JSON.stringify({ reasonCode, evidenceReference }),
@@ -285,11 +297,7 @@ function DeactivateAdminModal({
   return (
     <Modal
       title="전체 관리자 계정 비활성화"
-      description={
-        user
-          ? `${user.name} · ${user.loginIdentifier}`
-          : "비활성화할 전체 관리자 계정의 사용자 ID를 입력합니다."
-      }
+      description={`${user.name} · ${user.loginIdentifier}`}
       onClose={onClose}
     >
       <form className="pa-drawer-form" onSubmit={submit}>
@@ -300,15 +308,7 @@ function DeactivateAdminModal({
           </span>
         </div>
         <Field label="사용자 ID *">
-          <input
-            value={userId}
-            onChange={(event) =>
-              setUserId(event.target.value.replace(/\D/g, ""))
-            }
-            inputMode="numeric"
-            disabled={Boolean(user)}
-            required
-          />
+          <input value={user.userId} disabled />
         </Field>
         <Field label="비활성화 사유 코드 *">
           <input
