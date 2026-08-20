@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom"
+import { Navigate, Outlet, useLocation } from "react-router-dom"
 import {
   ApiError,
   clearLogin,
@@ -39,6 +39,14 @@ export function adminReturnPath(location: {
   hash: string
 }) {
   return `${location.pathname}${location.search}${location.hash}`
+}
+
+export function adminLoginDestination(state: unknown) {
+  const from = (state as { from?: unknown } | null)?.from
+  if (typeof from !== "string") return "/region-admin"
+  if (!/^\/region-admin(?:\/|\?|#|$)/.test(from)) return "/region-admin"
+  if (/^\/region-admin\/login(?:\?|#|$)/.test(from)) return "/region-admin"
+  return from
 }
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
@@ -122,14 +130,14 @@ export function AdminGuard() {
 
 export function AdminLoginPage() {
   const { session, login } = useAdminAuth()
-  const navigate = useNavigate()
   const location = useLocation()
+  const destination = adminLoginDestination(location.state)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
 
-  if (session) return <Navigate to="/region-admin" replace />
+  if (session) return <Navigate to={destination} replace />
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -137,9 +145,6 @@ export function AdminLoginPage() {
     setError("")
     try {
       await login(email, password)
-      const destination =
-        (location.state as { from?: string } | null)?.from ?? "/region-admin"
-      navigate(destination, { replace: true })
     } catch (caught) {
       setError(
         caught instanceof ApiError ? caught.message : "로그인하지 못했습니다.",

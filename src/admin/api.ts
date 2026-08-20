@@ -83,6 +83,7 @@ async function refreshToken(): Promise<boolean> {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
         method: "POST",
         credentials: "include",
+        headers: { Accept: "application/json" },
       })
       if (!response.ok) return false
       const payload = await parseEnvelope<{ accessToken: string }>(response)
@@ -104,6 +105,7 @@ export async function apiRequest<T>(
   retry = true,
 ): Promise<T> {
   const headers = new Headers(init.headers)
+  if (!headers.has("Accept")) headers.set("Accept", "application/json")
   if (init.body && !headers.has("Content-Type"))
     headers.set("Content-Type", "application/json")
   if (token()) headers.set("Authorization", `Bearer ${token()}`)

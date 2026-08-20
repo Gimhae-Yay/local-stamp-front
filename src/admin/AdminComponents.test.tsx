@@ -2,7 +2,12 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { MemoryRouter } from "react-router-dom"
-import { ActionModal, PageHeader, StatusBadge } from "./AdminComponents"
+import {
+  ActionModal,
+  PageHeader,
+  StatusBadge,
+  useApiData,
+} from "./AdminComponents"
 import { ApiError, apiRequest } from "./api"
 
 vi.mock("./api", () => ({
@@ -112,5 +117,35 @@ describe("StatusBadge", () => {
     render(<StatusBadge value="WITHDRAWN" />)
 
     expect(screen.getByText("전체 철회")).toHaveClass("ra-badge-withdrawn")
+  })
+})
+
+function ApiDataProbe({ path }: { path: string }) {
+  useApiData(path)
+  return null
+}
+
+describe("useApiData", () => {
+  beforeEach(() => {
+    vi.mocked(apiRequest).mockReset()
+  })
+
+  it("aborts the previous HTTP request when the path changes", async () => {
+    vi.mocked(apiRequest).mockImplementation(() => new Promise(() => {}))
+    const { rerender, unmount } = render(<ApiDataProbe path="/first" />)
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(1))
+    const firstSignal = vi.mocked(apiRequest).mock.calls[0][1]?.signal
+    expect(firstSignal?.aborted).toBe(false)
+
+    rerender(<ApiDataProbe path="/second" />)
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2))
+    expect(firstSignal?.aborted).toBe(true)
+    const secondSignal = vi.mocked(apiRequest).mock.calls[1][1]?.signal
+    expect(secondSignal?.aborted).toBe(false)
+
+    unmount()
+    expect(secondSignal?.aborted).toBe(true)
   })
 })

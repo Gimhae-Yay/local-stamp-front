@@ -11,16 +11,21 @@ export function useApiData<T>(path: string | null) {
   const reload = useCallback(() => setRevision((value) => value + 1), [])
 
   useEffect(() => {
-    if (!path) return
+    if (!path) {
+      setLoading(false)
+      setError(null)
+      return
+    }
     let active = true
+    const controller = new AbortController()
     setLoading(true)
     setError(null)
-    apiRequest<T>(path)
+    apiRequest<T>(path, { signal: controller.signal })
       .then((value) => {
         if (active) setData(value)
       })
       .catch((caught) => {
-        if (active)
+        if (active && !controller.signal.aborted)
           setError(
             caught instanceof ApiError
               ? caught
@@ -36,6 +41,7 @@ export function useApiData<T>(path: string | null) {
       })
     return () => {
       active = false
+      controller.abort()
     }
   }, [path, revision])
 
