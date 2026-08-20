@@ -1,17 +1,23 @@
 import { Navigate, Route, Routes } from "react-router-dom"
+
 import {
   OperatorAuthProvider,
   OperatorGuard,
   OperatorLoginPage,
 } from "./OperatorAuth"
+
 import OperatorLayout from "./OperatorLayout"
+
 import {
   ContentDetailPage,
   ContentFormPage,
   ContentListPage,
+  ContentRevisionPage,
   ContentSessionFormPage,
 } from "./pages/ContentPages"
+
 import { CheckInPage, ReservationPage } from "./pages/ReservationPages"
+
 import {
   CouponFormPage,
   CouponListPage,
@@ -19,6 +25,7 @@ import {
   MissionListPage,
   StampbookPage,
 } from "./pages/BenefitPages"
+
 import "./operator.css"
 
 export default function OperatorApp() {
@@ -38,6 +45,10 @@ export default function OperatorApp() {
             <Route
               path="contents/:contentId/sessions/new"
               element={<ContentSessionFormPage />}
+            />
+            <Route
+              path="content-revisions/:revisionId"
+              element={<ContentRevisionPage />}
             />
             <Route path="reservations" element={<ReservationPage />} />
             <Route path="check-in" element={<CheckInPage />} />

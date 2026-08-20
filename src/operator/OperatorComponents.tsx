@@ -1,26 +1,49 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
+
 import { ApiError } from "../api/client"
 
 const statusLabels: Record<string, string> = {
   DRAFT: "초안",
+
   PENDING: "심사 대기",
+
   EDIT_REQUESTED: "수정 심사 중",
+  EDIT_APPROVED: "수정 승인",
+  EDIT_REJECTED: "수정 반려",
+  EDIT_WITHDRAWN: "수정 철회",
+  EDIT_INVALIDATED: "수정 무효",
   APPROVED: "승인",
+
   PUBLISHED: "공개 중",
+
   REJECTED: "반려",
+
   SCHEDULED: "예정",
+
   CANCELLED: "취소",
+
   ENDED: "종료",
+
   CONFIRMED: "확정",
+
   CHECKED_IN: "체크인",
+
   EXPIRED: "만료",
+
   PROCESSING: "처리 중",
+
   SUCCEEDED: "완료",
+
   FAILED: "실패",
+
   VISIT: "방문",
+
   MISSION_REWARD: "미션 보상",
+
   STAMPBOOK_COMPLETION: "스탬프북 완주",
+
   VISIT_COUNT: "방문 횟수",
+
   CONTENT_SET: "콘텐츠 세트",
 }
 
@@ -35,11 +58,25 @@ export function statusTone(value: string) {
     )
   )
     return "success"
+
   if (["PENDING", "EDIT_REQUESTED", "PROCESSING"].includes(value))
     return "pending"
-  if (["REJECTED", "CANCELLED", "FAILED", "ENDED"].includes(value))
+
+  if (
+    [
+      "REJECTED",
+      "EDIT_REJECTED",
+      "EDIT_WITHDRAWN",
+      "EDIT_INVALIDATED",
+      "CANCELLED",
+      "FAILED",
+      "ENDED",
+    ].includes(value)
+  )
     return "danger"
+
   if (value === "CHECKED_IN") return "blue"
+
   return "draft"
 }
 
@@ -53,11 +90,15 @@ export function StatusBadge({ value }: { value: string }) {
 
 export function PageHeader({
   title,
+
   description,
+
   actions,
 }: {
   title: string
+
   description: string
+
   actions?: ReactNode
 }) {
   return (
@@ -77,13 +118,19 @@ export function Breadcrumb({ children }: { children: ReactNode }) {
 
 export function RouteState({
   loading,
+
   error,
+
   empty,
+
   onRetry,
 }: {
   loading?: boolean
+
   error?: string
+
   empty?: string
+
   onRetry?: () => void
 }) {
   return (
@@ -110,11 +157,16 @@ export function RouteState({
 
 export function formatDate(value: string | null | undefined) {
   if (!value) return "—"
+
   const date = new Date(value)
+
   if (Number.isNaN(date.getTime())) return value
+
   return new Intl.DateTimeFormat("ko-KR", {
     dateStyle: "medium",
+
     timeStyle: "short",
+
     timeZone: "Asia/Seoul",
   }).format(date)
 }
@@ -122,52 +174,80 @@ export function formatDate(value: string | null | undefined) {
 export function formatMoney(value: number, currency = "KRW") {
   return new Intl.NumberFormat("ko-KR", {
     style: "currency",
+
     currency,
+
     maximumFractionDigits: 0,
   }).format(value)
 }
 
 export function apiErrorMessage(caught: unknown, fallback: string) {
   if (caught instanceof ApiError) return caught.message
+
   if (caught instanceof Error && caught.message.trim()) return caught.message
+
   return fallback
 }
 
 export function ActionModal({
   title,
+
   description,
+
   label = "사유",
+
   placeholder,
+
   confirmLabel,
+
   tone = "admin",
+
   initialReason = "",
+
   onClose,
+
   onConfirm,
 }: {
   title: string
+
   description: string
+
   label?: string
+
   placeholder?: string
+
   confirmLabel: string
+
   tone?: "admin" | "danger" | "primary"
+
   initialReason?: string
+
   onClose: () => void
+
   onConfirm: (reason: string) => Promise<void>
 }) {
   const [reason, setReason] = useState(initialReason)
+
   const [submitting, setSubmitting] = useState(false)
+
   const [error, setError] = useState("")
+
   const dialogRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
+
     dialogRef.current?.focus()
+
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !submitting) onClose()
     }
+
     document.addEventListener("keydown", keydown)
+
     return () => {
       document.removeEventListener("keydown", keydown)
+
       previous?.focus()
     }
   }, [onClose, submitting])
@@ -175,14 +255,19 @@ export function ActionModal({
   const submit = async () => {
     if (!reason.trim()) {
       setError(`${label}을 입력해 주세요.`)
+
       return
     }
+
     setSubmitting(true)
+
     setError("")
+
     try {
       await onConfirm(reason.trim())
     } catch (caught) {
       setError(apiErrorMessage(caught, "처리하지 못했습니다."))
+
       setSubmitting(false)
     }
   }
@@ -243,21 +328,33 @@ export function ActionModal({
 
 export function ConfirmModal({
   title,
+
   description,
+
   confirmLabel,
+
   tone = "admin",
+
   onClose,
+
   onConfirm,
 }: {
   title: string
+
   description: string
+
   confirmLabel: string
+
   tone?: "admin" | "danger" | "primary"
+
   onClose: () => void
+
   onConfirm: () => Promise<void>
 }) {
   const [submitting, setSubmitting] = useState(false)
+
   const [error, setError] = useState("")
+
   return (
     <div
       className="op-modal-backdrop"
@@ -285,11 +382,14 @@ export function ConfirmModal({
             className={`op-button op-button-${tone}`}
             onClick={async () => {
               setSubmitting(true)
+
               setError("")
+
               try {
                 await onConfirm()
               } catch (caught) {
                 setError(apiErrorMessage(caught, "처리하지 못했습니다."))
+
                 setSubmitting(false)
               }
             }}
