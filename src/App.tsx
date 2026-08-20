@@ -37,6 +37,12 @@ import {
 
 import { LoginPage, SignupPage } from "./pages/AuthPages"
 import OperatorRequestPage from "./pages/OperatorRequestPage"
+import {
+  CreateContentRevisionPage,
+  EditContentRevisionPage,
+  OperatorContentDetailPage,
+  OperatorContentListPage,
+} from "./pages/OperatorContentPages"
 import RegionalAdminApp from "./admin/RegionalAdminApp"
 import PlatformAdminApp from "./platform-admin/PlatformAdminApp"
 
@@ -48,6 +54,14 @@ function RequireAuthentication() {
   ) : (
     <Navigate to="/login" replace state={{ from: location.pathname }} />
   )
+}
+
+function RequireOperator() {
+  const { user } = useAppState()
+  const isOperator = user?.roleAssignments.some(
+    (assignment) => assignment.role === "OPERATOR",
+  )
+  return isOperator ? <Outlet /> : <Navigate to="/" replace />
 }
 
 export default function App() {
@@ -85,6 +99,24 @@ export default function App() {
             <Route path="/coupons" element={<CouponsPage />} />
             <Route path="/stampbook" element={<StampbookPage />} />
             <Route path="/operator-request" element={<OperatorRequestPage />} />
+            <Route element={<RequireOperator />}>
+              <Route
+                path="/operator/contents"
+                element={<OperatorContentListPage />}
+              />
+              <Route
+                path="/operator/contents/:contentId"
+                element={<OperatorContentDetailPage />}
+              />
+              <Route
+                path="/operator/contents/:contentId/revisions/new"
+                element={<CreateContentRevisionPage />}
+              />
+              <Route
+                path="/operator/content-revisions/:revisionId/edit"
+                element={<EditContentRevisionPage />}
+              />
+            </Route>
             <Route path="/payment/complete" element={<PaymentCompletePage />} />
           </Route>
           <Route path="/login" element={<LoginPage />} />

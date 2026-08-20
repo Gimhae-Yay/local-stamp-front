@@ -21,6 +21,9 @@ export default function Navbar({
   const visitorRole = user?.roleAssignments.find(
     (assignment) => assignment.role === "VISITOR",
   )
+  const operatorRole = user?.roleAssignments.find(
+    (assignment) => assignment.role === "OPERATOR",
+  )
   const links = [
     ["홈", "/"],
     ["행사·체험", "/events"],
@@ -135,23 +138,35 @@ export default function Navbar({
               onClick={() => setMenuOpen((value) => !value)}
               aria-expanded={menuOpen}
             >
-              <span>방</span> 내 예약 · 내 계정
+              <span>{operatorRole ? "운" : "방"}</span>{" "}
+              {operatorRole ? "콘텐츠 관리 · 내 계정" : "내 예약 · 내 계정"}
             </button>
             {menuOpen && (
               <div className="account-menu">
                 <div className="account-menu-user">
-                  <b>방문자 계정</b>
+                  <b>{operatorRole ? "운영자 계정" : "방문자 계정"}</b>
                   <small>
-                    {visitorRole?.regionName ?? "Local Stamp 방문자 회원"}
+                    {operatorRole?.regionName ??
+                      visitorRole?.regionName ??
+                      "Local Stamp 방문자 회원"}
                   </small>
                 </div>
                 {[
-                  ["내 예약", "/reservations"],
-                  ["내 방문 후기", "/reservations?tab=past"],
-                  ["내 스탬프북", "/stampbook"],
-                  ["내 지역 미션", "/missions"],
-                  ["쿠폰함", "/coupons"],
-                  ["운영자 재신청", "/operator-request"],
+                  ...(operatorRole
+                    ? [["내 콘텐츠 관리", "/operator/contents"]]
+                    : []),
+                  ...(visitorRole
+                    ? [
+                        ["내 예약", "/reservations"],
+                        ["내 방문 후기", "/reservations?tab=past"],
+                        ["내 스탬프북", "/stampbook"],
+                        ["내 지역 미션", "/missions"],
+                        ["쿠폰함", "/coupons"],
+                      ]
+                    : []),
+                  ...(!operatorRole
+                    ? [["운영자 재신청", "/operator-request"]]
+                    : []),
                 ].map(([label, to]) => (
                   <Link key={label} to={to} onClick={() => setMenuOpen(false)}>
                     {label}
