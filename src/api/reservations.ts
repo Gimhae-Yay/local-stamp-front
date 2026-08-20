@@ -18,6 +18,15 @@ export interface ConfirmedReservation {
   confirmedAt: string
 }
 
+export interface ReservationReview {
+  reviewId: string
+  status: "PUBLISHED" | "DELETED"
+  rating: number | null
+  reviewText: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ReservationSummary {
   reservationId: string
   reservationNo: string
@@ -40,6 +49,7 @@ export interface ReservationSummary {
     checkedAt: string | null
     visitId: string | null
   }
+  review: ReservationReview | null
 }
 
 export interface ReservationDetail {
@@ -72,6 +82,7 @@ export interface ReservationDetail {
     checkedAt: string | null
     visitId: string | null
   }
+  review: ReservationReview | null
 }
 
 export interface ReservationQr {

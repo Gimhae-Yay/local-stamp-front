@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Link,
   useLocation,
@@ -651,7 +651,14 @@ function ReservationCard({
         >
           {label}
         </StatusPill>
-        <h2>{reservation.content.title}</h2>
+        <h2>
+          <Link
+            className="content-title-link"
+            to={`/events/${reservation.content.contentId}`}
+          >
+            {reservation.content.title}
+          </Link>
+        </h2>
         <p>{reservation.content.locationText}</p>
         <small>예약 번호 {reservation.reservationNo}</small>
         {refund && <small> · 환불 {refund.status}</small>}
@@ -660,19 +667,23 @@ function ReservationCard({
         {reservation.status === "CONFIRMED" && (
           <Link
             className="button-primary button-small"
-            to={`/reservations/${reservation.reservationId}`}
+            to={`/reservations/${reservation.reservationId}?showQr=true#check-in-qr`}
           >
             체크인 QR 보기
           </Link>
         )}
-        {reservation.checkIn.checkedIn && reservation.checkIn.visitId && (
-          <Link
-            className="button-primary button-small"
-            to={`/reviews/new?visitId=${reservation.checkIn.visitId}&reservationId=${reservation.reservationId}`}
-          >
-            후기 작성
-          </Link>
-        )}
+        {reservation.checkIn.checkedIn &&
+          reservation.checkIn.visitId &&
+          reservation.review?.status !== "DELETED" && (
+            <Link
+              className="button-primary button-small"
+              to={`/reviews/new?visitId=${reservation.checkIn.visitId}&reservationId=${reservation.reservationId}`}
+            >
+              {reservation.review?.status === "PUBLISHED"
+                ? "후기 수정"
+                : "후기 작성"}
+            </Link>
+          )}
         <Link
           className="button-outline"
           to={`/reservations/${reservation.reservationId}`}
@@ -686,6 +697,8 @@ function ReservationCard({
 
 export function ReservationDetailPage() {
   const { reservationId } = useParams()
+  const [params] = useSearchParams()
+  const showQr = params.get("showQr") === "true"
   const [detail, setDetail] = useState<ReservationDetail | null>(null)
   const [refund, setRefund] = useState<Refund | null>(null)
   const [qrImage, setQrImage] = useState<string | null>(null)
@@ -693,6 +706,7 @@ export function ReservationDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [qrLoading, setQrLoading] = useState(false)
+  const qrAutoLoadedFor = useRef<string | null>(null)
 
   useEffect(() => {
     if (!reservationId) return
@@ -719,7 +733,7 @@ export function ReservationDetailPage() {
     return () => controller.abort()
   }, [reservationId])
 
-  const loadQr = async () => {
+  const loadQr = useCallback(async () => {
     if (!reservationId) return
     setQrLoading(true)
     setError(null)
@@ -732,7 +746,23 @@ export function ReservationDetailPage() {
     } finally {
       setQrLoading(false)
     }
-  }
+  }, [reservationId])
+
+  useEffect(() => {
+    if (
+      !showQr ||
+      !detail ||
+      detail.reservation.status !== "CONFIRMED" ||
+      qrAutoLoadedFor.current === reservationId
+    ) {
+      return
+    }
+    qrAutoLoadedFor.current = reservationId ?? null
+    document
+      .getElementById("check-in-qr")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" })
+    void loadQr()
+  }, [detail, loadQr, reservationId, showQr])
 
   if (loading)
     return (
@@ -758,7 +788,14 @@ export function ReservationDetailPage() {
         current="예약 상세"
       />
       <div className="detail-heading">
-        <h1>{detail.content.title}</h1>
+        <h1>
+          <Link
+            className="content-title-link"
+            to={`/events/${detail.content.contentId}`}
+          >
+            {detail.content.title}
+          </Link>
+        </h1>
         <StatusPill
           tone={detail.reservation.status === "CONFIRMED" ? "green" : "gray"}
         >
@@ -771,7 +808,14 @@ export function ReservationDetailPage() {
       <div className="confirmation-grid">
         <section>
           <h2>예약 내용</h2>
-          <h3>{detail.content.title}</h3>
+          <h3>
+            <Link
+              className="content-title-link"
+              to={`/events/${detail.content.contentId}`}
+            >
+              {detail.content.title}
+            </Link>
+          </h3>
           <InfoRow label="행사 일정">
             {formatRange(detail.session.startsAt, detail.session.endsAt)}
           </InfoRow>
@@ -804,7 +848,7 @@ export function ReservationDetailPage() {
             </Link>
           )}
         </section>
-        <section>
+        <section id="check-in-qr">
           <h2>체크인 QR</h2>
           <div className="qr-panel">
             {qrImage ? (

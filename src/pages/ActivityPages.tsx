@@ -29,7 +29,7 @@ import {
   type StampbookEarnings,
   type StampbookSummary,
 } from "../api/activities"
-import { isAbortError } from "../api/client"
+import { ApiError, isAbortError } from "../api/client"
 import { getMyReservation, type ReservationDetail } from "../api/reservations"
 import {
   Breadcrumbs,
@@ -76,6 +76,24 @@ function progressStatus(status: string) {
   return labels[status] ?? status
 }
 
+function couponSourceLabel(sourceType: string) {
+  const labels: Record<string, string> = {
+    VISIT: "방문",
+    STAMPBOOK_COMPLETION: "스탬프북 완료",
+    MISSION_REWARD: "미션 보상",
+  }
+  return labels[sourceType] ?? sourceType
+}
+
+function couponStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    AVAILABLE: "사용 가능",
+    USED: "사용 완료",
+    EXPIRED: "기간 만료",
+  }
+  return labels[status] ?? status
+}
+
 export function ReviewPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -95,7 +113,26 @@ export function ReviewPage() {
     if (!reservationId) return
     const controller = new AbortController()
     getMyReservation(reservationId, controller.signal)
-      .then(setReservation)
+      .then((result) => {
+        setReservation(result)
+        if (
+          result.review?.status === "PUBLISHED" &&
+          result.review.rating !== null &&
+          result.review.reviewText !== null
+        ) {
+          setSavedReview({
+            reviewId: result.review.reviewId,
+            rating: result.review.rating,
+            reviewText: result.review.reviewText,
+            createdAt: result.review.createdAt,
+            updatedAt: result.review.updatedAt,
+          })
+          setRating(result.review.rating)
+          setReview(result.review.reviewText)
+        } else if (result.review?.status === "DELETED") {
+          setError("삭제한 후기는 다시 작성하거나 수정할 수 없습니다.")
+        }
+      })
       .catch((requestError) => {
         if (isAbortError(requestError, controller.signal)) return
         setError(errorMessage(requestError, "방문 정보를 불러오지 못했습니다."))
@@ -111,17 +148,36 @@ export function ReviewPage() {
       setError("후기를 작성할 방문 기록을 찾을 수 없습니다.")
       return
     }
+    if (reservation?.review?.status === "DELETED") {
+      setError("삭제한 후기는 다시 작성하거나 수정할 수 없습니다.")
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
       const result = savedReview
         ? await updateReview(savedReview.reviewId, rating, review)
         : await createVisitReview(visitId, rating, review)
+      if (savedReview) {
+        navigate("/reservations?tab=past", { replace: true })
+        return
+      }
       setSavedReview(result)
       setRating(result.rating)
       setReview(result.reviewText)
     } catch (requestError) {
-      setError(errorMessage(requestError, "후기를 저장하지 못했습니다."))
+      if (
+        !savedReview &&
+        requestError instanceof ApiError &&
+        requestError.status === 400 &&
+        requestError.code === "INVALID_INPUT"
+      ) {
+        setError(
+          "이미 작성했거나 삭제한 후기가 있는 방문일 수 있습니다. 현재 화면에서는 기존 후기를 수정할 수 없습니다.",
+        )
+      } else {
+        setError(errorMessage(requestError, "후기를 저장하지 못했습니다."))
+      }
     } finally {
       setSubmitting(false)
     }
@@ -205,7 +261,13 @@ export function ReviewPage() {
           {error && <p className="form-error">{error}</p>}
           <button
             className="button-primary review-submit"
-            disabled={!visitId || !rating || !review.trim() || submitting}
+            disabled={
+              !visitId ||
+              !rating ||
+              !review.trim() ||
+              submitting ||
+              reservation?.review?.status === "DELETED"
+            }
             onClick={save}
           >
             {submitting
@@ -228,7 +290,18 @@ export function ReviewPage() {
           <h2>방문한 콘텐츠</h2>
           <article>
             <StatusPill>체크인 완료</StatusPill>
-            <h3>{reservation?.content.title ?? "방문 콘텐츠"}</h3>
+            <h3>
+              {reservation ? (
+                <Link
+                  className="content-title-link"
+                  to={`/events/${reservation.content.contentId}`}
+                >
+                  {reservation.content.title}
+                </Link>
+              ) : (
+                "방문 콘텐츠"
+              )}
+            </h3>
             {reservation && (
               <p>
                 {formatRange(
@@ -351,7 +424,7 @@ function Coupon({
     <article className="coupon">
       <div>
         <StatusPill tone={coupon.status === "AVAILABLE" ? "green" : "gray"}>
-          {coupon.status}
+          {couponStatusLabel(coupon.status)}
         </StatusPill>
         <b>
           {currencyFormatter.format(coupon.discountAmount)}
@@ -364,7 +437,7 @@ function Coupon({
           <br />
           {currencyFormatter.format(coupon.minimumPaymentAmount)}원 이상 결제 시
         </p>
-        <small>{coupon.issueSourceType} 발급</small>
+        <small>{couponSourceLabel(coupon.issueSourceType)} 발급</small>
         <button
           className="coupon-history-toggle"
           type="button"
@@ -693,6 +766,7 @@ export function StampbookPage() {
   const [error, setError] = useState<string | null>(null)
   const [rewardMessage, setRewardMessage] = useState<string | null>(null)
   const [issuingReward, setIssuingReward] = useState(false)
+  const [issuedRewards, setIssuedRewards] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const controller = new AbortController()
@@ -714,6 +788,41 @@ export function StampbookPage() {
   }, [])
 
   useEffect(() => {
+    const controller = new AbortController()
+    const loadIssuedRewards = async () => {
+      const result = await getMyCoupons(undefined, controller.signal)
+      const rewardCoupons = result.coupons.filter(
+        (coupon) => coupon.issueSourceType === "STAMPBOOK_COMPLETION",
+      )
+      const rewardDetails = await Promise.all(
+        rewardCoupons.map((coupon) =>
+          getMyCoupon(coupon.couponId, controller.signal),
+        ),
+      )
+      if (controller.signal.aborted) return
+      setIssuedRewards(
+        Object.fromEntries(
+          rewardDetails.map((coupon) => [
+            coupon.coupon.sourceId,
+            coupon.coupon.couponId,
+          ]),
+        ),
+      )
+    }
+    loadIssuedRewards().catch((requestError) => {
+      if (isAbortError(requestError, controller.signal)) return
+      setError(
+        errorMessage(
+          requestError,
+          "완료 보상 발급 상태를 불러오지 못했습니다.",
+        ),
+      )
+    })
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    setRewardMessage(null)
     if (!selectedId) {
       setDetail(null)
       setEarnings(null)
@@ -748,6 +857,10 @@ export function StampbookPage() {
         "STAMPBOOK_COMPLETION",
         reward.stampbookRewardGrantId,
       )
+      setIssuedRewards((current) => ({
+        ...current,
+        [reward.stampbookRewardGrantId]: coupon.couponId,
+      }))
       setRewardMessage(
         coupon.duplicate
           ? "이미 발급된 완료 보상 쿠폰입니다."
@@ -858,15 +971,35 @@ export function StampbookPage() {
                   ))}
                 </div>
                 {detail.progress.completionReward && (
-                  <button
-                    className="button-primary"
-                    disabled={issuingReward}
-                    onClick={issueCompletionReward}
-                  >
-                    {issuingReward ? "쿠폰 발급 중…" : "완료 보상 쿠폰 발급"}
-                  </button>
+                  <div className="stamp-reward">
+                    <div>
+                      <b>스탬프북 완료 보상</b>
+                      <small>
+                        모든 스탬프를 모아 받을 수 있는 완료 보상 쿠폰입니다.
+                      </small>
+                    </div>
+                    {issuedRewards[
+                      detail.progress.completionReward.stampbookRewardGrantId
+                    ] ? (
+                      <button className="button-outline" disabled>
+                        쿠폰 발급 완료
+                      </button>
+                    ) : (
+                      <button
+                        className="button-primary"
+                        disabled={issuingReward}
+                        onClick={issueCompletionReward}
+                      >
+                        {issuingReward
+                          ? "쿠폰 발급 중…"
+                          : "완료 보상 쿠폰 발급"}
+                      </button>
+                    )}
+                    {rewardMessage && (
+                      <p className="green-text">{rewardMessage}</p>
+                    )}
+                  </div>
                 )}
-                {rewardMessage && <p className="green-text">{rewardMessage}</p>}
                 <Notice>
                   안내&nbsp; 대상 콘텐츠마다 유효한 방문 기록으로 스탬프가 한
                   번만 적립됩니다.
