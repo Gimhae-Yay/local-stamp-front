@@ -240,6 +240,7 @@ describe("미션·스탬프북 종료 흐름", () => {
     })
     vi.mocked(getMission).mockResolvedValue({
       missionId: "701",
+      title: "김해 골목 세 곳 방문하기",
       regionId: "11",
       status: "PUBLISHED",
       conditionType: "VISIT_COUNT",
@@ -253,6 +254,7 @@ describe("미션·스탬프북 종료 흐름", () => {
     vi.mocked(endMission).mockResolvedValue({
       missionId: "701",
       status: "ENDED",
+      endedAt: "2026-08-21T00:00:00Z",
     })
 
     render(
@@ -261,8 +263,11 @@ describe("미션·스탬프북 종료 흐름", () => {
       </MemoryRouter>,
     )
 
+    expect(
+      await screen.findByText("김해 골목 세 곳 방문하기"),
+    ).toBeInTheDocument()
     fireEvent.click(
-      await screen.findByRole("button", { name: "미션 종료" }),
+      screen.getByRole("button", { name: "미션 종료" }),
     )
     const dialog = screen.getByRole("dialog")
     const reason = within(dialog).getByRole("combobox")
@@ -304,6 +309,7 @@ describe("미션·스탬프북 종료 흐름", () => {
     vi.mocked(endStampbook).mockResolvedValue({
       stampbookId: "801",
       status: "ENDED",
+      endedAt: "2026-08-21T00:00:00Z",
     })
 
     render(

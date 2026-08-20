@@ -35,10 +35,6 @@ import {
   statusLabel,
 } from "../OperatorComponents"
 import { useOperatorAuth } from "../OperatorAuth"
-import {
-  readOperatorCompatValue,
-  writeOperatorCompatValue,
-} from "../operatorCompatStorage"
 import type {
   ContentSummary,
   CouponPolicyDetail,
@@ -850,15 +846,15 @@ export function MissionListPage() {
             {detail ? (
               <>
                 <header>
-                  <h2>미션 #{detail.missionId}</h2>
+                  <h2>{detail.title}</h2>
                   <StatusBadge value={detail.status} />
                 </header>
                 <div className="op-panel-body">
-                  <div className="op-notice">
-                    Backend 운영자 상세 응답에는 미션 제목이 없어 ID로
-                    표시합니다.
-                  </div>
                   <dl className="op-kv-grid">
+                    <div className="op-kv">
+                      <dt>미션 ID</dt>
+                      <dd>{detail.missionId}</dd>
+                    </div>
                     <div className="op-kv">
                       <dt>조건 유형</dt>
                       <dd>{statusLabel(detail.conditionType)}</dd>
@@ -981,14 +977,12 @@ const emptyMission = {
 export function MissionFormPage() {
   const { missionId } = useParams()
   const navigate = useNavigate()
-  const { session } = useOperatorAuth()
   const editing = Boolean(missionId)
   const [contents, setContents] = useState<ContentSummary[]>([])
   const [coupons, setCoupons] = useState<CouponPolicySummary[]>([])
   const [draft, setDraft] = useState(emptyMission)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [restoredTitle, setRestoredTitle] = useState(false)
   const [error, setError] = useState("")
   useEffect(() => {
     const controller = new AbortController()
@@ -1006,18 +1000,8 @@ export function MissionFormPage() {
         setContents(available)
         setCoupons(couponData.couponPolicies)
         if (mission) {
-          const storedTitle =
-            session && missionId
-              ? readOperatorCompatValue<string>(
-                  session.userId,
-                  "mission-title",
-                  missionId,
-                )
-              : null
-          const canRestoreTitle = Boolean(storedTitle?.value.trim())
-          setRestoredTitle(canRestoreTitle)
           setDraft({
-            title: canRestoreTitle ? storedTitle!.value : "",
+            title: mission.title,
             conditionType: mission.conditionType,
             requiredVisitCount:
               mission.requiredVisitCount === null
@@ -1046,7 +1030,7 @@ export function MissionFormPage() {
         if (!controller.signal.aborted) setLoading(false)
       })
     return () => controller.abort()
-  }, [missionId, session])
+  }, [missionId])
   const set = (key: keyof typeof draft, value: string | string[]) =>
     setDraft((current) => ({ ...current, [key]: value }))
   const toggleContent = (id: string) =>
@@ -1074,22 +1058,8 @@ export function MissionFormPage() {
     try {
       if (missionId) {
         await updateMission(missionId, input)
-        if (session)
-          writeOperatorCompatValue(
-            session.userId,
-            "mission-title",
-            missionId,
-            input.title,
-          )
       } else {
-        const result = await createMission(input)
-        if (session)
-          writeOperatorCompatValue(
-            session.userId,
-            "mission-title",
-            result.missionId,
-            input.title,
-          )
+        await createMission(input)
       }
       navigate("/operator/missions", { replace: true })
     } catch (caught) {
@@ -1107,13 +1077,6 @@ export function MissionFormPage() {
         title={editing ? "미션 초안 수정" : "미션 초안 만들기"}
         description="미션 제목과 참여 조건, 보상 쿠폰, 종료 시각을 설정합니다."
       />
-      {editing && (
-        <div className="op-notice">
-          {restoredTitle
-            ? "이 브라우저에서 마지막으로 성공한 요청의 제목을 복원했습니다. 저장 전 확인해 주세요."
-            : "Backend 상세 응답에 제목이 없어 수정 시 제목을 다시 입력해야 합니다."}
-        </div>
-      )}
       <form className="op-form-shell" onSubmit={submit}>
         <article className="op-panel">
           <header>
@@ -1537,7 +1500,7 @@ export function StampbookFormPage() {
         if (!controller.signal.aborted) setLoading(false)
       })
     return () => controller.abort()
-  }, [])
+  }, [stampbookId])
 
   const eligible = useMemo(
     () =>
