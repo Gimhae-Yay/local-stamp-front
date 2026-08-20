@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, Route, Routes } from "react-router-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import {
+  createMission,
   endMission,
   endStampbook,
   getCouponPolicy,
@@ -17,6 +18,7 @@ import type { CouponPolicyDetail } from "../types"
 import {
   CouponFormPage,
   CouponListPage,
+  MissionFormPage,
   MissionListPage,
   StampbookDetailPage,
   StampbookFormPage,
@@ -221,6 +223,89 @@ describe("미션·스탬프북 종료 흐름", () => {
       totalElements: 0,
       totalPages: 0,
     })
+  })
+
+  it("심사 대기 필터에 서버 계약 상태값을 전송한다", async () => {
+    render(
+      <MemoryRouter>
+        <MissionListPage />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(listMissions).toHaveBeenCalled())
+    fireEvent.change(screen.getByLabelText("상태"), {
+      target: { value: "PENDING_REVIEW" },
+    })
+
+    await waitFor(() =>
+      expect(listMissions).toHaveBeenCalledWith(
+        "PENDING_REVIEW",
+        0,
+        20,
+        expect.any(AbortSignal),
+      ),
+    )
+  })
+
+  it("방문 횟수 미션은 대상 콘텐츠 없이 생성할 수 있다", async () => {
+    vi.mocked(listMyContents).mockResolvedValue({ contents: [] })
+    vi.mocked(listCouponPolicies).mockResolvedValue({
+      couponPolicies: [
+        {
+          couponPolicyId: "501",
+          contentId: "101",
+          name: "완주 보상",
+          status: "PUBLISHED",
+        },
+      ],
+    })
+    vi.mocked(createMission).mockResolvedValue({
+      missionId: "701",
+      status: "DRAFT",
+    })
+
+    render(
+      <MemoryRouter initialEntries={["/operator/missions/new"]}>
+        <Routes>
+          <Route
+            path="/operator/missions/new"
+            element={<MissionFormPage />}
+          />
+          <Route
+            path="/operator/missions"
+            element={<div>목록 이동 완료</div>}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const submit = await screen.findByRole("button", {
+      name: "미션 초안 생성",
+    })
+    expect(submit).toBeEnabled()
+    fireEvent.change(screen.getByLabelText("미션 제목"), {
+      target: { value: "김해 세 번 방문하기" },
+    })
+    fireEvent.change(screen.getByLabelText("필요 방문 횟수"), {
+      target: { value: "3" },
+    })
+    fireEvent.change(screen.getByLabelText("종료 시각"), {
+      target: { value: "2026-09-30T23:59" },
+    })
+    fireEvent.click(submit)
+
+    await waitFor(() =>
+      expect(createMission).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "김해 세 번 방문하기",
+          conditionType: "VISIT_COUNT",
+          requiredVisitCount: 3,
+          targetContentIds: [],
+          rewardCouponPolicyId: "501",
+        }),
+      ),
+    )
+    expect(await screen.findByText("목록 이동 완료")).toBeInTheDocument()
   })
 
   it("미션 종료 사유를 Backend 허용 코드 중에서 선택한다", async () => {
