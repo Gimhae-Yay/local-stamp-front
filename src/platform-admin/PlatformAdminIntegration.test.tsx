@@ -1,8 +1,16 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
+import { MemoryRouter, Route, Routes } from "react-router-dom"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import App from "../App"
 import { clearLogin } from "../admin/api"
+import { RefundFailureDetailPage } from "./pages/TransactionPages"
 
 function apiResponse(data: unknown, status = 200) {
   return Promise.resolve(
@@ -83,7 +91,10 @@ describe("전체 관리자 콘솔 통합", () => {
 
     render(<App />)
     const user = userEvent.setup()
-    await user.type(await screen.findByLabelText("이메일"), "platform@test.local")
+    await user.type(
+      await screen.findByLabelText("이메일"),
+      "platform@test.local",
+    )
     await user.type(screen.getByLabelText("비밀번호"), "LocalTest1!")
     await user.click(screen.getByRole("button", { name: "로그인" }))
 
@@ -117,9 +128,7 @@ describe("전체 관리자 콘솔 통합", () => {
     await user.click(
       await screen.findByRole("button", { name: /사용자 910001/ }),
     )
-    await user.click(
-      screen.getByRole("link", { name: /^▣전체 관리자 계정/ }),
-    )
+    await user.click(screen.getByRole("link", { name: /^▣전체 관리자 계정/ }))
 
     expect(await screen.findByText(/superadmin@test.local/)).toBeInTheDocument()
     expect(screen.getByText(/inactiveadmin@test.local/)).toBeInTheDocument()
@@ -130,10 +139,7 @@ describe("전체 관리자 콘솔 통합", () => {
     await user.type(within(dialog).getByLabelText("이메일 *"), "new@test.local")
     await user.type(within(dialog).getByLabelText("이름 *"), "새 관리자")
     await user.type(within(dialog).getByLabelText("전화번호 *"), "01012345678")
-    await user.type(
-      within(dialog).getByLabelText(/임시 비밀번호/),
-      "Password1",
-    )
+    await user.type(within(dialog).getByLabelText(/임시 비밀번호/), "Password1")
     await user.type(within(dialog).getByLabelText("증빙 참조 *"), "local-test")
     await user.click(within(dialog).getByRole("button", { name: "계정 생성" }))
 
@@ -188,9 +194,10 @@ describe("전체 관리자 콘솔 통합", () => {
       screen.getByRole("heading", { name: "전액 환불 요청 확인" }),
     ).toBeInTheDocument()
     expect(
-      fetchMock.mock.calls.filter(([input, init]) =>
-        String(input).includes("/payments/910201/refund") &&
-        (init as RequestInit | undefined)?.method === "POST",
+      fetchMock.mock.calls.filter(
+        ([input, init]) =>
+          String(input).includes("/payments/910201/refund") &&
+          (init as RequestInit | undefined)?.method === "POST",
       ),
     ).toHaveLength(0)
 
@@ -204,11 +211,66 @@ describe("전체 관리자 콘솔 통합", () => {
     ).toBeInTheDocument()
     await waitFor(() =>
       expect(
-        fetchMock.mock.calls.filter(([input, init]) =>
-          String(input).includes("/payments/910201/refund") &&
-          (init as RequestInit | undefined)?.method === "POST",
+        fetchMock.mock.calls.filter(
+          ([input, init]) =>
+            String(input).includes("/payments/910201/refund") &&
+            (init as RequestInit | undefined)?.method === "POST",
         ),
       ).toHaveLength(1),
     )
   })
+
+  it.each([
+    ["SUCCEEDED", "환불 상세 #900023"],
+    ["FAILED", "환불 실패 #900023"],
+    ["DISCREPANT", "환불 결과 불일치 #900023"],
+  ])(
+    "%s 환불 상세의 제목과 이전 화면 문구가 상태와 일치한다",
+    async (status, title) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() =>
+          apiResponse({
+            refund: {
+              refundId: "900023",
+              paymentId: "900010",
+              reservationId: "900001",
+              amount: 10000,
+              currency: "KRW",
+              status,
+              requestedAt: "2026-08-21T00:00:00Z",
+              completedAt:
+                status === "SUCCEEDED" ? "2026-08-21T00:01:00Z" : null,
+            },
+            payment: {
+              paymentId: "900010",
+              orderId: "ORDER-900010",
+              portonePaymentId: "payment-900010",
+              finalAmount: 10000,
+              currency: "KRW",
+            },
+            attempts: [],
+          }),
+        ),
+      )
+
+      render(
+        <MemoryRouter initialEntries={["/admin/refund-failures/900023"]}>
+          <Routes>
+            <Route
+              path="/admin/refund-failures/:refundId"
+              element={<RefundFailureDetailPage />}
+            />
+          </Routes>
+        </MemoryRouter>,
+      )
+
+      expect(
+        await screen.findByRole("heading", { name: title }),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole("button", { name: "← 이전 화면으로" }),
+      ).toBeInTheDocument()
+    },
+  )
 })

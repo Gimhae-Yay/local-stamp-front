@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ApiError, apiRequest } from "../../admin/api"
+import { ApiError, apiRequest, storedUserId } from "../../admin/api"
 import {
   ApiErrorMessage,
   AsyncState,
@@ -10,18 +10,19 @@ import {
   formatDate,
   usePlatformData,
 } from "../PlatformComponents"
+
 import type { PlatformAdminAccount } from "../types"
 
 export default function AdminAccountPage() {
+  const currentUserId = storedUserId()
   const state = usePlatformData<{ adminAccounts: PlatformAdminAccount[] }>(
     "/api/v1/platform-admin/admin-accounts",
   )
   const [creating, setCreating] = useState(false)
-  const [deactivating, setDeactivating] =
-    useState<PlatformAdminAccount | null>(null)
+  const [deactivating, setDeactivating] = useState<PlatformAdminAccount | null>(
+    null,
+  )
   const administrators = state.data?.adminAccounts ?? []
-  const gradeLabel = (grade: PlatformAdminAccount["grade"]) =>
-    grade === "SUPER_ADMIN" ? "최고 관리자" : "플랫폼 관리자"
   return (
     <main className="pa-content">
       <PageHeader
@@ -63,17 +64,35 @@ export default function AdminAccountPage() {
                     {account.loginIdentifier} · 사용자 ID {account.userId}
                   </small>
                 </div>
-                <div>
+                <div className="pa-admin-meta">
+                  <StatusBadge
+                    value={account.grade}
+                    label={
+                      account.grade === "SUPER_ADMIN"
+                        ? "최고 관리자"
+                        : "플랫폼 관리자"
+                    }
+                  />
                   <StatusBadge value={account.status} />
-                  <small>{gradeLabel(account.grade)}</small>
                 </div>
-                <span>{formatDate(account.createdAt)}</span>
+                <span>
+                  {account.status === "INACTIVE"
+                    ? `비활성화 ${formatDate(account.inactivatedAt)}`
+                    : `생성 ${formatDate(account.createdAt)}`}
+                </span>
                 <button
                   className="pa-button pa-button-danger-outline"
                   onClick={() => setDeactivating(account)}
-                  disabled={account.status !== "ACTIVE"}
+                  disabled={
+                    account.status !== "ACTIVE" ||
+                    account.userId === currentUserId
+                  }
                 >
-                  {account.status === "ACTIVE" ? "비활성화" : "비활성화됨"}
+                  {account.userId === currentUserId
+                    ? "현재 계정"
+                    : account.status === "ACTIVE"
+                      ? "비활성화"
+                      : "비활성화됨"}
                 </button>
               </article>
             ))}
@@ -85,6 +104,7 @@ export default function AdminAccountPage() {
           onClose={() => setCreating(false)}
           onSuccess={() => {
             setCreating(false)
+
             state.reload()
           }}
         />
@@ -95,6 +115,7 @@ export default function AdminAccountPage() {
           onClose={() => setDeactivating(null)}
           onSuccess={() => {
             setDeactivating(null)
+
             state.reload()
           }}
         />
@@ -105,46 +126,68 @@ export default function AdminAccountPage() {
 
 function CreateAdminModal({
   onClose,
+
   onSuccess,
 }: {
   onClose: () => void
+
   onSuccess: () => void
 }) {
   const [form, setForm] = useState({
     email: "",
+
     password: "",
+
     name: "",
+
     phone: "",
+
     grade: "PLATFORM_ADMIN",
+
     reasonCode: "ADMIN_ACCOUNT_CREATION",
+
     evidenceReference: "",
   })
+
   const [submitting, setSubmitting] = useState(false)
+
   const [error, setError] = useState("")
+
   const update = (field: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [field]: value }))
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
+
     const phoneDigits = form.phone.replace(/\D/g, "")
+
     if (
       !/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9])[!-~]{8,64}$/.test(
         form.password,
       )
     ) {
       setError("비밀번호에는 영문자·숫자·특수문자가 모두 포함되어야 합니다.")
+
       return
     }
+
     if (!/^\d{10,11}$/.test(phoneDigits)) {
       setError("전화번호는 숫자 10~11자리로 입력해 주세요.")
+
       return
     }
+
     setSubmitting(true)
+
     setError("")
+
     try {
       await apiRequest("/api/v1/platform-admin/admin-accounts", {
         method: "POST",
+
         body: JSON.stringify(form),
       })
+
       onSuccess()
     } catch (caught) {
       setError(
@@ -156,6 +199,7 @@ function CreateAdminModal({
       setSubmitting(false)
     }
   }
+
   return (
     <Modal
       title="전체 관리자 계정 생성"
@@ -251,30 +295,44 @@ function CreateAdminModal({
 
 function DeactivateAdminModal({
   user,
+
   onClose,
+
   onSuccess,
 }: {
   user: PlatformAdminAccount
+
   onClose: () => void
+
   onSuccess: () => void
 }) {
   const userId = user.userId
   const [reasonCode, setReasonCode] = useState("ADMIN_ACCOUNT_DEACTIVATION")
+
   const [evidenceReference, setEvidenceReference] = useState("")
+
   const [submitting, setSubmitting] = useState(false)
+
   const [error, setError] = useState("")
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
+
     setSubmitting(true)
+
     setError("")
+
     try {
       await apiRequest(
-        `/api/v1/platform-admin/admin-accounts/${userId}/deactivate`,
+        `/api/v1/platform-admin/admin-accounts/${user.userId}/deactivate`,
+
         {
           method: "POST",
+
           body: JSON.stringify({ reasonCode, evidenceReference }),
         },
       )
+
       onSuccess()
     } catch (caught) {
       setError(
@@ -286,6 +344,7 @@ function DeactivateAdminModal({
       setSubmitting(false)
     }
   }
+
   return (
     <Modal
       title="전체 관리자 계정 비활성화"

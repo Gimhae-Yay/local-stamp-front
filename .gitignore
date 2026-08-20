@@ -20,6 +20,9 @@ dist/
 # Codex local workspace settings
 .codex/
 
+# Local verification notes
+/전체관리자 수정방향.md
+
 # Local implementation notes
 /docs/지역관리자 수정목록.md
 /docs/지역관리자 수정방향.md

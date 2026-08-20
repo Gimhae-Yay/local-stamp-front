@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react"
+
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
+
 import { ApiError, apiRequest } from "../../admin/api"
+
 import {
   ApiErrorMessage,
   AsyncState,
@@ -13,6 +16,7 @@ import {
   formatMoney,
   usePlatformData,
 } from "../PlatformComponents"
+
 import type {
   PaymentDiscrepancy,
   PaymentDiscrepancyDetail,
@@ -22,15 +26,23 @@ import type {
 
 const discrepancyFilters = [
   ["OPEN", "미처리"],
+
   ["RESOLVED_NO_ISSUE", "문제없음 종결"],
+
   ["REFUND_REQUESTED", "환불 요청"],
 ] as const
+
 const refundFilters = [
   ["", "실패·결과 불일치"],
+
   ["FAILED", "실패"],
+
   ["DISCREPANT", "결과 불일치"],
+
   ["REQUESTED", "요청 접수"],
+
   ["PROCESSING", "처리 중"],
+
   ["SUCCEEDED", "성공"],
 ] as const
 
@@ -55,19 +67,26 @@ function TransactionTabs({ active }: { active: "discrepancy" | "refund" }) {
 
 export function PaymentDiscrepancyListPage() {
   const [status, setStatus] = useState("OPEN")
+
   const [page, setPage] = useState(1)
+
   const state = usePlatformData<{ discrepancies: PaymentDiscrepancy[] }>(
     `/api/v1/platform-admin/payment-discrepancies?status=${status}`,
   )
+
   const rows = useMemo(
     () =>
       [...(state.data?.discrepancies ?? [])].sort(
         (a, b) => +new Date(a.detectedAt) - +new Date(b.detectedAt),
       ),
+
     [state.data],
   )
+
   const totalPages = Math.max(1, Math.ceil(rows.length / 8))
+
   const visible = rows.slice((page - 1) * 8, page * 8)
+
   return (
     <main className="pa-content">
       <PageHeader
@@ -91,6 +110,7 @@ export function PaymentDiscrepancyListPage() {
               key={value}
               onClick={() => {
                 setStatus(value)
+
                 setPage(1)
               }}
             >
@@ -143,21 +163,28 @@ export function PaymentDiscrepancyListPage() {
 
 export function RefundFailureListPage() {
   const [status, setStatus] = useState("")
+
   const [page, setPage] = useState(1)
+
   const state = usePlatformData<{ refunds: RefundFailure[] }>(
     `/api/v1/platform-admin/refund-failures${
       status ? `?status=${status}` : ""
     }`,
   )
+
   const rows = useMemo(
     () =>
       [...(state.data?.refunds ?? [])].sort(
         (a, b) => +new Date(a.requestedAt) - +new Date(b.requestedAt),
       ),
+
     [state.data],
   )
+
   const totalPages = Math.max(1, Math.ceil(rows.length / 8))
+
   const visible = rows.slice((page - 1) * 8, page * 8)
+
   return (
     <main className="pa-content">
       <PageHeader
@@ -181,6 +208,7 @@ export function RefundFailureListPage() {
               key={value || "default"}
               onClick={() => {
                 setStatus(value)
+
                 setPage(1)
               }}
             >
@@ -230,13 +258,17 @@ export function RefundFailureListPage() {
 
 export function PaymentDiscrepancyDetailPage() {
   const { discrepancyId } = useParams()
+
   const navigate = useNavigate()
+
   const state = usePlatformData<PaymentDiscrepancyDetail>(
     discrepancyId
       ? `/api/v1/platform-admin/payment-discrepancies/${discrepancyId}`
       : null,
   )
+
   const [action, setAction] = useState<"resolve" | null>(null)
+
   return (
     <main className="pa-content">
       <AsyncState state={state} empty={() => false}>
@@ -252,6 +284,7 @@ export function PaymentDiscrepancyDetailPage() {
                 label="최종 결제 금액"
                 value={formatMoney(
                   detail.payment.finalAmount,
+
                   detail.payment.currency,
                 )}
               />
@@ -269,12 +302,18 @@ export function PaymentDiscrepancyDetailPage() {
                 <KeyValues
                   items={[
                     ["결제 ID", detail.payment.paymentId],
+
                     ["예약 선점 ID", detail.payment.holdId],
+
                     ["주문 ID", detail.payment.orderId],
+
                     ["PortOne 결제 ID", detail.payment.portonePaymentId],
+
                     ["결제 상태", detail.payment.status],
+
                     [
                       "불일치 유형",
+
                       labelDiscrepancy(detail.discrepancy.discrepancyType),
                     ],
                   ]}
@@ -284,10 +323,13 @@ export function PaymentDiscrepancyDetailPage() {
                 <Timeline
                   items={detail.verifications.map((item) => ({
                     title: `${item.reason} · ${item.externalStatus}`,
+
                     copy: `관측 금액 ${formatMoney(item.observedAmount)} · ${
                       item.matched ? "일치" : "불일치"
                     }`,
+
                     date: formatDate(item.verifiedAt),
+
                     tone: item.matched ? "green" : "red",
                   }))}
                 />
@@ -298,8 +340,11 @@ export function PaymentDiscrepancyDetailPage() {
                 <Timeline
                   items={detail.actions.map((item) => ({
                     title: item.action,
+
                     copy: `${item.reason} · 증빙 ${item.evidenceReference}`,
+
                     date: formatDate(item.actedAt),
+
                     tone: "green",
                   }))}
                 />
@@ -342,6 +387,7 @@ export function PaymentDiscrepancyDetailPage() {
                 onClose={() => setAction(null)}
                 onSuccess={() => {
                   setAction(null)
+
                   state.reload()
                 }}
               />
@@ -355,38 +401,60 @@ export function PaymentDiscrepancyDetailPage() {
 
 export function ManualRefundPage() {
   const [params] = useSearchParams()
+
   const navigate = useNavigate()
+
   const [paymentId, setPaymentId] = useState(params.get("paymentId") ?? "")
+
   const [evidenceReference, setEvidenceReference] = useState("")
+
   const [reason, setReason] = useState("")
+
   const [confirming, setConfirming] = useState(false)
+
   const [submitting, setSubmitting] = useState(false)
+
   const [error, setError] = useState("")
+
   const [result, setResult] = useState<{
     refundId: string
+
     status: string
+
     amount: number
+
     requestedAt: string
   } | null>(null)
+
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
+    if (submitting || result) return
     setError("")
     setConfirming(true)
   }
+
   const requestRefund = async () => {
+    if (submitting || result) return
     setSubmitting(true)
     setError("")
+
     try {
       const response = await apiRequest<{
         refundId: string
+
         status: string
+
         amount: number
+
         requestedAt: string
       }>(`/api/v1/platform-admin/payments/${paymentId}/refund`, {
         method: "POST",
+
         body: JSON.stringify({ evidenceReference, reason }),
       })
+
       setResult(response)
+
       setConfirming(false)
     } catch (caught) {
       setError(
@@ -398,6 +466,7 @@ export function ManualRefundPage() {
       setSubmitting(false)
     }
   }
+
   return (
     <main className="pa-content pa-content-narrow">
       <PageHeader
@@ -451,8 +520,15 @@ export function ManualRefundPage() {
           >
             취소
           </button>
-          <button className="pa-button pa-button-danger" disabled={submitting}>
-            {submitting ? "환불 요청 중…" : "전액 환불 요청"}
+          <button
+            className="pa-button pa-button-danger"
+            disabled={submitting || Boolean(result)}
+          >
+            {submitting
+              ? "환불 요청 중…"
+              : result
+                ? "환불 요청 완료"
+                : "전액 환불 요청"}
           </button>
         </div>
       </form>
@@ -472,6 +548,7 @@ export function ManualRefundPage() {
             <KeyValues
               items={[
                 ["결제 ID", paymentId],
+
                 ["증빙 참조", evidenceReference],
               ]}
             />
@@ -519,21 +596,31 @@ export function ManualRefundPage() {
 
 export function RefundFailureDetailPage() {
   const { refundId } = useParams()
+
   const navigate = useNavigate()
+
   const state = usePlatformData<RefundFailureDetail>(
     refundId ? `/api/v1/platform-admin/refund-failures/${refundId}` : null,
   )
+
   const [confirming, setConfirming] = useState(false)
+
   const [retrying, setRetrying] = useState(false)
+
   const [error, setError] = useState("")
+
   const retry = async () => {
     if (!refundId) return
+
     setRetrying(true)
+
     setError("")
+
     try {
       await apiRequest(`/api/v1/platform-admin/refunds/${refundId}/retry`, {
         method: "POST",
       })
+
       state.reload()
     } catch (caught) {
       setError(
@@ -545,16 +632,27 @@ export function RefundFailureDetailPage() {
       setRetrying(false)
     }
   }
+
   return (
     <main className="pa-content">
       <AsyncState state={state} empty={() => false}>
         {(detail) => {
           const canRetry =
             detail.refund.status === "FAILED" && detail.attempts.length < 3
+
+          const pageTitle =
+            detail.refund.status === "FAILED"
+              ? "환불 실패"
+              : detail.refund.status === "DISCREPANT"
+                ? "환불 결과 불일치"
+                : detail.refund.status === "SUCCEEDED"
+                  ? "환불 상세"
+                  : "환불 처리"
+
           return (
             <>
               <PageHeader
-                title={`환불 실패 #${detail.refund.refundId}`}
+                title={`${pageTitle} #${detail.refund.refundId}`}
                 description="환불·결제 정보와 외부 호출 시도를 확인하고 실제 결과를 처리합니다."
                 status={<StatusBadge value={detail.refund.status} />}
               />
@@ -563,6 +661,7 @@ export function RefundFailureDetailPage() {
                   label="환불 금액"
                   value={formatMoney(
                     detail.refund.amount,
+
                     detail.refund.currency,
                   )}
                 />
@@ -580,14 +679,21 @@ export function RefundFailureDetailPage() {
                   <KeyValues
                     items={[
                       ["환불 ID", detail.refund.refundId],
+
                       ["결제 ID", detail.payment.paymentId],
+
                       ["예약 ID", detail.refund.reservationId],
+
                       ["주문 ID", detail.payment.orderId],
+
                       ["PortOne 결제 ID", detail.payment.portonePaymentId],
+
                       [
                         "최종 결제 금액",
+
                         formatMoney(
                           detail.payment.finalAmount,
+
                           detail.payment.currency,
                         ),
                       ],
@@ -604,12 +710,15 @@ export function RefundFailureDetailPage() {
                                 ? "시스템"
                                 : "플랫폼 관리자"
                             }`,
+
                             copy: `${attempt.outcomeKind} · ${attempt.externalStatus ?? attempt.failureReasonCode ?? "응답 없음"}${
                               attempt.portoneCancellationId
                                 ? ` · 취소 ID ${attempt.portoneCancellationId}`
                                 : ""
                             }`,
+
                             date: formatDate(attempt.attemptedAt),
+
                             tone:
                               attempt.externalStatus === "SUCCEEDED"
                                 ? "green"
@@ -620,8 +729,11 @@ export function RefundFailureDetailPage() {
                         : [
                             {
                               title: "외부 호출 대기 중",
+
                               copy: "아직 외부 호출을 시작하지 않았습니다.",
+
                               date: "0 / 3",
+
                               tone: "gray",
                             },
                           ]
@@ -685,7 +797,7 @@ export function RefundFailureDetailPage() {
                 </div>
               )}
               <button className="pa-back-link" onClick={() => navigate(-1)}>
-                ← 환불 실패 목록으로
+                ← 이전 화면으로
               </button>
               {confirming && (
                 <ConfirmRefundModal
@@ -693,6 +805,7 @@ export function RefundFailureDetailPage() {
                   onClose={() => setConfirming(false)}
                   onSuccess={() => {
                     setConfirming(false)
+
                     state.reload()
                   }}
                 />
@@ -707,32 +820,51 @@ export function RefundFailureDetailPage() {
 
 function EvidenceModal({
   title,
+
   description,
+
   endpoint,
+
   submitLabel,
+
   onClose,
+
   onSuccess,
 }: {
   title: string
+
   description: string
+
   endpoint: string
+
   submitLabel: string
+
   onClose: () => void
+
   onSuccess: () => void
 }) {
   const [evidenceReference, setEvidenceReference] = useState("")
+
   const [reason, setReason] = useState("")
+
   const [submitting, setSubmitting] = useState(false)
+
   const [error, setError] = useState("")
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
+
     setSubmitting(true)
+
     setError("")
+
     try {
       await apiRequest(endpoint, {
         method: "POST",
+
         body: JSON.stringify({ evidenceReference, reason }),
       })
+
       onSuccess()
     } catch (caught) {
       setError(
@@ -744,6 +876,7 @@ function EvidenceModal({
       setSubmitting(false)
     }
   }
+
   return (
     <Modal title={title} description={description} onClose={onClose}>
       <form className="pa-drawer-form" onSubmit={submit}>
@@ -777,30 +910,45 @@ function EvidenceModal({
 
 function ConfirmRefundModal({
   refundId,
+
   onClose,
+
   onSuccess,
 }: {
   refundId: string
+
   onClose: () => void
+
   onSuccess: () => void
 }) {
   const [confirmedStatus, setConfirmedStatus] = useState("SUCCEEDED")
+
   const [evidenceReference, setEvidenceReference] = useState("")
+
   const [reason, setReason] = useState("")
+
   const [submitting, setSubmitting] = useState(false)
+
   const [error, setError] = useState("")
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
+
     setSubmitting(true)
+
     setError("")
+
     try {
       await apiRequest(
         `/api/v1/platform-admin/refund-failures/${refundId}/manual-actions`,
+
         {
           method: "POST",
+
           body: JSON.stringify({ confirmedStatus, evidenceReference, reason }),
         },
       )
+
       onSuccess()
     } catch (caught) {
       setError(
@@ -812,6 +960,7 @@ function ConfirmRefundModal({
       setSubmitting(false)
     }
   }
+
   return (
     <Modal
       title="외부 결과 확정"
@@ -866,7 +1015,7 @@ function ConfirmRefundModal({
   )
 }
 
-function Summary({ label, value }: { label: string, value: string }) {
+function Summary({ label, value }: { label: string value: string }) {
   return (
     <article>
       <small>{label}</small>
@@ -874,11 +1023,14 @@ function Summary({ label, value }: { label: string, value: string }) {
     </article>
   )
 }
+
 function Panel({
   title,
+
   children,
 }: {
   title: string
+
   children: React.ReactNode
 }) {
   return (
@@ -888,6 +1040,7 @@ function Panel({
     </section>
   )
 }
+
 function KeyValues({ items }: { items: Array<[string, string]> }) {
   return (
     <dl className="pa-kv">
@@ -900,10 +1053,11 @@ function KeyValues({ items }: { items: Array<[string, string]> }) {
     </dl>
   )
 }
+
 function Timeline({
   items,
 }: {
-  items: Array<{ title: string, copy: string, date: string, tone: string }>
+  items: Array<{ title: string copy: string date: string tone: string }>
 }) {
   return (
     <ol className="pa-timeline">
@@ -920,11 +1074,14 @@ function Timeline({
     </ol>
   )
 }
+
 function labelDiscrepancy(value: string) {
   return (
     ({
       AMOUNT_MISMATCH: "금액 불일치",
+
       DELAYED_APPROVAL: "지연 승인",
+
       PAYMENT_STATUS_MISMATCH: "결제 상태 불일치",
     } as Record<string, string>)[value] ?? value
   )
