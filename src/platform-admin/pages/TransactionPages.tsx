@@ -817,7 +817,7 @@ function ConfirmRefundModal({
   )
 }
 
-function Summary({ label, value }: { label: string value: string }) {
+function Summary({ label, value }: { label: string; value: string }) {
   return (
     <article>
       <small>{label}</small>
@@ -854,7 +854,7 @@ function KeyValues({ items }: { items: Array<[string, string]> }) {
 function Timeline({
   items,
 }: {
-  items: Array<{ title: string copy: string date: string tone: string }>
+  items: Array<{ title: string; copy: string; date: string; tone: string }>
 }) {
   return (
     <ol className="pa-timeline">

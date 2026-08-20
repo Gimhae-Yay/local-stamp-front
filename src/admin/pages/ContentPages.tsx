@@ -69,7 +69,7 @@ function ContentTabs({
   )
 }
 
-function ContentImage({ src, alt }: { src: string | null alt: string }) {
+function ContentImage({ src, alt }: { src: string | null; alt: string }) {
   return src ? (
     <img className="ra-content-image" src={src} alt={alt} />
   ) : (
@@ -838,6 +838,10 @@ export function PublishedContentDetailPage() {
         result: "콘텐츠 운영 중단",
         warning: "예약과 공개 노출에 영향을 주는 조치입니다.",
         reason: { label: "중단 사유", field: "reason", required: true },
+        errorMessages: {
+          CONTENT_SUSPEND_CONFLICT:
+            "이미 종료·중단되었거나 상태가 변경된 콘텐츠입니다. 목록에서 현재 상태를 다시 확인해 주세요.",
+        },
       },
       end: {
         title: "콘텐츠 정상 종료",
@@ -847,6 +851,10 @@ export function PublishedContentDetailPage() {
         tone: "admin",
         target: `공개 콘텐츠 ${contentId}`,
         result: "콘텐츠 정상 종료",
+        errorMessages: {
+          CONTENT_END_CONFLICT:
+            "아직 종결되지 않은 회차가 있거나 상태가 변경된 콘텐츠입니다. 회차 상태를 확인한 뒤 다시 시도해 주세요.",
+        },
       },
     }),
     [contentId],

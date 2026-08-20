@@ -92,7 +92,7 @@ export default function HomePage() {
           <button
             className="text-link-button"
             type="button"
-            onClick={refreshImages}
+            onClick={() => refreshImages()}
           >
             다시 시도
           </button>

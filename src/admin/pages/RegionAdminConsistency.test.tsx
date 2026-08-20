@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes } from "react-router-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { apiRequest } from "../api"
+import { ApiError, apiRequest } from "../api"
 import type {
   ContentDetail,
   OperatorRequestDetail,
@@ -71,6 +72,49 @@ describe("region admin response consistency", () => {
 
     expect(await screen.findByText("회차 501")).toBeInTheDocument()
     expect(apiRequest).toHaveBeenCalledWith("/api/v1/contents/100/sessions")
+  })
+
+  it("shows an actionable message when normal ending is rejected", async () => {
+    const user = userEvent.setup()
+    const sessions: PublicContentSessions = {
+      contentId: "100",
+      sessions: [],
+    }
+    vi.mocked(apiRequest).mockImplementation(async (path) => {
+      if (path.endsWith("/sessions")) return sessions
+      if (path.endsWith("/end")) {
+        throw new ApiError(
+          "콘텐츠를 종료할 수 없는 상태입니다.",
+          409,
+          "CONTENT_END_CONFLICT",
+        )
+      }
+      return publicContent
+    })
+
+    const view = render(
+      <MemoryRouter initialEntries={["/region-admin/contents/published/100"]}>
+        <Routes>
+          <Route
+            path="/region-admin/contents/published/:contentId"
+            element={<PublishedContentDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const page = within(view.container)
+    await page.findByRole("heading", { name: "공개 콘텐츠 운영 상세" })
+    await user.click(page.getByRole("button", { name: "정상 종료" }))
+    await user.click(
+      within(page.getByRole("dialog")).getByRole("button", {
+        name: "정상 종료",
+      }),
+    )
+
+    expect(await page.findByRole("alert")).toHaveTextContent(
+      "아직 종결되지 않은 회차가 있거나 상태가 변경된 콘텐츠입니다.",
+    )
   })
 
   it("shows the full candidate snapshot for a pre-public revision", async () => {
