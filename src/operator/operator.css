@@ -150,6 +150,7 @@ textarea.op-control { min-height: 112px; padding: 12px; resize: vertical; }
 .op-payment-card { min-height: 260px; border: 1px solid var(--op-line); border-radius: 14px; background: #fff; box-shadow: var(--op-shadow); padding: 18px; }
 .op-payment-card h2 { margin: 0 0 5px; font-size: 18px; }
 .op-payment-card > p { margin: 0 0 16px; color: var(--op-muted); font-size: 12px; }
+.op-payment-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; margin-bottom: 18px; border-bottom: 1px solid var(--op-line); padding-bottom: 18px; }
 
 .op-scanner { display: grid; min-height: 470px; place-items: center; border: 1px solid #91c66e; border-radius: 16px; background: var(--op-lime-soft); padding: 28px; text-align: center; }
 .op-scanner-inner { width: min(620px, 100%); }
@@ -216,7 +217,7 @@ textarea.op-control { min-height: 112px; padding: 12px; resize: vertical; }
   .op-filter-bar, .op-info-banner { align-items: stretch; flex-direction: column; }
   .op-filter-bar > div:last-child { text-align: left; }
   .op-list-card { align-items: flex-start; flex-wrap: wrap; }
-  .op-qr-fallback { grid-template-columns: 1fr; }
+  .op-qr-fallback, .op-payment-search { grid-template-columns: 1fr; }
   .op-login-brand { display: none; }
   .op-login-card { padding: 26px; }
 }

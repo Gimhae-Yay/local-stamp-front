@@ -1,4 +1,4 @@
-import { apiRequest, createIdempotencyKey, withQuery } from "../api/client"
+import { apiRequest, withQuery } from "../api/client"
 import type {
   CheckInResult,
   ContentDetail,
@@ -203,18 +203,22 @@ export function searchReservation(reservationNo: string) {
   )
 }
 
-export function checkInByQr(qrToken: string) {
+export function checkInByQr(qrToken: string, idempotencyKey: string) {
   return apiRequest<CheckInResult>("/api/v1/operator/check-ins", {
     method: "POST",
-    headers: { "Idempotency-Key": createIdempotencyKey() },
+    headers: { "Idempotency-Key": idempotencyKey },
     body: jsonBody({ qrToken }),
   })
 }
 
-export function checkInManually(reservationNo: string, reason: string) {
+export function checkInManually(
+  reservationNo: string,
+  reason: string,
+  idempotencyKey: string,
+) {
   return apiRequest<CheckInResult>("/api/v1/operator/check-ins/manual", {
     method: "POST",
-    headers: { "Idempotency-Key": createIdempotencyKey() },
+    headers: { "Idempotency-Key": idempotencyKey },
     body: jsonBody({ reservationNo, reason }),
   })
 }

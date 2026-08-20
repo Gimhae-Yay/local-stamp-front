@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { useSearchParams } from "react-router-dom"
-import { isAbortError } from "../../api/client"
+import { createIdempotencyKey, isAbortError } from "../../api/client"
 import {
   checkInByQr,
   checkInManually,
@@ -40,6 +40,9 @@ export function ReservationPage() {
   )
   const [data, setData] = useState<SessionReservations | null>(null)
   const [payment, setPayment] = useState<ReservationPayment | null>(null)
+  const [paymentReservationNo, setPaymentReservationNo] = useState("")
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentError, setPaymentError] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
@@ -111,12 +114,37 @@ export function ReservationPage() {
     return () => controller.abort()
   }, [selectedContent, selectedSession, setSearchParams])
 
-  const loadPayment = async (reservationId: string) => {
-    setError("")
+  const loadPayment = async (reservationId: string, reservationNo?: string) => {
+    setPaymentLoading(true)
+    setPaymentError("")
+    setPayment(null)
+    if (reservationNo) setPaymentReservationNo(reservationNo)
     try {
       setPayment(await getReservationPayment(reservationId))
     } catch (caught) {
-      setError(apiErrorMessage(caught, "결제·환불 상태를 불러오지 못했습니다."))
+      setPaymentError(
+        apiErrorMessage(caught, "결제·환불 상태를 불러오지 못했습니다."),
+      )
+    } finally {
+      setPaymentLoading(false)
+    }
+  }
+  const searchPayment = async (event: FormEvent) => {
+    event.preventDefault()
+    const reservationNo = paymentReservationNo.trim()
+    if (!reservationNo) return
+    setPaymentLoading(true)
+    setPaymentError("")
+    setPayment(null)
+    try {
+      const reservation = await searchReservation(reservationNo)
+      setPayment(await getReservationPayment(reservation.reservationId))
+    } catch (caught) {
+      setPaymentError(
+        apiErrorMessage(caught, "결제·환불 상태를 불러오지 못했습니다."),
+      )
+    } finally {
+      setPaymentLoading(false)
     }
   }
   const reservations = data?.reservations ?? []
@@ -127,6 +155,98 @@ export function ReservationPage() {
   const inactive = reservations.filter((item) =>
     ["CANCELLED", "EXPIRED"].includes(item.status),
   ).length
+  const paymentPanel = (
+    <aside className="op-payment-card">
+      <form className="op-payment-search" onSubmit={searchPayment}>
+        <label className="op-field">
+          예약 번호로 결제·환불 조회
+          <input
+            className="op-control"
+            value={paymentReservationNo}
+            onChange={(event) => setPaymentReservationNo(event.target.value)}
+            placeholder="완료·취소 예약도 조회할 수 있습니다"
+            required
+          />
+        </label>
+        <button className="op-button" disabled={paymentLoading}>
+          {paymentLoading ? "조회 중…" : "결제 조회"}
+        </button>
+      </form>
+      {paymentError && (
+        <div className="op-alert" role="alert">
+          {paymentError}
+        </div>
+      )}
+      {paymentLoading ? (
+        <div className="op-state op-state-compact">
+          <div>
+            <span className="op-spinner" />
+            <h3>결제 정보를 불러오는 중입니다</h3>
+          </div>
+        </div>
+      ) : payment ? (
+        <>
+          <h2>예약 결제·환불 상태</h2>
+          <p>
+            예약 ID {payment.reservationId} · {payment.reservationNo}
+          </p>
+          <dl className="op-kv-grid">
+            <div className="op-kv">
+              <dt>결제 상태</dt>
+              <dd>
+                {payment.payment ? (
+                  <StatusBadge value={payment.payment.status} />
+                ) : (
+                  "결제 없음"
+                )}
+              </dd>
+            </div>
+            <div className="op-kv">
+              <dt>최종 결제 금액</dt>
+              <dd>
+                {payment.payment
+                  ? formatMoney(
+                      payment.payment.finalAmount,
+                      payment.payment.currency,
+                    )
+                  : "—"}
+              </dd>
+            </div>
+            <div className="op-kv">
+              <dt>환불 상태</dt>
+              <dd>
+                {payment.refund ? (
+                  <StatusBadge value={payment.refund.status} />
+                ) : (
+                  "환불 없음"
+                )}
+              </dd>
+            </div>
+            <div className="op-kv">
+              <dt>환불 금액</dt>
+              <dd>
+                {payment.refund ? formatMoney(payment.refund.amount) : "—"}
+              </dd>
+            </div>
+            <div className="op-kv op-full">
+              <dt>최근 변경</dt>
+              <dd>{formatDate(payment.updatedAt)}</dd>
+            </div>
+          </dl>
+          <div className="op-notice">
+            운영자는 결제·환불 상태를 읽기 전용으로만 확인합니다.
+          </div>
+        </>
+      ) : (
+        <div className="op-state op-state-compact">
+          <div>
+            <h3>결제 정보 선택</h3>
+            <p>예약 행을 선택하거나 예약 번호를 직접 입력하세요.</p>
+          </div>
+        </div>
+      )}
+    </aside>
+  )
 
   return (
     <>
@@ -182,6 +302,7 @@ export function ReservationPage() {
           {error}
         </div>
       )}
+      {paymentPanel}
       {loading ? (
         <RouteState loading />
       ) : !selectedSession ? (
@@ -210,119 +331,56 @@ export function ReservationPage() {
             {reservations.length === 0 ? (
               <RouteState empty="이 회차의 예약자가 없습니다." />
             ) : (
-              <div className="op-split">
-                <div className="op-table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>예약 번호</th>
-                        <th>예약자</th>
-                        <th>인원</th>
-                        <th>상태</th>
-                        <th>체크인</th>
-                        <th className="op-right">액션</th>
+              <div className="op-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>예약 번호</th>
+                      <th>예약자</th>
+                      <th>인원</th>
+                      <th>상태</th>
+                      <th>체크인</th>
+                      <th className="op-right">액션</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reservations.map((item) => (
+                      <tr key={item.reservationId}>
+                        <td className="op-mono">{item.reservationNo}</td>
+                        <td>
+                          <span className="op-cell-title">
+                            {item.participant.name}
+                          </span>
+                          <span className="op-cell-sub">
+                            {item.participant.phone ?? "연락처 없음"}
+                          </span>
+                        </td>
+                        <td>{item.quantity}명</td>
+                        <td>
+                          <StatusBadge value={item.status} />
+                        </td>
+                        <td>
+                          {item.checkIn.checkedIn
+                            ? `${formatDate(item.checkIn.checkedAt)} 완료`
+                            : "미체크인"}
+                        </td>
+                        <td className="op-right">
+                          <button
+                            className="op-button op-button-small"
+                            onClick={() =>
+                              loadPayment(
+                                item.reservationId,
+                                item.reservationNo,
+                              )
+                            }
+                          >
+                            결제·환불
+                          </button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {reservations.map((item) => (
-                        <tr key={item.reservationId}>
-                          <td className="op-mono">{item.reservationNo}</td>
-                          <td>
-                            <span className="op-cell-title">
-                              {item.participant.name}
-                            </span>
-                            <span className="op-cell-sub">
-                              {item.participant.phone ?? "연락처 없음"}
-                            </span>
-                          </td>
-                          <td>{item.quantity}명</td>
-                          <td>
-                            <StatusBadge value={item.status} />
-                          </td>
-                          <td>
-                            {item.checkIn.checkedIn
-                              ? `${formatDate(item.checkIn.checkedAt)} 완료`
-                              : "미체크인"}
-                          </td>
-                          <td className="op-right">
-                            <button
-                              className="op-button op-button-small"
-                              onClick={() => loadPayment(item.reservationId)}
-                            >
-                              결제·환불
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <aside className="op-payment-card">
-                  {payment ? (
-                    <>
-                      <h2>예약 결제·환불 상태</h2>
-                      <p>
-                        예약 ID {payment.reservationId} ·{" "}
-                        {payment.reservationNo}
-                      </p>
-                      <dl className="op-kv-grid">
-                        <div className="op-kv">
-                          <dt>결제 상태</dt>
-                          <dd>
-                            {payment.payment ? (
-                              <StatusBadge value={payment.payment.status} />
-                            ) : (
-                              "결제 없음"
-                            )}
-                          </dd>
-                        </div>
-                        <div className="op-kv">
-                          <dt>최종 결제 금액</dt>
-                          <dd>
-                            {payment.payment
-                              ? formatMoney(
-                                  payment.payment.finalAmount,
-                                  payment.payment.currency,
-                                )
-                              : "—"}
-                          </dd>
-                        </div>
-                        <div className="op-kv">
-                          <dt>환불 상태</dt>
-                          <dd>
-                            {payment.refund ? (
-                              <StatusBadge value={payment.refund.status} />
-                            ) : (
-                              "환불 없음"
-                            )}
-                          </dd>
-                        </div>
-                        <div className="op-kv">
-                          <dt>환불 금액</dt>
-                          <dd>
-                            {payment.refund
-                              ? formatMoney(payment.refund.amount)
-                              : "—"}
-                          </dd>
-                        </div>
-                        <div className="op-kv op-full">
-                          <dt>최근 변경</dt>
-                          <dd>{formatDate(payment.updatedAt)}</dd>
-                        </div>
-                      </dl>
-                      <div className="op-notice">
-                        운영자는 결제·환불 상태를 읽기 전용으로만 확인합니다.
-                      </div>
-                    </>
-                  ) : (
-                    <div className="op-state op-state-compact">
-                      <div>
-                        <h3>결제 정보 선택</h3>
-                        <p>예약 행에서 결제·환불 버튼을 선택하세요.</p>
-                      </div>
-                    </div>
-                  )}
-                </aside>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </>
@@ -378,9 +436,15 @@ function QrCheckIn() {
   const streamRef = useRef<MediaStream | null>(null)
   const frameRef = useRef<number | null>(null)
   const processingRef = useRef(false)
+  const attemptRef = useRef<{
+    signature: string
+    idempotencyKey: string
+  } | null>(null)
   const [qrToken, setQrToken] = useState("")
   const [scanning, setScanning] = useState(false)
   const [result, setResult] = useState<CheckInResult | null>(null)
+  const [reservation, setReservation] =
+    useState<ReservationSearchResult | null>(null)
   const [error, setError] = useState("")
   const detectorRef = useRef<BarcodeDetectorLike | null>(null)
 
@@ -398,10 +462,27 @@ function QrCheckIn() {
     processingRef.current = true
     setError("")
     setResult(null)
+    setReservation(null)
+    const normalizedToken = token.trim()
+    if (attemptRef.current?.signature !== normalizedToken) {
+      attemptRef.current = {
+        signature: normalizedToken,
+        idempotencyKey: createIdempotencyKey(),
+      }
+    }
     try {
-      const checked = await checkInByQr(token.trim())
+      const checked = await checkInByQr(
+        normalizedToken,
+        attemptRef.current.idempotencyKey,
+      )
       setResult(checked)
       stop()
+      try {
+        const payment = await getReservationPayment(checked.reservationId)
+        setReservation(await searchReservation(payment.reservationNo))
+      } catch {
+        // 체크인 성공은 유지하고 예약자 보강 조회만 생략한다.
+      }
     } catch (caught) {
       setError(apiErrorMessage(caught, "QR 체크인을 완료하지 못했습니다."))
     } finally {
@@ -471,7 +552,7 @@ function QrCheckIn() {
             ? "QR 코드를 카메라에 맞춰 주세요"
             : "방문자 QR을 스캔해 주세요"}
         </h2>
-        <p>각 체크인 요청에는 새로운 멱등성 키가 자동으로 사용됩니다.</p>
+        <p>같은 체크인 시도에는 동일한 멱등성 키를 재사용합니다.</p>
         <div className="op-button-row op-center">
           {scanning ? (
             <button className="op-button" onClick={stop}>
@@ -502,7 +583,9 @@ function QrCheckIn() {
           <button className="op-button op-button-primary">QR 토큰 확인</button>
         </form>
         {error && <div className="op-alert">{error}</div>}
-        {result && <CheckInResultCard result={result} />}
+        {result && (
+          <CheckInResultCard result={result} reservation={reservation} />
+        )}
       </div>
     </div>
   )
@@ -520,12 +603,18 @@ function ManualCheckIn({
   const [result, setResult] = useState<CheckInResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const processingRef = useRef(false)
+  const attemptRef = useRef<{
+    signature: string
+    idempotencyKey: string
+  } | null>(null)
   const search = async (event: FormEvent) => {
     event.preventDefault()
     setLoading(true)
     setError("")
     setReservation(null)
     setResult(null)
+    attemptRef.current = null
     try {
       setReservation(await searchReservation(reservationNo.trim()))
     } catch (caught) {
@@ -535,13 +624,43 @@ function ManualCheckIn({
     }
   }
   const checkIn = async () => {
+    if (processingRef.current) return
+    processingRef.current = true
     setLoading(true)
     setError("")
+    setResult(null)
+    const normalizedReservationNo = reservationNo.trim()
+    const signature = `${normalizedReservationNo}:${reason}`
+    if (attemptRef.current?.signature !== signature) {
+      attemptRef.current = {
+        signature,
+        idempotencyKey: createIdempotencyKey(),
+      }
+    }
     try {
-      setResult(await checkInManually(reservationNo.trim(), reason))
+      const checked = await checkInManually(
+        normalizedReservationNo,
+        reason,
+        attemptRef.current.idempotencyKey,
+      )
+      setResult(checked)
+      setReservation((current) =>
+        current
+          ? {
+              ...current,
+              status: checked.reservationStatus,
+              checkIn: {
+                checkedIn: true,
+                canCheckIn: false,
+                checkedAt: checked.checkedAt,
+              },
+            }
+          : current,
+      )
     } catch (caught) {
       setError(apiErrorMessage(caught, "보조 체크인을 완료하지 못했습니다."))
     } finally {
+      processingRef.current = false
       setLoading(false)
     }
   }
@@ -620,7 +739,7 @@ function ManualCheckIn({
                   onChange={(event) => setReason(event.target.value)}
                 >
                   <option value="QR_SCAN_FAILED">QR 스캔 실패</option>
-                  <option value="QR_UNAVAILABLE">QR 사용 불가</option>
+                  <option value="QR_NOT_AVAILABLE">QR 사용 불가</option>
                 </select>
               </label>
               <button
@@ -632,14 +751,22 @@ function ManualCheckIn({
               </button>
             </div>
           )}
-          {result && <CheckInResultCard result={result} />}
+          {result && (
+            <CheckInResultCard result={result} reservation={reservation} />
+          )}
         </div>
       </aside>
     </div>
   )
 }
 
-function CheckInResultCard({ result }: { result: CheckInResult }) {
+function CheckInResultCard({
+  result,
+  reservation,
+}: {
+  result: CheckInResult
+  reservation?: ReservationSearchResult | null
+}) {
   return (
     <div className="op-result-card" role="status">
       <h3>체크인이 완료되었습니다.</h3>
@@ -647,6 +774,21 @@ function CheckInResultCard({ result }: { result: CheckInResult }) {
         방문 ID {result.visitId} · {formatDate(result.checkedAt)}
       </p>
       <dl className="op-kv-grid">
+        {reservation && (
+          <>
+            <div className="op-kv">
+              <dt>예약자</dt>
+              <dd>
+                {reservation.participant.name} ·{" "}
+                {reservation.participant.phone ?? "연락처 없음"}
+              </dd>
+            </div>
+            <div className="op-kv">
+              <dt>예약 번호</dt>
+              <dd>{reservation.reservationNo}</dd>
+            </div>
+          </>
+        )}
         <div className="op-kv">
           <dt>예약 ID</dt>
           <dd>{result.reservationId}</dd>
