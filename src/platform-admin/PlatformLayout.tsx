@@ -17,6 +17,10 @@ export default function PlatformLayout() {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const isSuperAdmin = session?.grade === "SUPER_ADMIN"
+  const visibleNavigation = navigation.filter(
+    ([group]) => group !== "최고 관리자 전용" || isSuperAdmin,
+  )
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -41,7 +45,9 @@ export default function PlatformLayout() {
           >
             <span className="pa-account-avatar">관</span>
             <span>사용자 {session?.userId}</span>
-            <span className="pa-grade-pill">전체 관리자</span>
+            <span className="pa-grade-pill">
+              {isSuperAdmin ? "최고 관리자" : "플랫폼 관리자"}
+            </span>
             <span>⌄</span>
           </button>
           {open && (
@@ -49,19 +55,18 @@ export default function PlatformLayout() {
               <div className="pa-popover-profile">
                 <span className="pa-account-avatar">관</span>
                 <div>
-                  <strong>플랫폼 전체 관리자</strong>
+                  <strong>
+                    {isSuperAdmin ? "최고 관리자" : "플랫폼 관리자"}
+                  </strong>
                   <small>사용자 {session?.userId}</small>
                 </div>
               </div>
-              {[
-                "플랫폼 운영",
-                "계정·권한",
-                "거래 예외",
-                "최고 관리자 전용",
-              ].map((group) => (
+              {Array.from(
+                new Set(visibleNavigation.map(([group]) => group)),
+              ).map((group) => (
                 <section key={group}>
                   <h3>{group}</h3>
-                  {navigation
+                  {visibleNavigation
                     .filter(([itemGroup]) => itemGroup === group)
                     .map(([, icon, label, path]) => (
                       <NavLink

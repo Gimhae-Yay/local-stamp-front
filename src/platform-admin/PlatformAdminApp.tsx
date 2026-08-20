@@ -3,6 +3,7 @@ import {
   PlatformAuthProvider,
   PlatformGuard,
   PlatformLoginPage,
+  SuperAdminGuard,
 } from "./PlatformAdminAuth"
 import PlatformLayout from "./PlatformLayout"
 import AdminAccountPage from "./pages/AdminAccountPage"
@@ -28,7 +29,9 @@ export default function PlatformAdminApp() {
             <Route index element={<PlatformHomePage />} />
             <Route path="regions" element={<RegionListPage />} />
             <Route path="users" element={<UserListPage />} />
-            <Route path="admin-accounts" element={<AdminAccountPage />} />
+            <Route element={<SuperAdminGuard />}>
+              <Route path="admin-accounts" element={<AdminAccountPage />} />
+            </Route>
             <Route
               path="payment-discrepancies"
               element={<PaymentDiscrepancyListPage />}

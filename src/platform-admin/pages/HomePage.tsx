@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom"
 import { PageHeader } from "../PlatformComponents"
+import { usePlatformAuth } from "../PlatformAdminAuth"
 
 export default function PlatformHomePage() {
+  const { session } = usePlatformAuth()
   return (
     <main className="pa-content pa-content-wide">
       <PageHeader
@@ -26,9 +28,11 @@ export default function PlatformHomePage() {
             변경합니다.
           </p>
           <strong>계정·권한 관리로 이동 →</strong>
-          <span className="pa-exclusive-link">
-            ▣ 최고 관리자 · 전체 관리자 계정
-          </span>
+          {session?.grade === "SUPER_ADMIN" && (
+            <span className="pa-exclusive-link">
+              ▣ 최고 관리자 · 전체 관리자 계정
+            </span>
+          )}
         </Link>
         <Link to="/admin/payment-discrepancies" className="pa-nav-card">
           <span className="pa-nav-icon">↯</span>

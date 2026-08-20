@@ -24,7 +24,7 @@ export interface PublicMissionDetail {
   regionId: string
   conditionType: string
   requiredVisitCount: number | null
-  targetContents: Array<{ contentId: string title: string }>
+  targetContents: Array<{ contentId: string, title: string }>
   rewardCouponPolicyId: string
   endsAt: string
   participation: {
@@ -110,7 +110,7 @@ export interface StampbookEarnings {
   earnings: Array<{
     stampEarnId: string
     visitId: string
-    content: { contentId: string title: string }
+    content: { contentId: string, title: string }
     visitedAt: string
     earnedAt: string
   }>

@@ -144,7 +144,7 @@ export function EventsPage() {
           <button
             className="text-link-button"
             type="button"
-            onClick={refreshImages}
+            onClick={() => refreshImages()}
           >
             다시 시도
           </button>
@@ -269,7 +269,7 @@ export function EventDetailPage() {
         <button
           className="text-link-button"
           type="button"
-          onClick={refreshContent}
+          onClick={() => refreshContent()}
         >
           다시 시도
         </button>
