@@ -283,7 +283,7 @@ export interface ActionConfig {
     required?: boolean
     maxLength?: number
     placeholder?: string
-    options?: Array<{ value: string label: string }>
+    options?: Array<{ value: string, label: string }>
   }
   body?: Record<string, unknown>
   target?: string

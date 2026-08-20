@@ -162,7 +162,7 @@ describe("운영자 결제 조회·체크인 프론트 흐름", () => {
       "",
       "/operator/check-in?reservationNo=R-CHECK-IN-101",
     )
-    let resolveCheckIn: (response: Response) => void
+    let resolveCheckIn!: (response: Response) => void
     const checkInResponse = new Promise<Response>((resolve) => {
       resolveCheckIn = resolve
     })
