@@ -89,60 +89,60 @@ macOS/Linux:
 
 ### 테스트 계정
 
-| 용도                                             | 이메일                        | 비밀번호      | userId | 권한                           | 상태                                           |
-| ------------------------------------------------ | ----------------------------- | ------------- | -----: | ------------------------------ | ---------------------------------------------- |
-| 전체관리자 정상·자기 자신·마지막 최고관리자 보호 | `superadmin@test.local`       | `LocalTest1!` | 910001 | `SUPER_ADMIN`                  | 관리자 배정 `ACTIVE`                           |
-| 전체관리자 정상·비활성화 정상 대상               | `platformadmin@test.local`    | `LocalTest1!` | 910002 | `PLATFORM_ADMIN`               | 관리자 배정 `ACTIVE`                           |
-| 무권한·일반 사용자·결제 소유자                   | `user@test.local`             | `LocalTest1!` | 910003 | 없음                           | 사용자 `ACTIVE`                                |
-| 지역관리자 권한 확인·마지막 지역관리자 충돌      | `regionadmin@test.local`      | `LocalTest1!` | 910004 | `REGION_ADMIN` / region 910003 | 역할 배정 `ACTIVE`                             |
-| 비활성 관리자 `403`                              | `inactiveadmin@test.local`    | `LocalTest1!` | 910005 | `PLATFORM_ADMIN`               | 관리자 배정 `INACTIVE`; 사용자 자체는 `ACTIVE` |
-| 지역관리자 임명 정상 대상                        | `appointable@test.local`      | `LocalTest1!` | 910006 | 없음                           | 사용자 `ACTIVE`                                |
-| 지역관리자 회수 정상 대상                        | `revocable@test.local`        | `LocalTest1!` | 910007 | `REGION_ADMIN` / region 910004 | 역할 배정 `ACTIVE`                             |
-| 콘텐츠·결제 관계 지원 fixture                    | `operator-fixture@test.local` | `LocalTest1!` | 910008 | `OPERATOR` / region 910003     | 역할 배정 `ACTIVE`                             |
+| 용도 | 이메일 | 비밀번호 | userId | 권한 | 상태 |
+| -- | --- | --- | --: | -- | -- |
+| 전체관리자 정상·자기 자신·마지막 최고관리자 보호 | `superadmin@test.local` | `LocalTest1!` | 910001 | `SUPER_ADMIN` | 관리자 배정 `ACTIVE` |
+| 전체관리자 정상·비활성화 정상 대상 | `platformadmin@test.local` | `LocalTest1!` | 910002 | `PLATFORM_ADMIN` | 관리자 배정 `ACTIVE` |
+| 무권한·일반 사용자·결제 소유자 | `user@test.local` | `LocalTest1!` | 910003 | 없음 | 사용자 `ACTIVE` |
+| 지역관리자 권한 확인·마지막 지역관리자 충돌 | `regionadmin@test.local` | `LocalTest1!` | 910004 | `REGION_ADMIN` / region 910003 | 역할 배정 `ACTIVE` |
+| 비활성 관리자 `403` | `inactiveadmin@test.local` | `LocalTest1!` | 910005 | `PLATFORM_ADMIN` | 관리자 배정 `INACTIVE`; 사용자 자체는 `ACTIVE` |
+| 지역관리자 임명 정상 대상 | `appointable@test.local` | `LocalTest1!` | 910006 | 없음 | 사용자 `ACTIVE` |
+| 지역관리자 회수 정상 대상 | `revocable@test.local` | `LocalTest1!` | 910007 | `REGION_ADMIN` / region 910004 | 역할 배정 `ACTIVE` |
+| 콘텐츠·결제 관계 지원 fixture | `operator-fixture@test.local` | `LocalTest1!` | 910008 | `OPERATOR` / region 910003 | 역할 배정 `ACTIVE` |
 
 `inactiveadmin@test.local`은 로그인 자체는 가능하지만 활성 플랫폼 관리자 배정이 없으므로 전체관리자 API는
 `403 FORBIDDEN`이다. 이는 실제 인증·인가 모델의 비활성 표현을 따른다.
 
 ### 사용자·권한 테스트 데이터
 
-| 용도                   | userId | 현재 역할                      | regionId | API                                              | 예상 결과                                                            | 실행 후 변경      |
-| ---------------------- | -----: | ------------------------------ | -------: | ------------------------------------------------ | -------------------------------------------------------------------- | ----------------- |
-| 역할 없는 일반 사용자  | 910003 | 없음                           |        - | `GET /api/v1/platform-admin/regions`             | 일반 사용자 토큰이면 `403`                                           | 아니요            |
-| 지역관리자 보유 사용자 | 910004 | `REGION_ADMIN`                 |   910003 | `PATCH /api/v1/platform-admin/users/910004/role` | 마지막 관리자+콘텐츠 조건에서 회수 시 `409 ROLE_ASSIGNMENT_CONFLICT` | 실패이므로 아니요 |
-| 임명 가능 사용자       | 910006 | 없음                           |        - | `PATCH /api/v1/platform-admin/users/910006/role` | 유효한 지역으로 `REGION_ADMIN` 임명 성공                             | 예                |
-| 회수 가능 사용자       | 910007 | `REGION_ADMIN`                 |   910004 | `PATCH /api/v1/platform-admin/users/910007/role` | `NONE`으로 회수 성공                                                 | 예                |
-| 고권한 충돌 사용자     | 910002 | 플랫폼 관리자 `PLATFORM_ADMIN` |        - | `PATCH /api/v1/platform-admin/users/910002/role` | `409 ROLE_ASSIGNMENT_CONFLICT`                                       | 아니요            |
+| 용도 | userId | 현재 역할 | regionId | API | 예상 결과 | 실행 후 변경 |
+| -- | --: | -- | --: | -- | -- | -- |
+| 역할 없는 일반 사용자 | 910003 | 없음 | - | `GET /api/v1/platform-admin/regions` | 일반 사용자 토큰이면 `403` | 아니요 |
+| 지역관리자 보유 사용자 | 910004 | `REGION_ADMIN` | 910003 | `PATCH /api/v1/platform-admin/users/910004/role` | 마지막 관리자+콘텐츠 조건에서 회수 시 `409 ROLE_ASSIGNMENT_CONFLICT` | 실패이므로 아니요 |
+| 임명 가능 사용자 | 910006 | 없음 | - | `PATCH /api/v1/platform-admin/users/910006/role` | 유효한 지역으로 `REGION_ADMIN` 임명 성공 | 예 |
+| 회수 가능 사용자 | 910007 | `REGION_ADMIN` | 910004 | `PATCH /api/v1/platform-admin/users/910007/role` | `NONE`으로 회수 성공 | 예 |
+| 고권한 충돌 사용자 | 910002 | 플랫폼 관리자 `PLATFORM_ADMIN` | - | `PATCH /api/v1/platform-admin/users/910002/role` | `409 ROLE_ASSIGNMENT_CONFLICT` | 아니요 |
 
 권한 변경 뒤 `apply` 명령으로 원상복구한다. 정상 임명 요청의 `regionId`로는 910001 또는 910002를 사용할 수 있다.
 
 ### 지역 테스트 데이터
 
-| 용도                    |     regionId | regionCode           | 공개 여부         | API                                                  | 예상 결과                                         | 실행 후 변경      |
-| ----------------------- | -----------: | -------------------- | ----------------- | ---------------------------------------------------- | ------------------------------------------------- | ----------------- |
-| 공개 목록·상태 조회     |       910001 | `LOCAL-PA-PUBLIC`    | 공개              | `GET /api/v1/platform-admin/regions`                 | 정상 조회                                         | 아니요            |
-| 비공개 목록·공개 전환   |       910002 | `LOCAL-PA-PRIVATE`   | 비공개            | `PATCH /api/v1/platform-admin/regions/910002/status` | 공개 전환 정상                                    | 예                |
-| 중복 코드               |       910001 | `LOCAL-PA-PUBLIC`    | 공개              | `POST /api/v1/platform-admin/regions`                | 같은 코드 생성 시 중복 충돌                       | 아니요            |
-| 콘텐츠 보유 비공개 충돌 |       910003 | `LOCAL-PA-CONTENT`   | 공개              | `PATCH /api/v1/platform-admin/regions/910003/status` | 비공개 전환 시 `409 REGION_AVAILABILITY_CONFLICT` | 실패이므로 아니요 |
-| 자유로운 상태 변경      |       910004 | `LOCAL-PA-FREE`      | 공개              | `PATCH /api/v1/platform-admin/regions/910004/status` | 비공개 전환 정상                                  | 예                |
-| 생성 성공용 예약 코드   | 실행 시 생성 | `LOCAL-PA-CREATE-OK` | 생성 API는 비공개 | `POST /api/v1/platform-admin/regions`                | 최초 생성 정상; reset 대상                        | 예                |
+| 용도 | regionId | regionCode | 공개 여부 | API | 예상 결과 | 실행 후 변경 |
+| -- | --: | --- | -- | -- | -- | -- |
+| 공개 목록·상태 조회 | 910001 | `LOCAL-PA-PUBLIC` | 공개 | `GET /api/v1/platform-admin/regions` | 정상 조회 | 아니요 |
+| 비공개 목록·공개 전환 | 910002 | `LOCAL-PA-PRIVATE` | 비공개 | `PATCH /api/v1/platform-admin/regions/910002/status` | 공개 전환 정상 | 예 |
+| 중복 코드 | 910001 | `LOCAL-PA-PUBLIC` | 공개 | `POST /api/v1/platform-admin/regions` | 같은 코드 생성 시 중복 충돌 | 아니요 |
+| 콘텐츠 보유 비공개 충돌 | 910003 | `LOCAL-PA-CONTENT` | 공개 | `PATCH /api/v1/platform-admin/regions/910003/status` | 비공개 전환 시 `409 REGION_AVAILABILITY_CONFLICT` | 실패이므로 아니요 |
+| 자유로운 상태 변경 | 910004 | `LOCAL-PA-FREE` | 공개 | `PATCH /api/v1/platform-admin/regions/910004/status` | 비공개 전환 정상 | 예 |
+| 생성 성공용 예약 코드 | 실행 시 생성 | `LOCAL-PA-CREATE-OK` | 생성 API는 비공개 | `POST /api/v1/platform-admin/regions` | 최초 생성 정상; reset 대상 | 예 |
 
 ### 결제 불일치 테스트 데이터
 
-| 용도                     | discrepancyId | paymentId | 상태                | API                                                                       | 예상 결과                                | 실행 후 변경 |
-| ------------------------ | ------------: | --------: | ------------------- | ------------------------------------------------------------------------- | ---------------------------------------- | ------------ |
-| 수동 무이상 종결 정상    |        910101 |    910101 | `OPEN`              | `POST /api/v1/platform-admin/payment-discrepancies/910101/manual-actions` | `RESOLVED_NO_ISSUE` 성공                 | 예           |
-| 이미 종결된 건 충돌      |        910102 |    910102 | `RESOLVED_NO_ISSUE` | 같은 수동 조치 API                                                        | `409 PAYMENT_DISCREPANCY_STATE_CONFLICT` | 아니요       |
-| 환불 요청 완료 목록·상세 |        910103 |    910103 | `REFUND_REQUESTED`  | 목록·상세 조회                                                            | 정상 조회                                | 아니요       |
+| 용도 | discrepancyId | paymentId | 상태 | API | 예상 결과 | 실행 후 변경 |
+| -- | --: | --: | -- | -- | -- | -- |
+| 수동 무이상 종결 정상 | 910101 | 910101 | `OPEN` | `POST /api/v1/platform-admin/payment-discrepancies/910101/manual-actions` | `RESOLVED_NO_ISSUE` 성공 | 예 |
+| 이미 종결된 건 충돌 | 910102 | 910102 | `RESOLVED_NO_ISSUE` | 같은 수동 조치 API | `409 PAYMENT_DISCREPANCY_STATE_CONFLICT` | 아니요 |
+| 환불 요청 완료 목록·상세 | 910103 | 910103 | `REFUND_REQUESTED` | 목록·상세 조회 | 정상 조회 | 아니요 |
 
 910102와 910103에는 `payment_discrepancy_action` 및 관리자 감사 이력이 각각 1건 포함된다.
 
 ### 결제 테스트 데이터
 
-| 용도                  | paymentId | 상태         | API                                                  | 예상 결과                     | 실행 후 변경    |
-| --------------------- | --------: | ------------ | ---------------------------------------------------- | ----------------------------- | --------------- |
-| 전액 환불 정상        |    910201 | `APPROVED`   | `POST /api/v1/platform-admin/payments/910201/refund` | 전액 환불 요청 정상           | 예; refund 생성 |
-| 불일치 결제 환불 정상 |    910202 | `DISCREPANT` | `POST /api/v1/platform-admin/payments/910202/refund` | 전액 환불 요청 정상           | 예; refund 생성 |
-| 환불 불가 결제        |    910203 | `PENDING`    | `POST /api/v1/platform-admin/payments/910203/refund` | `409 REFUND_PAYMENT_CONFLICT` | 아니요          |
+| 용도 | paymentId | 상태 | API | 예상 결과 | 실행 후 변경 |
+| -- | --: | -- | -- | -- | -- |
+| 전액 환불 정상 | 910201 | `APPROVED` | `POST /api/v1/platform-admin/payments/910201/refund` | 전액 환불 요청 정상 | 예; refund 생성 |
+| 불일치 결제 환불 정상 | 910202 | `DISCREPANT` | `POST /api/v1/platform-admin/payments/910202/refund` | 전액 환불 요청 정상 | 예; refund 생성 |
+| 환불 불가 결제 | 910203 | `PENDING` | `POST /api/v1/platform-admin/payments/910203/refund` | `409 REFUND_PAYMENT_CONFLICT` | 아니요 |
 
 `APPROVED` 결제는 사용자 910003의 예약·소비된 홀드·가격 snapshot·외부 결제 식별자를 갖는다.
 `DISCREPANT` 결제는 실제 상태 전이처럼 예약 없이 활성 홀드·snapshot·관찰된 외부 결제 식별자를 가지며,
@@ -151,16 +151,16 @@ macOS/Linux:
 
 ### 환불 테스트 데이터
 
-| 용도                    | refundId | paymentId | 상태         | 재시도 횟수 | API                                                                 | 예상 결과                                | 실행 후 변경 |
-| ----------------------- | -------: | --------: | ------------ | ----------: | ------------------------------------------------------------------- | ---------------------------------------- | ------------ |
-| 결제 불일치의 환불 요청 |   910101 |    910103 | `REQUESTED`  |           0 | 목록·상세 조회                                                      | 정상 조회                                | 아니요       |
-| 상태별 `REQUESTED`      |   910301 |    910301 | `REQUESTED`  |           0 | 목록·상세, 수동 확정                                                | 수동 확정 시 `409 REFUND_STATE_CONFLICT` | 아니요       |
-| 상태별 `PROCESSING`     |   910302 |    910302 | `PROCESSING` |           1 | 목록·상세                                                           | `PENDING` 외부 시도 이력 조회            | 아니요       |
-| 상태별 `SUCCEEDED`      |   910303 |    910303 | `SUCCEEDED`  |           1 | 목록·상세, 수동 확정                                                | 상세 정상; 수동 확정은 `409`             | 아니요       |
-| 재시도 성공 대상        |   910304 |    910304 | `FAILED`     |           1 | `POST /api/v1/platform-admin/refunds/910304/retry`                  | fake gateway 사용 시 `SUCCEEDED`         | 예           |
-| 재시도 불가 상태        |   910305 |    910305 | `DISCREPANT` |           1 | 같은 재시도 API                                                     | `409 REFUND_STATE_CONFLICT`              | 아니요       |
-| 최대 재시도 초과        |   910306 |    910306 | `FAILED`     |           3 | 같은 재시도 API                                                     | `409 REFUND_STATE_CONFLICT`              | 아니요       |
-| 수동 확정 대상          |   910307 |    910307 | `DISCREPANT` |           1 | `POST /api/v1/platform-admin/refund-failures/910307/manual-actions` | `SUCCEEDED` 또는 `FAILED` 확정 성공      | 예           |
+| 용도 | refundId | paymentId | 상태 | 재시도 횟수 | API | 예상 결과 | 실행 후 변경 |
+| -- | --: | --: | -- | --: | -- | -- | -- |
+| 결제 불일치의 환불 요청 | 910101 | 910103 | `REQUESTED` | 0 | 목록·상세 조회 | 정상 조회 | 아니요 |
+| 상태별 `REQUESTED` | 910301 | 910301 | `REQUESTED` | 0 | 목록·상세, 수동 확정 | 수동 확정 시 `409 REFUND_STATE_CONFLICT` | 아니요 |
+| 상태별 `PROCESSING` | 910302 | 910302 | `PROCESSING` | 1 | 목록·상세 | `PENDING` 외부 시도 이력 조회 | 아니요 |
+| 상태별 `SUCCEEDED` | 910303 | 910303 | `SUCCEEDED` | 1 | 목록·상세, 수동 확정 | 상세 정상; 수동 확정은 `409` | 아니요 |
+| 재시도 성공 대상 | 910304 | 910304 | `FAILED` | 1 | `POST /api/v1/platform-admin/refunds/910304/retry` | fake gateway 사용 시 `SUCCEEDED` | 예 |
+| 재시도 불가 상태 | 910305 | 910305 | `DISCREPANT` | 1 | 같은 재시도 API | `409 REFUND_STATE_CONFLICT` | 아니요 |
+| 최대 재시도 초과 | 910306 | 910306 | `FAILED` | 3 | 같은 재시도 API | `409 REFUND_STATE_CONFLICT` | 아니요 |
+| 수동 확정 대상 | 910307 | 910307 | `DISCREPANT` | 1 | `POST /api/v1/platform-admin/refund-failures/910307/manual-actions` | `SUCCEEDED` 또는 `FAILED` 확정 성공 | 예 |
 
 외부 환불 시도 이력은 refund 910302~910307에 포함된다. 상태가 바뀐 뒤 `apply`로 복구한다.
 
@@ -168,13 +168,13 @@ macOS/Linux:
 
 현재 별도 관리자 목록 API는 없다. 아래 고정 `userId`를 직접 사용한다.
 
-| 용도                           |       userId | 이메일                     | 등급             | 활성 여부              | API                                                            | 예상 결과                                 | 실행 후 변경 |
-| ------------------------------ | -----------: | -------------------------- | ---------------- | ---------------------- | -------------------------------------------------------------- | ----------------------------------------- | ------------ |
-| 로그인·자기 자신 비활성화      |       910001 | `superadmin@test.local`    | `SUPER_ADMIN`    | 활성                   | `POST /api/v1/platform-admin/admin-accounts/910001/deactivate` | `409 ADMIN_ACCOUNT_DEACTIVATION_CONFLICT` | 아니요       |
-| 정상 비활성화 대상             |       910002 | `platformadmin@test.local` | `PLATFORM_ADMIN` | 활성                   | `POST /api/v1/platform-admin/admin-accounts/910002/deactivate` | 정상 비활성화                             | 예           |
-| 이미 비활성화 대상             |       910005 | `inactiveadmin@test.local` | `PLATFORM_ADMIN` | 비활성                 | `POST /api/v1/platform-admin/admin-accounts/910005/deactivate` | `409 ADMIN_ACCOUNT_DEACTIVATION_CONFLICT` | 아니요       |
-| 마지막 최고관리자 보호         |       910001 | `superadmin@test.local`    | `SUPER_ADMIN`    | 유일한 활성 최고관리자 | 비활성화 API                                                   | `409 ADMIN_ACCOUNT_DEACTIVATION_CONFLICT` | 아니요       |
-| 관리자 생성 성공용 예약 이메일 | 실행 시 생성 | `createdadmin@test.local`  | 요청값           | 생성 후 활성           | `POST /api/v1/platform-admin/admin-accounts`                   | 최초 생성 정상; reset 대상                | 예           |
+| 용도 | userId | 이메일 | 등급 | 활성 여부 | API | 예상 결과 | 실행 후 변경 |
+| -- | --: | -- | -- | -- | -- | -- | -- |
+| 로그인·자기 자신 비활성화 | 910001 | `superadmin@test.local` | `SUPER_ADMIN` | 활성 | `POST /api/v1/platform-admin/admin-accounts/910001/deactivate` | `409 ADMIN_ACCOUNT_DEACTIVATION_CONFLICT` | 아니요 |
+| 정상 비활성화 대상 | 910002 | `platformadmin@test.local` | `PLATFORM_ADMIN` | 활성 | `POST /api/v1/platform-admin/admin-accounts/910002/deactivate` | 정상 비활성화 | 예 |
+| 이미 비활성화 대상 | 910005 | `inactiveadmin@test.local` | `PLATFORM_ADMIN` | 비활성 | `POST /api/v1/platform-admin/admin-accounts/910005/deactivate` | `409 ADMIN_ACCOUNT_DEACTIVATION_CONFLICT` | 아니요 |
+| 마지막 최고관리자 보호 | 910001 | `superadmin@test.local` | `SUPER_ADMIN` | 유일한 활성 최고관리자 | 비활성화 API | `409 ADMIN_ACCOUNT_DEACTIVATION_CONFLICT` | 아니요 |
+| 관리자 생성 성공용 예약 이메일 | 실행 시 생성 | `createdadmin@test.local` | 요청값 | 생성 후 활성 | `POST /api/v1/platform-admin/admin-accounts` | 최초 생성 정상; reset 대상 | 예 |
 
 관리자 생성·비활성화 API는 `SUPER_ADMIN` 토큰으로 호출한다. `PLATFORM_ADMIN` 토큰이면 `403`을 확인할 수 있다.
 
@@ -182,9 +182,9 @@ macOS/Linux:
 
 결제·환불 UI에서 관계를 추적할 때 다음 값을 사용한다.
 
-| 범위              | regionId | contentId | sessionId | userId | 비고                                                                        |
-| ----------------- | -------: | --------: | --------: | -----: | --------------------------------------------------------------------------- |
-| 결제·환불 fixture |   910003 |    910001 |    910001 | 910003 | paymentId와 holdId, snapshotId는 동일; `APPROVED`만 같은 reservationId 보유 |
+| 범위 | regionId | contentId | sessionId | userId | 비고 |
+| -- | --: | --: | --: | --: | -- |
+| 결제·환불 fixture | 910003 | 910001 | 910001 | 910003 | paymentId와 holdId, snapshotId는 동일; `APPROVED`만 같은 reservationId 보유 |
 
 예를 들어 payment 910304는 hold 910304, reservation 910304,
 `reservation_price_snapshot` 910304와 연결되고 refund 910304를 가진다. `DISCREPANT` payment
@@ -208,71 +208,71 @@ macOS/Linux:
 
 ## 테스트 계정
 
-| 용도                          | 이메일                     | 권한             | 상태               |
-| ----------------------------- | -------------------------- | ---------------- | ------------------ |
-| 전체관리자 정상·보호 규칙     | `superadmin@test.local`    | `SUPER_ADMIN`    | 활성               |
-| 전체관리자 정상·비활성화 대상 | `platformadmin@test.local` | `PLATFORM_ADMIN` | 활성               |
-| 일반 사용자·무권한            | `user@test.local`          | 없음             | 활성               |
-| 지역관리자                    | `regionadmin@test.local`   | `REGION_ADMIN`   | 활성               |
-| 비활성 관리자                 | `inactiveadmin@test.local` | `PLATFORM_ADMIN` | 관리자 배정 비활성 |
-| 임명 가능 사용자              | `appointable@test.local`   | 없음             | 활성               |
-| 회수 가능 사용자              | `revocable@test.local`     | `REGION_ADMIN`   | 활성               |
+| 용도 | 이메일 | 권한 | 상태 |
+| -- | --- | -- | -- |
+| 전체관리자 정상·보호 규칙 | `superadmin@test.local` | `SUPER_ADMIN` | 활성 |
+| 전체관리자 정상·비활성화 대상 | `platformadmin@test.local` | `PLATFORM_ADMIN` | 활성 |
+| 일반 사용자·무권한 | `user@test.local` | 없음 | 활성 |
+| 지역관리자 | `regionadmin@test.local` | `REGION_ADMIN` | 활성 |
+| 비활성 관리자 | `inactiveadmin@test.local` | `PLATFORM_ADMIN` | 관리자 배정 비활성 |
+| 임명 가능 사용자 | `appointable@test.local` | 없음 | 활성 |
+| 회수 가능 사용자 | `revocable@test.local` | `REGION_ADMIN` | 활성 |
 
 ## 사용자·권한 테스트 데이터
 
-| 용도                        | userId | 현재 역할        | regionId | 예상 결과                      |
-| --------------------------- | -----: | ---------------- | -------: | ------------------------------ |
-| 역할 없음                   | 910003 | 없음             |        - | 전체관리자 API `403`           |
-| 마지막 지역관리자 회수 충돌 | 910004 | `REGION_ADMIN`   |   910003 | `409 ROLE_ASSIGNMENT_CONFLICT` |
-| 지역관리자 임명             | 910006 | 없음             |        - | 정상 임명                      |
-| 지역관리자 회수             | 910007 | `REGION_ADMIN`   |   910004 | 정상 회수                      |
-| 고권한 역할 변경 충돌       | 910002 | `PLATFORM_ADMIN` |        - | `409 ROLE_ASSIGNMENT_CONFLICT` |
+| 용도 | userId | 현재 역할 | regionId | 예상 결과 |
+| -- | --: | -- | --: | -- |
+| 역할 없음 | 910003 | 없음 | - | 전체관리자 API `403` |
+| 마지막 지역관리자 회수 충돌 | 910004 | `REGION_ADMIN` | 910003 | `409 ROLE_ASSIGNMENT_CONFLICT` |
+| 지역관리자 임명 | 910006 | 없음 | - | 정상 임명 |
+| 지역관리자 회수 | 910007 | `REGION_ADMIN` | 910004 | 정상 회수 |
+| 고권한 역할 변경 충돌 | 910002 | `PLATFORM_ADMIN` | - | `409 ROLE_ASSIGNMENT_CONFLICT` |
 
 ## 지역 테스트 데이터
 
-| 용도             | regionId | regionCode         | 공개 여부 | 예상 결과                |
-| ---------------- | -------: | ------------------ | --------- | ------------------------ |
-| 공개 기본        |   910001 | `LOCAL-PA-PUBLIC`  | 공개      | 정상 조회·중복 코드 충돌 |
-| 비공개 기본      |   910002 | `LOCAL-PA-PRIVATE` | 비공개    | 공개 전환 정상           |
-| 콘텐츠 보유 충돌 |   910003 | `LOCAL-PA-CONTENT` | 공개      | 비공개 전환 `409`        |
-| 상태 변경 자유   |   910004 | `LOCAL-PA-FREE`    | 공개      | 비공개 전환 정상         |
+| 용도 | regionId | regionCode | 공개 여부 | 예상 결과 |
+| -- | --: | --- | -- | -- |
+| 공개 기본 | 910001 | `LOCAL-PA-PUBLIC` | 공개 | 정상 조회·중복 코드 충돌 |
+| 비공개 기본 | 910002 | `LOCAL-PA-PRIVATE` | 비공개 | 공개 전환 정상 |
+| 콘텐츠 보유 충돌 | 910003 | `LOCAL-PA-CONTENT` | 공개 | 비공개 전환 `409` |
+| 상태 변경 자유 | 910004 | `LOCAL-PA-FREE` | 공개 | 비공개 전환 정상 |
 
 ## 결제 불일치 테스트 데이터
 
-| 용도                | discrepancyId | 상태                | 예상 결과                                |
-| ------------------- | ------------: | ------------------- | ---------------------------------------- |
-| 수동 종결 정상      |        910101 | `OPEN`              | `RESOLVED_NO_ISSUE`                      |
-| 종결 상태 충돌      |        910102 | `RESOLVED_NO_ISSUE` | `409 PAYMENT_DISCREPANCY_STATE_CONFLICT` |
-| 환불 요청 완료 조회 |        910103 | `REFUND_REQUESTED`  | 정상 조회                                |
+| 용도 | discrepancyId | 상태 | 예상 결과 |
+| -- | --: | -- | -- |
+| 수동 종결 정상 | 910101 | `OPEN` | `RESOLVED_NO_ISSUE` |
+| 종결 상태 충돌 | 910102 | `RESOLVED_NO_ISSUE` | `409 PAYMENT_DISCREPANCY_STATE_CONFLICT` |
+| 환불 요청 완료 조회 | 910103 | `REFUND_REQUESTED` | 정상 조회 |
 
 ## 결제 테스트 데이터
 
-| 용도                  | paymentId | 상태         | 예상 결과                     |
-| --------------------- | --------: | ------------ | ----------------------------- |
-| 전액 환불 정상        |    910201 | `APPROVED`   | 정상 환불                     |
-| 불일치 결제 환불 정상 |    910202 | `DISCREPANT` | 정상 환불                     |
-| 환불 불가             |    910203 | `PENDING`    | `409 REFUND_PAYMENT_CONFLICT` |
+| 용도 | paymentId | 상태 | 예상 결과 |
+| -- | --: | -- | -- |
+| 전액 환불 정상 | 910201 | `APPROVED` | 정상 환불 |
+| 불일치 결제 환불 정상 | 910202 | `DISCREPANT` | 정상 환불 |
+| 환불 불가 | 910203 | `PENDING` | `409 REFUND_PAYMENT_CONFLICT` |
 
 ## 환불 테스트 데이터
 
-| 용도                  | refundId | 상태         | 재시도 횟수 | 예상 결과                           |
-| --------------------- | -------: | ------------ | ----------: | ----------------------------------- |
-| 결제 불일치 환불 요청 |   910101 | `REQUESTED`  |           0 | 정상 조회                           |
-| 상태별 요청           |   910301 | `REQUESTED`  |           0 | 정상 조회·수동 확정 `409`           |
-| 상태별 처리 중        |   910302 | `PROCESSING` |           1 | 정상 조회                           |
-| 상태별 성공           |   910303 | `SUCCEEDED`  |           1 | 정상 조회·수동 확정 `409`           |
-| 재시도 성공           |   910304 | `FAILED`     |           1 | fake gateway에서 `SUCCEEDED`        |
-| 재시도 불가 상태      |   910305 | `DISCREPANT` |           1 | 재시도 `409`                        |
-| 최대 재시도           |   910306 | `FAILED`     |           3 | 재시도 `409`                        |
-| 수동 확정             |   910307 | `DISCREPANT` |           1 | `SUCCEEDED` 또는 `FAILED` 확정 정상 |
+| 용도 | refundId | 상태 | 재시도 횟수 | 예상 결과 |
+| -- | --: | -- | --: | -- |
+| 결제 불일치 환불 요청 | 910101 | `REQUESTED` | 0 | 정상 조회 |
+| 상태별 요청 | 910301 | `REQUESTED` | 0 | 정상 조회·수동 확정 `409` |
+| 상태별 처리 중 | 910302 | `PROCESSING` | 1 | 정상 조회 |
+| 상태별 성공 | 910303 | `SUCCEEDED` | 1 | 정상 조회·수동 확정 `409` |
+| 재시도 성공 | 910304 | `FAILED` | 1 | fake gateway에서 `SUCCEEDED` |
+| 재시도 불가 상태 | 910305 | `DISCREPANT` | 1 | 재시도 `409` |
+| 최대 재시도 | 910306 | `FAILED` | 3 | 재시도 `409` |
+| 수동 확정 | 910307 | `DISCREPANT` | 1 | `SUCCEEDED` 또는 `FAILED` 확정 정상 |
 
 ## 관리자 계정 테스트 데이터
 
-| 용도                        | userId | 등급             | 활성 여부 | 예상 결과      |
-| --------------------------- | -----: | ---------------- | --------- | -------------- |
-| 자기 자신·마지막 최고관리자 | 910001 | `SUPER_ADMIN`    | 활성      | 비활성화 `409` |
-| 정상 비활성화               | 910002 | `PLATFORM_ADMIN` | 활성      | 정상 처리      |
-| 이미 비활성화               | 910005 | `PLATFORM_ADMIN` | 비활성    | 비활성화 `409` |
+| 용도 | userId | 등급 | 활성 여부 | 예상 결과 |
+| -- | --: | -- | -- | -- |
+| 자기 자신·마지막 최고관리자 | 910001 | `SUPER_ADMIN` | 활성 | 비활성화 `409` |
+| 정상 비활성화 | 910002 | `PLATFORM_ADMIN` | 활성 | 정상 처리 |
+| 이미 비활성화 | 910005 | `PLATFORM_ADMIN` | 비활성 | 비활성화 `409` |
 
 ## 준비 데이터만으로 검증할 수 없는 항목
 
