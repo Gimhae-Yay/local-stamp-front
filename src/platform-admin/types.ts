@@ -20,6 +20,18 @@ export interface PlatformUser {
   createdAt: string
 }
 
+export type PlatformAdminGrade = "SUPER_ADMIN" | "PLATFORM_ADMIN"
+
+export interface PlatformAdminAccount {
+  userId: string
+  loginIdentifier: string
+  name: string
+  grade: PlatformAdminGrade
+  status: "ACTIVE" | "INACTIVE"
+  createdAt: string
+  inactivatedAt: string | null
+}
+
 export interface PaymentDiscrepancy {
   discrepancyId: string
   paymentId: string

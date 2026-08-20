@@ -7,11 +7,14 @@ import {
   createStampbook,
   endCouponPolicy,
   endMission,
+  endStampbook,
   getCouponPolicy,
   getMission,
+  getStampbook,
   listCouponPolicies,
   listMissions,
   listMyContents,
+  listStampbooks,
   publishCouponPolicy,
   publishStampbook,
   submitMission,
@@ -34,7 +37,6 @@ import {
 import { useOperatorAuth } from "../OperatorAuth"
 import {
   readOperatorCompatValue,
-  removeOperatorCompatValue,
   writeOperatorCompatValue,
 } from "../operatorCompatStorage"
 import type {
@@ -44,7 +46,10 @@ import type {
   MissionDetail,
   MissionInput,
   MissionSummary,
+  OperatorStampbookDetail,
+  OperatorStampbookSummary,
   StampbookDraft,
+  StampbookInput,
 } from "../types"
 
 function toInputDate(value: string | null | undefined) {
@@ -929,8 +934,9 @@ export function MissionListPage() {
         <ActionModal
           title="미션을 조기 종료할까요?"
           description="공개 미션을 종료 상태로 전환합니다."
-          label="종료 사유 코드"
-          initialReason="OPERATOR_EARLY_END"
+          label="종료 사유"
+          initialReason="MISSION_OPERATION_SCHEDULE_CHANGED"
+          reasonOptions={missionEndReasons}
           confirmLabel="미션 종료"
           tone="danger"
           onClose={() => setModal(null)}
@@ -943,6 +949,25 @@ export function MissionListPage() {
     </>
   )
 }
+
+const missionEndReasons = [
+  {
+    value: "MISSION_OPERATION_SCHEDULE_CHANGED",
+    label: "운영 일정 변경",
+  },
+  {
+    value: "MISSION_TARGET_CONTENT_UNAVAILABLE",
+    label: "목표 콘텐츠 운영 불가",
+  },
+  {
+    value: "MISSION_REWARD_POLICY_UNAVAILABLE",
+    label: "보상 정책 운영 불가",
+  },
+  {
+    value: "MISSION_OPERATION_SAFETY_CONCERN",
+    label: "안전 문제",
+  },
+]
 
 const emptyMission = {
   title: "",
@@ -1201,84 +1226,303 @@ export function MissionFormPage() {
   )
 }
 
-const emptyStampbookWorkspaceDraft = {
+type StampbookFormDraft = Omit<StampbookInput, "regionId">
+
+const emptyStampbookWorkspaceDraft: StampbookFormDraft = {
   title: "",
-  contentIds: [] as string[],
+  contentIds: [],
   rewardCouponPolicyId: "",
   reason: "",
 }
 
-interface StampbookWorkspace {
-  draft: typeof emptyStampbookWorkspaceDraft
-  created: StampbookDraft | null
+export function validateStampbookDraft(draft: StampbookFormDraft) {
+  if (!draft.title.trim()) return "스탬프북 제목을 입력해 주세요."
+  if (draft.title.trim().length > 100)
+    return "스탬프북 제목은 100자 이하로 입력해 주세요."
+  if (draft.contentIds.length === 0)
+    return "대상 콘텐츠를 하나 이상 선택해 주세요."
+  if (!draft.rewardCouponPolicyId)
+    return "완주 보상 쿠폰을 선택해 주세요."
+  if (!draft.reason.trim()) return "생성·수정 사유를 입력해 주세요."
+  if (draft.reason.trim().length > 500)
+    return "생성·수정 사유는 500자 이하로 입력해 주세요."
+  return ""
 }
 
-function loadStampbookWorkspace(userId: string, regionId: string) {
-  const stored = readOperatorCompatValue<StampbookWorkspace>(
-    userId,
-    "stampbook-workspace",
-    regionId,
+export function StampbookListPage() {
+  const [items, setItems] = useState<OperatorStampbookSummary[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    const controller = new AbortController()
+    listStampbooks(controller.signal)
+      .then(({ stampbooks }) => setItems(stampbooks))
+      .catch((caught) => {
+        if (!isAbortError(caught, controller.signal))
+          setError(apiErrorMessage(caught, "스탬프북 목록을 불러오지 못했습니다."))
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [])
+
+  return (
+    <>
+      <Breadcrumb>P1 혜택 › 스탬프북</Breadcrumb>
+      <PageHeader
+        title="스탬프북"
+        description="담당 지역과 소유 콘텐츠 범위의 스탬프북을 조회하고 관리합니다."
+        actions={
+          <Link
+            className="op-button op-button-primary"
+            to="/operator/stampbooks/new"
+          >
+            ＋ 스탬프북 만들기
+          </Link>
+        }
+      />
+      {error && <div className="op-alert">{error}</div>}
+      {loading ? (
+        <RouteState loading />
+      ) : items.length === 0 ? (
+        <RouteState empty="생성된 스탬프북이 없습니다." />
+      ) : (
+        <div className="op-table-wrap op-top-gap">
+          <table>
+            <thead>
+              <tr>
+                <th>스탬프북 ID</th>
+                <th>제목</th>
+                <th>대상 수</th>
+                <th>상태</th>
+                <th>공개·종료 시각</th>
+                <th className="op-right">액션</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.stampbookId}>
+                  <td className="op-mono">{item.stampbookId}</td>
+                  <td>{item.title}</td>
+                  <td>{item.targetCount}개</td>
+                  <td>
+                    <StatusBadge value={item.status} />
+                  </td>
+                  <td>{formatDate(item.endedAt ?? item.publishedAt)}</td>
+                  <td className="op-right">
+                    <Link
+                      className="op-button op-button-small"
+                      to={`/operator/stampbooks/${item.stampbookId}`}
+                    >
+                      상세
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
   )
-  const draft = stored?.value?.draft
-  if (
-    !draft ||
-    typeof draft.title !== "string" ||
-    !Array.isArray(draft.contentIds) ||
-    typeof draft.rewardCouponPolicyId !== "string" ||
-    typeof draft.reason !== "string"
-  )
-    return null
-  return stored
 }
 
-export function StampbookPage() {
+export function StampbookDetailPage() {
+  const { stampbookId = "" } = useParams()
+  const [detail, setDetail] = useState<OperatorStampbookDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [modal, setModal] = useState<"publish" | "end" | null>(null)
+  const [notice, setNotice] = useState("")
+  const [version, setVersion] = useState(0)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    setError("")
+    getStampbook(stampbookId, controller.signal)
+      .then(setDetail)
+      .catch((caught) => {
+        if (!isAbortError(caught, controller.signal))
+          setError(apiErrorMessage(caught, "스탬프북 상세를 불러오지 못했습니다."))
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [stampbookId, version])
+
+  if (loading) return <RouteState loading />
+  if (!detail) return <RouteState error={error || "스탬프북을 찾을 수 없습니다."} />
+
+  return (
+    <>
+      <Breadcrumb>P1 혜택 › 스탬프북 › #{detail.stampbookId}</Breadcrumb>
+      <PageHeader
+        title={detail.title}
+        description={`스탬프북 #${detail.stampbookId}의 현재 서버 상세입니다.`}
+        actions={
+          <Link className="op-button" to="/operator/stampbooks">
+            목록으로
+          </Link>
+        }
+      />
+      {notice && <div className="op-alert op-alert-success">{notice}</div>}
+      <div className="op-form-shell op-top-gap">
+        <article className="op-panel">
+          <header>
+            <h2>구성 상세</h2>
+            <StatusBadge value={detail.status} />
+          </header>
+          <div className="op-panel-body">
+            <dl className="op-kv-grid">
+              <div className="op-kv">
+                <dt>스탬프북 ID</dt>
+                <dd>{detail.stampbookId}</dd>
+              </div>
+              <div className="op-kv">
+                <dt>지역 ID</dt>
+                <dd>{detail.regionId}</dd>
+              </div>
+              <div className="op-kv">
+                <dt>보상 쿠폰 정책</dt>
+                <dd>#{detail.rewardCouponPolicy.couponPolicyId}</dd>
+              </div>
+              <div className="op-kv">
+                <dt>보상 정책 상태</dt>
+                <dd>{statusLabel(detail.rewardCouponPolicy.status)}</dd>
+              </div>
+              <div className="op-kv op-full">
+                <dt>공개 시각</dt>
+                <dd>{formatDate(detail.publishedAt)}</dd>
+              </div>
+              <div className="op-kv op-full">
+                <dt>종료 시각</dt>
+                <dd>{formatDate(detail.endedAt)}</dd>
+              </div>
+              <div className="op-kv op-full">
+                <dt>대상 콘텐츠</dt>
+                <dd>
+                  {detail.targetContents
+                    .map((item) => `${item.title} (#${item.contentId})`)
+                    .join(", ")}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </article>
+        <aside className="op-action-card">
+          <h2>가능한 처리</h2>
+          {detail.status === "DRAFT" && (
+            <>
+              <Link
+                className="op-button"
+                to={`/operator/stampbooks/${detail.stampbookId}/edit`}
+              >
+                초안 수정
+              </Link>
+              <button
+                className="op-button op-button-admin"
+                onClick={() => setModal("publish")}
+              >
+                공개 심사 요청
+              </button>
+            </>
+          )}
+          {detail.status === "PUBLISHED" && (
+            <button
+              className="op-button op-button-danger-outline"
+              onClick={() => setModal("end")}
+            >
+              스탬프북 종료
+            </button>
+          )}
+          {detail.status === "ENDED" && <p>이미 종료된 스탬프북입니다.</p>}
+        </aside>
+      </div>
+      {modal === "publish" && (
+        <ActionModal
+          title="스탬프북 공개 심사를 요청할까요?"
+          description="초안이 심사 대기 상태로 전환됩니다."
+          label="심사 요청 사유"
+          confirmLabel="공개 심사 요청"
+          onClose={() => setModal(null)}
+          onConfirm={async (reason) => {
+            await publishStampbook(detail.stampbookId, reason)
+            setNotice("스탬프북 공개 심사 요청이 접수되었습니다.")
+            setModal(null)
+            setVersion((value) => value + 1)
+          }}
+        />
+      )}
+      {modal === "end" && (
+        <ActionModal
+          title="스탬프북을 종료할까요?"
+          description="공개 상태인 스탬프북과 미완료 진행이 종료됩니다."
+          label="종료 사유"
+          placeholder="예: 행사 운영 종료"
+          confirmLabel="스탬프북 종료"
+          tone="danger"
+          onClose={() => setModal(null)}
+          onConfirm={async (reason) => {
+            await endStampbook(detail.stampbookId, reason)
+            setNotice("스탬프북이 종료되었습니다.")
+            setModal(null)
+            setVersion((value) => value + 1)
+          }}
+        />
+      )}
+    </>
+  )
+}
+
+export function StampbookFormPage() {
+  const { stampbookId } = useParams()
+  const navigate = useNavigate()
   const { session } = useOperatorAuth()
-  const restoredWorkspace = useMemo(
-    () =>
-      session
-        ? loadStampbookWorkspace(
-            session.userId,
-            session.assignment.regionId,
-          )
-        : null,
-    [session],
-  )
+  const editing = Boolean(stampbookId)
+  const [source, setSource] = useState<OperatorStampbookDetail | null>(null)
   const [contents, setContents] = useState<ContentSummary[]>([])
   const [coupons, setCoupons] = useState<CouponPolicySummary[]>([])
-  const [draft, setDraft] = useState(() =>
-    restoredWorkspace
-      ? restoredWorkspace.value.draft
-      : { ...emptyStampbookWorkspaceDraft },
-  )
-  const [created, setCreated] = useState<StampbookDraft | null>(
-    restoredWorkspace?.value.created ?? null,
-  )
-  const [status, setStatus] = useState(
-    restoredWorkspace
-      ? "이 브라우저에 저장된 최근 스탬프북 작업을 복원했습니다. 서버의 현재 상태와 다를 수 있습니다."
-      : "",
-  )
+  const [draft, setDraft] = useState<StampbookFormDraft>({
+    ...emptyStampbookWorkspaceDraft,
+  })
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [editing, setEditing] = useState(false)
   const [error, setError] = useState("")
-  const [modal, setModal] = useState(false)
+
   useEffect(() => {
     const controller = new AbortController()
     Promise.all([
       listMyContents(controller.signal),
       listCouponPolicies(controller.signal),
+      stampbookId
+        ? getStampbook(stampbookId, controller.signal)
+        : Promise.resolve(null),
     ])
-      .then(([contentData, couponData]) => {
+      .then(([contentData, couponData, stampbook]) => {
         setContents(contentData.contents)
         setCoupons(couponData.couponPolicies)
-        setDraft((current) => ({
-          ...current,
-          rewardCouponPolicyId:
-            current.rewardCouponPolicyId ||
-            couponData.couponPolicies[0]?.couponPolicyId ||
-            "",
-        }))
+        setSource(stampbook)
+        setDraft(
+          stampbook
+            ? {
+                title: stampbook.title,
+                contentIds: stampbook.targetContents.map(
+                  (item) => item.contentId,
+                ),
+                rewardCouponPolicyId:
+                  stampbook.rewardCouponPolicy.couponPolicyId,
+                reason: "",
+              }
+            : {
+                ...emptyStampbookWorkspaceDraft,
+                rewardCouponPolicyId:
+                  couponData.couponPolicies[0]?.couponPolicyId ?? "",
+              },
+        )
       })
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
@@ -1294,22 +1538,7 @@ export function StampbookPage() {
       })
     return () => controller.abort()
   }, [])
-  useEffect(() => {
-    if (
-      !session ||
-      (!created &&
-        !draft.title.trim() &&
-        draft.contentIds.length === 0 &&
-        !draft.reason.trim())
-    )
-      return
-    writeOperatorCompatValue<StampbookWorkspace>(
-      session.userId,
-      "stampbook-workspace",
-      session.assignment.regionId,
-      { draft, created },
-    )
-  }, [created, draft, session])
+
   const eligible = useMemo(
     () =>
       contents.filter((item) =>
@@ -1324,28 +1553,30 @@ export function StampbookPage() {
         ? current.contentIds.filter((item) => item !== id)
         : [...current.contentIds, id],
     }))
-  const save = async () => {
+
+  const save = async (event: FormEvent) => {
+    event.preventDefault()
+    const validationError = validateStampbookDraft(draft)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+    if (!session) return
     setSubmitting(true)
     setError("")
-    const input = { ...draft, regionId: session!.assignment.regionId }
+    const input = { ...draft, regionId: session.assignment.regionId }
     try {
-      if (created && editing) {
-        const result = await updateStampbook(created.stampbookId, input)
-        setCreated((current) =>
-          current
-            ? {
-                ...current,
-                status: result.status,
-                targetCount: result.targetCount,
-              }
-            : current,
-        )
-        setStatus(`스탬프북 #${result.stampbookId} 수정 내용이 저장되었습니다.`)
-        setEditing(false)
+      let created: StampbookDraft
+      if (editing && source) {
+        const result = await updateStampbook(source.stampbookId, input)
+        navigate(`/operator/stampbooks/${result.stampbookId}`, {
+          replace: true,
+        })
       } else {
-        const result = await createStampbook(input)
-        setCreated(result)
-        setStatus(`스탬프북 #${result.stampbookId} 초안이 생성되었습니다.`)
+        created = await createStampbook(input)
+        navigate(`/operator/stampbooks/${created.stampbookId}`, {
+          replace: true,
+        })
       }
     } catch (caught) {
       setError(apiErrorMessage(caught, "스탬프북을 저장하지 못했습니다."))
@@ -1353,36 +1584,27 @@ export function StampbookPage() {
       setSubmitting(false)
     }
   }
-  const resetWorkspace = () => {
-    if (!session) return
-    removeOperatorCompatValue(
-      session.userId,
-      "stampbook-workspace",
-      session.assignment.regionId,
-    )
-    setDraft({
-      ...emptyStampbookWorkspaceDraft,
-      rewardCouponPolicyId: coupons[0]?.couponPolicyId ?? "",
-    })
-    setCreated(null)
-    setEditing(false)
-    setStatus("새 스탬프북 초안을 시작합니다.")
-    setError("")
-  }
+
   if (loading) return <RouteState loading />
+  if (editing && !source)
+    return <RouteState error={error || "스탬프북을 찾을 수 없습니다."} />
+  if (editing && source?.status !== "DRAFT")
+    return <RouteState error="초안 상태의 스탬프북만 수정할 수 있습니다." />
+
   return (
     <>
-      <Breadcrumb>P1 혜택 › 스탬프북 만들기</Breadcrumb>
+      <Breadcrumb>
+        P1 혜택 › 스탬프북 › {editing ? "초안 수정" : "새 스탬프북"}
+      </Breadcrumb>
       <PageHeader
-        title="스탬프북 만들기"
-        description="대상 콘텐츠와 완주 보상 쿠폰 정책을 선택해 초안을 생성합니다."
+        title={editing ? "스탬프북 초안 수정" : "스탬프북 만들기"}
+        description="대상 콘텐츠와 완주 보상 쿠폰 정책을 선택해 초안을 저장합니다."
       />
-      {status && <div className="op-alert op-alert-success">{status}</div>}
-      <div className="op-form-shell">
+      <form className="op-form-shell" onSubmit={save}>
         <article className="op-panel">
           <header>
             <h2>스탬프북 구성</h2>
-            <StatusBadge value={created?.status ?? "DRAFT"} />
+            <StatusBadge value={source?.status ?? "DRAFT"} />
           </header>
           <div className="op-panel-body">
             <div className="op-form-grid">
@@ -1392,6 +1614,7 @@ export function StampbookPage() {
                 set={(value) =>
                   setDraft((current) => ({ ...current, title: value }))
                 }
+                maxLength={100}
                 full
               />
               <label className="op-field">
@@ -1413,6 +1636,7 @@ export function StampbookPage() {
                       rewardCouponPolicyId: event.target.value,
                     }))
                   }
+                  required
                 >
                   <option value="">선택</option>
                   {coupons.map((item) => (
@@ -1470,90 +1694,33 @@ export function StampbookPage() {
                 set={(value) =>
                   setDraft((current) => ({ ...current, reason: value }))
                 }
+                maxLength={500}
                 full
               />
             </div>
           </div>
         </article>
         <aside className="op-action-card">
-          <h2>생성 결과</h2>
+          <h2>{editing ? "수정 저장" : "초안 생성"}</h2>
           <p>
-            운영자용 목록·상세 조회 API가 없어 최근 작업을 이 브라우저에 임시
-            저장합니다. 다른 기기와 동기화되지 않습니다.
+            저장 성공 후 Backend 상세 화면으로 이동합니다.
           </p>
-          <div className="op-notice">
-            {created ? (
-              <>
-                <strong>
-                  스탬프북 #{created.stampbookId} ·{" "}
-                  {statusLabel(created.status)}
-                </strong>
-                <br />
-                대상 콘텐츠 {created.targetCount}개
-              </>
-            ) : (
-              <>
-                <strong>생성 전</strong>
-                <br />
-                초안을 먼저 생성해야 수정과 공개 심사 요청을 진행할 수 있습니다.
-              </>
-            )}
-          </div>
           <button
             className="op-button op-button-primary"
-            onClick={save}
-            disabled={
-              submitting ||
-              Boolean(created && !editing) ||
-              draft.contentIds.length === 0 ||
-              !draft.title.trim() ||
-              !draft.reason.trim()
-            }
+            disabled={submitting}
           >
             {submitting
               ? "처리 중…"
-              : created && editing
+              : editing
                 ? "수정 내용 저장"
                 : "스탬프북 초안 생성"}
           </button>
-          <button
-            className="op-button"
-            disabled={!created || created.status !== "DRAFT"}
-            onClick={() => setEditing(true)}
-          >
-            생성 후 수정
-          </button>
-          <button
-            className="op-button op-button-admin"
-            disabled={!created || created.status !== "DRAFT"}
-            onClick={() => setModal(true)}
-          >
-            공개 심사 요청
-          </button>
-          {created && (
-            <button className="op-button" onClick={resetWorkspace}>
-              새 초안 시작
-            </button>
-          )}
           {error && <div className="op-alert">{error}</div>}
+          <Link className="op-button" to="/operator/stampbooks">
+            취소하고 목록으로
+          </Link>
         </aside>
-      </div>
-      {modal && created && (
-        <ActionModal
-          title="스탬프북 공개 심사를 요청할까요?"
-          description="초안이 심사 대기 상태로 전환됩니다."
-          label="심사 요청 사유"
-          initialReason={draft.reason}
-          confirmLabel="공개 심사 요청"
-          onClose={() => setModal(false)}
-          onConfirm={async (reason) => {
-            const result = await publishStampbook(created.stampbookId, reason)
-            setCreated({ ...created, status: result.status })
-            setStatus("스탬프북 공개 심사 요청이 접수되었습니다.")
-            setModal(false)
-          }}
-        />
-      )}
+      </form>
     </>
   )
 }

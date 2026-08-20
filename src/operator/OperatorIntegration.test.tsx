@@ -64,7 +64,7 @@ describe("운영자 콘솔 실제 라우팅", () => {
     vi.stubGlobal("fetch", fetchMock)
 
     render(<App />)
-    fireEvent.change(screen.getByLabelText("이메일"), {
+    fireEvent.change(await screen.findByLabelText("이메일"), {
       target: { value: "operator@example.test" },
     })
     fireEvent.change(screen.getByLabelText("비밀번호"), {

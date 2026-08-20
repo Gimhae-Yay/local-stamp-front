@@ -6,6 +6,7 @@ import {
   Routes,
   useLocation,
 } from "react-router-dom"
+import { lazy, Suspense } from "react"
 
 import AppLayout, { useAppState } from "./components/AppLayout"
 
@@ -37,9 +38,9 @@ import {
 
 import { LoginPage, SignupPage } from "./pages/AuthPages"
 import OperatorRequestPage from "./pages/OperatorRequestPage"
-import RegionalAdminApp from "./admin/RegionalAdminApp"
-import PlatformAdminApp from "./platform-admin/PlatformAdminApp"
-import OperatorApp from "./operator/OperatorApp"
+const RegionalAdminApp = lazy(() => import("./admin/RegionalAdminApp"))
+const PlatformAdminApp = lazy(() => import("./platform-admin/PlatformAdminApp"))
+const OperatorApp = lazy(() => import("./operator/OperatorApp"))
 
 function RequireAuthentication() {
   const { loggedIn } = useAppState()
@@ -54,11 +55,16 @@ function RequireAuthentication() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/admin/*" element={<PlatformAdminApp />} />
-        <Route path="/region-admin/*" element={<RegionalAdminApp />} />
-        <Route path="/operator/*" element={<OperatorApp />} />
-        <Route element={<AppLayout />}>
+      <Suspense
+        fallback={
+          <div className="route-loading">화면을 불러오는 중입니다.</div>
+        }
+      >
+        <Routes>
+          <Route path="/admin/*" element={<PlatformAdminApp />} />
+          <Route path="/region-admin/*" element={<RegionalAdminApp />} />
+          <Route path="/operator/*" element={<OperatorApp />} />
+          <Route element={<AppLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/events" element={<EventsPage />} />
           <Route path="/events/:eventId" element={<EventDetailPage />} />
@@ -92,8 +98,9 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
+          </Route>
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }

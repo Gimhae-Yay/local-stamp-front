@@ -359,6 +359,7 @@ export function ManualRefundPage() {
   const [paymentId, setPaymentId] = useState(params.get("paymentId") ?? "")
   const [evidenceReference, setEvidenceReference] = useState("")
   const [reason, setReason] = useState("")
+  const [confirming, setConfirming] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [result, setResult] = useState<{
@@ -367,8 +368,12 @@ export function ManualRefundPage() {
     amount: number
     requestedAt: string
   } | null>(null)
-  const submit = async (event: React.FormEvent) => {
+  const submit = (event: React.FormEvent) => {
     event.preventDefault()
+    setError("")
+    setConfirming(true)
+  }
+  const requestRefund = async () => {
     setSubmitting(true)
     setError("")
     try {
@@ -382,6 +387,7 @@ export function ManualRefundPage() {
         body: JSON.stringify({ evidenceReference, reason }),
       })
       setResult(response)
+      setConfirming(false)
     } catch (caught) {
       setError(
         caught instanceof ApiError
@@ -417,6 +423,7 @@ export function ManualRefundPage() {
           <input
             value={evidenceReference}
             onChange={(event) => setEvidenceReference(event.target.value)}
+            maxLength={500}
             required
           />
         </Field>
@@ -424,6 +431,7 @@ export function ManualRefundPage() {
           <textarea
             value={reason}
             onChange={(event) => setReason(event.target.value)}
+            maxLength={500}
             required
           />
         </Field>
@@ -448,6 +456,47 @@ export function ManualRefundPage() {
           </button>
         </div>
       </form>
+      {confirming && (
+        <Modal
+          title="전액 환불 요청 확인"
+          description="환불 요청 후에는 취소할 수 없습니다. 입력한 내용을 확인해 주세요."
+          onClose={() => {
+            if (!submitting) setConfirming(false)
+          }}
+        >
+          <div className="pa-drawer-form">
+            <div className="pa-notice pa-notice-danger">
+              <strong>결제 ID {paymentId} 전액 환불</strong>
+              <span>{reason}</span>
+            </div>
+            <KeyValues
+              items={[
+                ["결제 ID", paymentId],
+                ["증빙 참조", evidenceReference],
+              ]}
+            />
+            <ApiErrorMessage error={error} />
+            <div className="pa-form-actions">
+              <button
+                type="button"
+                className="pa-button"
+                disabled={submitting}
+                onClick={() => setConfirming(false)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="pa-button pa-button-danger"
+                disabled={submitting}
+                onClick={requestRefund}
+              >
+                {submitting ? "환불 요청 중…" : "전액 환불 확정"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
       {result && (
         <div className="pa-result pa-result-success">
           <strong>✓ &nbsp;환불 요청 완료</strong>
@@ -817,7 +866,7 @@ function ConfirmRefundModal({
   )
 }
 
-function Summary({ label, value }: { label: string value: string }) {
+function Summary({ label, value }: { label: string, value: string }) {
   return (
     <article>
       <small>{label}</small>
@@ -854,7 +903,7 @@ function KeyValues({ items }: { items: Array<[string, string]> }) {
 function Timeline({
   items,
 }: {
-  items: Array<{ title: string copy: string date: string tone: string }>
+  items: Array<{ title: string, copy: string, date: string, tone: string }>
 }) {
   return (
     <ol className="pa-timeline">
