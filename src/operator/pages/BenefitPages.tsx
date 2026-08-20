@@ -751,7 +751,7 @@ export function MissionListPage() {
             >
               <option value="">전체 상태</option>
               <option value="DRAFT">초안</option>
-              <option value="PENDING">심사 대기</option>
+              <option value="PENDING_REVIEW">심사 대기</option>
               <option value="PUBLISHED">공개</option>
               <option value="ENDED">종료</option>
             </select>
@@ -1171,7 +1171,11 @@ export function MissionFormPage() {
           </p>
           <button
             className="op-button op-button-primary"
-            disabled={submitting || draft.targetContentIds.length === 0}
+            disabled={
+              submitting ||
+              (draft.conditionType === "CONTENT_SET" &&
+                draft.targetContentIds.length === 0)
+            }
           >
             {submitting
               ? "저장 중…"
