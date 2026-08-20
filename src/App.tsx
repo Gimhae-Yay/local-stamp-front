@@ -6,6 +6,7 @@ import {
   Routes,
   useLocation,
 } from "react-router-dom"
+
 import { lazy, Suspense } from "react"
 
 import AppLayout, { useAppState } from "./components/AppLayout"
@@ -44,7 +45,9 @@ const OperatorApp = lazy(() => import("./operator/OperatorApp"))
 
 function RequireAuthentication() {
   const { loggedIn } = useAppState()
+
   const location = useLocation()
+
   return loggedIn ? (
     <Outlet />
   ) : (
@@ -65,39 +68,48 @@ export default function App() {
           <Route path="/region-admin/*" element={<RegionalAdminApp />} />
           <Route path="/operator/*" element={<OperatorApp />} />
           <Route element={<AppLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/events" element={<EventsPage />} />
-          <Route path="/events/:eventId" element={<EventDetailPage />} />
-          <Route path="/events/:eventId/reviews" element={<ReviewsPage />} />
-          <Route path="/missions" element={<MissionsPage />} />
-          <Route element={<RequireAuthentication />}>
-            <Route path="/events/:eventId/reserve" element={<BookingPage />} />
-            <Route
-              path="/events/:eventId/reserve/confirm"
-              element={<BookingConfirmPage />}
-            />
-            <Route
-              path="/events/:eventId/reserve/complete"
-              element={<BookingCompletePage />}
-            />
-            <Route path="/reservations" element={<ReservationsPage />} />
-            <Route
-              path="/reservations/:reservationId"
-              element={<ReservationDetailPage />}
-            />
-            <Route
-              path="/reservations/:reservationId/cancel"
-              element={<CancelReservationPage />}
-            />
-            <Route path="/reviews/new" element={<ReviewPage />} />
-            <Route path="/coupons" element={<CouponsPage />} />
-            <Route path="/stampbook" element={<StampbookPage />} />
-            <Route path="/operator-request" element={<OperatorRequestPage />} />
-            <Route path="/payment/complete" element={<PaymentCompletePage />} />
-          </Route>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="*" element={<NotFoundPage />} />
+            <Route path="/" element={<HomePage />} />
+            <Route path="/events" element={<EventsPage />} />
+            <Route path="/events/:eventId" element={<EventDetailPage />} />
+            <Route path="/events/:eventId/reviews" element={<ReviewsPage />} />
+            <Route path="/missions" element={<MissionsPage />} />
+            <Route element={<RequireAuthentication />}>
+              <Route
+                path="/events/:eventId/reserve"
+                element={<BookingPage />}
+              />
+              <Route
+                path="/events/:eventId/reserve/confirm"
+                element={<BookingConfirmPage />}
+              />
+              <Route
+                path="/events/:eventId/reserve/complete"
+                element={<BookingCompletePage />}
+              />
+              <Route path="/reservations" element={<ReservationsPage />} />
+              <Route
+                path="/reservations/:reservationId"
+                element={<ReservationDetailPage />}
+              />
+              <Route
+                path="/reservations/:reservationId/cancel"
+                element={<CancelReservationPage />}
+              />
+              <Route path="/reviews/new" element={<ReviewPage />} />
+              <Route path="/coupons" element={<CouponsPage />} />
+              <Route path="/stampbook" element={<StampbookPage />} />
+              <Route
+                path="/operator-request"
+                element={<OperatorRequestPage />}
+              />
+              <Route
+                path="/payment/complete"
+                element={<PaymentCompletePage />}
+              />
+            </Route>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </Suspense>
