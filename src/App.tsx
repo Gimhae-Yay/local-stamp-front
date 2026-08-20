@@ -39,6 +39,7 @@ import { LoginPage, SignupPage } from "./pages/AuthPages"
 import OperatorRequestPage from "./pages/OperatorRequestPage"
 import RegionalAdminApp from "./admin/RegionalAdminApp"
 import PlatformAdminApp from "./platform-admin/PlatformAdminApp"
+import OperatorApp from "./operator/OperatorApp"
 
 function RequireAuthentication() {
   const { loggedIn } = useAppState()
@@ -56,6 +57,7 @@ export default function App() {
       <Routes>
         <Route path="/admin/*" element={<PlatformAdminApp />} />
         <Route path="/region-admin/*" element={<RegionalAdminApp />} />
+        <Route path="/operator/*" element={<OperatorApp />} />
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/events" element={<EventsPage />} />
