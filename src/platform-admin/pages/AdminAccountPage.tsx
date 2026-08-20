@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { ApiError, apiRequest, storedUserId } from "../../admin/api"
+import { useState } from "react";
+import { ApiError, apiRequest, storedUserId } from "../../admin/api";
 import {
   ApiErrorMessage,
   AsyncState,
@@ -9,20 +9,18 @@ import {
   StatusBadge,
   formatDate,
   usePlatformData,
-} from "../PlatformComponents"
+} from "../PlatformComponents";
 
-import type { PlatformAdminAccount } from "../types"
+import type { PlatformAdminAccount } from "../types";
 
 export default function AdminAccountPage() {
-  const currentUserId = storedUserId()
+  const currentUserId = storedUserId();
   const state = usePlatformData<{ adminAccounts: PlatformAdminAccount[] }>(
     "/api/v1/platform-admin/admin-accounts",
-  )
-  const [creating, setCreating] = useState(false)
-  const [deactivating, setDeactivating] = useState<PlatformAdminAccount | null>(
-    null,
-  )
-  const administrators = state.data?.adminAccounts ?? []
+  );
+  const [creating, setCreating] = useState(false);
+  const [deactivating, setDeactivating] = useState<PlatformAdminAccount | null>(null);
+  const administrators = state.data?.adminAccounts ?? [];
   return (
     <main className="pa-content">
       <PageHeader
@@ -30,10 +28,7 @@ export default function AdminAccountPage() {
         description="최고 관리자만 전체 관리자 계정을 생성하거나 비활성화할 수 있습니다."
         action={
           <div className="pa-header-actions">
-            <button
-              className="pa-button pa-button-primary"
-              onClick={() => setCreating(true)}
-            >
+            <button className="pa-button pa-button-primary" onClick={() => setCreating(true)}>
               ＋ 전체 관리자 계정 생성
             </button>
           </div>
@@ -41,22 +36,13 @@ export default function AdminAccountPage() {
       />
       <div className="pa-notice pa-notice-orange">
         <strong>최고 관리자 전용</strong>
-        <span>
-          활성·비활성 전체 관리자 계정을 확인하고 계정별 작업을 수행할 수
-          있습니다.
-        </span>
+        <span>활성·비활성 전체 관리자 계정을 확인하고 계정별 작업을 수행할 수 있습니다.</span>
       </div>
-      <AsyncState
-        state={state}
-        empty={(value) => value.adminAccounts.length === 0}
-      >
+      <AsyncState state={state} empty={(value) => value.adminAccounts.length === 0}>
         {() => (
           <section className="pa-list">
             {administrators.map((account) => (
-              <article
-                className="pa-list-row pa-admin-row"
-                key={account.userId}
-              >
+              <article className="pa-list-row pa-admin-row" key={account.userId}>
                 <span className="pa-account-avatar">관</span>
                 <div>
                   <strong>{account.name}</strong>
@@ -67,11 +53,7 @@ export default function AdminAccountPage() {
                 <div className="pa-admin-meta">
                   <StatusBadge
                     value={account.grade}
-                    label={
-                      account.grade === "SUPER_ADMIN"
-                        ? "최고 관리자"
-                        : "플랫폼 관리자"
-                    }
+                    label={account.grade === "SUPER_ADMIN" ? "최고 관리자" : "플랫폼 관리자"}
                   />
                   <StatusBadge value={account.status} />
                 </div>
@@ -83,10 +65,7 @@ export default function AdminAccountPage() {
                 <button
                   className="pa-button pa-button-danger-outline"
                   onClick={() => setDeactivating(account)}
-                  disabled={
-                    account.status !== "ACTIVE" ||
-                    account.userId === currentUserId
-                  }
+                  disabled={account.status !== "ACTIVE" || account.userId === currentUserId}
                 >
                   {account.userId === currentUserId
                     ? "현재 계정"
@@ -103,9 +82,9 @@ export default function AdminAccountPage() {
         <CreateAdminModal
           onClose={() => setCreating(false)}
           onSuccess={() => {
-            setCreating(false)
+            setCreating(false);
 
-            state.reload()
+            state.reload();
           }}
         />
       )}
@@ -114,14 +93,14 @@ export default function AdminAccountPage() {
           user={deactivating}
           onClose={() => setDeactivating(null)}
           onSuccess={() => {
-            setDeactivating(null)
+            setDeactivating(null);
 
-            state.reload()
+            state.reload();
           }}
         />
       )}
     </main>
-  )
+  );
 }
 
 function CreateAdminModal({
@@ -129,9 +108,9 @@ function CreateAdminModal({
 
   onSuccess,
 }: {
-  onClose: () => void
+  onClose: () => void;
 
-  onSuccess: () => void
+  onSuccess: () => void;
 }) {
   const [form, setForm] = useState({
     email: "",
@@ -147,58 +126,50 @@ function CreateAdminModal({
     reasonCode: "ADMIN_ACCOUNT_CREATION",
 
     evidenceReference: "",
-  })
+  });
 
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState(false);
 
-  const [error, setError] = useState("")
+  const [error, setError] = useState("");
 
   const update = (field: keyof typeof form, value: string) =>
-    setForm((current) => ({ ...current, [field]: value }))
+    setForm((current) => ({ ...current, [field]: value }));
 
   const submit = async (event: React.FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();
 
-    const phoneDigits = form.phone.replace(/\D/g, "")
+    const phoneDigits = form.phone.replace(/\D/g, "");
 
-    if (
-      !/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9])[!-~]{8,64}$/.test(
-        form.password,
-      )
-    ) {
-      setError("비밀번호에는 영문자·숫자·특수문자가 모두 포함되어야 합니다.")
+    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9])[!-~]{8,64}$/.test(form.password)) {
+      setError("비밀번호에는 영문자·숫자·특수문자가 모두 포함되어야 합니다.");
 
-      return
+      return;
     }
 
     if (!/^\d{10,11}$/.test(phoneDigits)) {
-      setError("전화번호는 숫자 10~11자리로 입력해 주세요.")
+      setError("전화번호는 숫자 10~11자리로 입력해 주세요.");
 
-      return
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
 
-    setError("")
+    setError("");
 
     try {
       await apiRequest("/api/v1/platform-admin/admin-accounts", {
         method: "POST",
 
         body: JSON.stringify(form),
-      })
+      });
 
-      onSuccess()
+      onSuccess();
     } catch (caught) {
-      setError(
-        caught instanceof ApiError
-          ? caught.message
-          : "계정을 생성하지 못했습니다.",
-      )
+      setError(caught instanceof ApiError ? caught.message : "계정을 생성하지 못했습니다.");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <Modal
@@ -226,9 +197,7 @@ function CreateAdminModal({
         <Field label="전화번호 *">
           <input
             value={form.phone}
-            onChange={(event) =>
-              update("phone", event.target.value.replace(/[^0-9-]/g, ""))
-            }
+            onChange={(event) => update("phone", event.target.value.replace(/[^0-9-]/g, ""))}
             placeholder="010-1234-5678"
             inputMode="tel"
             minLength={10}
@@ -237,18 +206,12 @@ function CreateAdminModal({
           />
         </Field>
         <Field label="관리자 등급 *">
-          <select
-            value={form.grade}
-            onChange={(event) => update("grade", event.target.value)}
-          >
+          <select value={form.grade} onChange={(event) => update("grade", event.target.value)}>
             <option value="PLATFORM_ADMIN">플랫폼 관리자</option>
             <option value="SUPER_ADMIN">최고 관리자</option>
           </select>
         </Field>
-        <Field
-          label="임시 비밀번호 *"
-          help="8~64자, 영문·숫자·특수문자를 모두 포함해야 합니다."
-        >
+        <Field label="임시 비밀번호 *" help="8~64자, 영문·숫자·특수문자를 모두 포함해야 합니다.">
           <input
             type="password"
             value={form.password}
@@ -261,9 +224,7 @@ function CreateAdminModal({
         <Field label="생성 사유 코드 *">
           <input
             value={form.reasonCode}
-            onChange={(event) =>
-              update("reasonCode", event.target.value.toUpperCase())
-            }
+            onChange={(event) => update("reasonCode", event.target.value.toUpperCase())}
             pattern="[A-Z][A-Z0-9_]*"
             maxLength={100}
             required
@@ -272,9 +233,7 @@ function CreateAdminModal({
         <Field label="증빙 참조 *">
           <textarea
             value={form.evidenceReference}
-            onChange={(event) =>
-              update("evidenceReference", event.target.value)
-            }
+            onChange={(event) => update("evidenceReference", event.target.value)}
             maxLength={500}
             required
           />
@@ -290,7 +249,7 @@ function CreateAdminModal({
         </div>
       </form>
     </Modal>
-  )
+  );
 }
 
 function DeactivateAdminModal({
@@ -300,27 +259,27 @@ function DeactivateAdminModal({
 
   onSuccess,
 }: {
-  user: PlatformAdminAccount
+  user: PlatformAdminAccount;
 
-  onClose: () => void
+  onClose: () => void;
 
-  onSuccess: () => void
+  onSuccess: () => void;
 }) {
-  const userId = user.userId
-  const [reasonCode, setReasonCode] = useState("ADMIN_ACCOUNT_DEACTIVATION")
+  const userId = user.userId;
+  const [reasonCode, setReasonCode] = useState("ADMIN_ACCOUNT_DEACTIVATION");
 
-  const [evidenceReference, setEvidenceReference] = useState("")
+  const [evidenceReference, setEvidenceReference] = useState("");
 
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState(false);
 
-  const [error, setError] = useState("")
+  const [error, setError] = useState("");
 
   const submit = async (event: React.FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();
 
-    setSubmitting(true)
+    setSubmitting(true);
 
-    setError("")
+    setError("");
 
     try {
       await apiRequest(
@@ -331,19 +290,15 @@ function DeactivateAdminModal({
 
           body: JSON.stringify({ reasonCode, evidenceReference }),
         },
-      )
+      );
 
-      onSuccess()
+      onSuccess();
     } catch (caught) {
-      setError(
-        caught instanceof ApiError
-          ? caught.message
-          : "계정을 비활성화하지 못했습니다.",
-      )
+      setError(caught instanceof ApiError ? caught.message : "계정을 비활성화하지 못했습니다.");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <Modal
@@ -354,9 +309,7 @@ function DeactivateAdminModal({
       <form className="pa-drawer-form" onSubmit={submit}>
         <div className="pa-notice pa-notice-danger">
           <strong>즉시 접근 차단</strong>
-          <span>
-            비활성화 후 해당 계정은 전체 관리자 기능을 사용할 수 없습니다.
-          </span>
+          <span>비활성화 후 해당 계정은 전체 관리자 기능을 사용할 수 없습니다.</span>
         </div>
         <Field label="사용자 ID *">
           <input value={userId} inputMode="numeric" disabled required />
@@ -364,9 +317,7 @@ function DeactivateAdminModal({
         <Field label="비활성화 사유 코드 *">
           <input
             value={reasonCode}
-            onChange={(event) =>
-              setReasonCode(event.target.value.toUpperCase())
-            }
+            onChange={(event) => setReasonCode(event.target.value.toUpperCase())}
             pattern="[A-Z][A-Z0-9_]*"
             maxLength={100}
             required
@@ -391,5 +342,5 @@ function DeactivateAdminModal({
         </div>
       </form>
     </Modal>
-  )
+  );
 }

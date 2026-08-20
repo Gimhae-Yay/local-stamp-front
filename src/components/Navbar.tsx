@@ -1,17 +1,17 @@
-import { useState } from "react"
+import { useState } from "react";
 
-import { Link, NavLink, useNavigate } from "react-router-dom"
+import { Link, NavLink, useNavigate } from "react-router-dom";
 
-import type { AuthenticatedUser } from "../api/auth"
+import type { AuthenticatedUser } from "../api/auth";
 
 interface NavbarProps {
-  loggedIn: boolean
+  loggedIn: boolean;
 
-  user: AuthenticatedUser | null
+  user: AuthenticatedUser | null;
 
-  onLogout: () => Promise<void>
+  onLogout: () => Promise<void>;
 
-  onDeleteAccount: () => Promise<void>
+  onDeleteAccount: () => Promise<void>;
 }
 
 export default function Navbar({
@@ -23,19 +23,15 @@ export default function Navbar({
 
   onDeleteAccount,
 }: NavbarProps) {
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState(false);
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  const visitorRole = user?.roleAssignments.find(
-    (assignment) => assignment.role === "VISITOR",
-  )
+  const visitorRole = user?.roleAssignments.find((assignment) => assignment.role === "VISITOR");
 
-  const operatorRole = user?.roleAssignments.find(
-    (assignment) => assignment.role === "OPERATOR",
-  )
+  const operatorRole = user?.roleAssignments.find((assignment) => assignment.role === "OPERATOR");
 
   const links = [
     ["홈", "/"],
@@ -43,49 +39,43 @@ export default function Navbar({
     ["행사·체험", "/events"],
 
     ["지역 미션", "/missions"],
-  ]
+  ];
 
   const logout = async () => {
-    setBusy(true)
+    setBusy(true);
 
     try {
-      await onLogout()
+      await onLogout();
 
-      setMenuOpen(false)
+      setMenuOpen(false);
 
-      navigate("/")
+      navigate("/");
     } catch (error) {
-      window.alert(
-        error instanceof Error ? error.message : "로그아웃하지 못했습니다.",
-      )
+      window.alert(error instanceof Error ? error.message : "로그아웃하지 못했습니다.");
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
-  }
+  };
 
   const deleteAccount = async () => {
     if (!window.confirm("회원탈퇴 후 계정은 복구할 수 없습니다. 탈퇴할까요?")) {
-      return
+      return;
     }
 
-    setBusy(true)
+    setBusy(true);
 
     try {
-      await onDeleteAccount()
+      await onDeleteAccount();
 
-      setMenuOpen(false)
+      setMenuOpen(false);
 
-      navigate("/")
+      navigate("/");
     } catch (error) {
-      window.alert(
-        error instanceof Error
-          ? error.message
-          : "회원탈퇴를 처리하지 못했습니다.",
-      )
+      window.alert(error instanceof Error ? error.message : "회원탈퇴를 처리하지 못했습니다.");
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
-  }
+  };
 
   return (
     <nav
@@ -169,11 +159,7 @@ export default function Navbar({
 
         <div className="primary-nav">
           {links.map(([label, to]) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
+            <NavLink key={to} to={to} className={({ isActive }) => (isActive ? "active" : "")}>
               {label}
             </NavLink>
           ))}
@@ -221,9 +207,7 @@ export default function Navbar({
                       ]
                     : []),
 
-                  ...(!operatorRole
-                    ? [["운영자 재신청", "/operator-request"]]
-                    : []),
+                  ...(!operatorRole ? [["운영자 재신청", "/operator-request"]] : []),
                 ].map(([label, to]) => (
                   <Link key={label} to={to} onClick={() => setMenuOpen(false)}>
                     {label}
@@ -250,5 +234,5 @@ export default function Navbar({
         )}
       </div>
     </nav>
-  )
+  );
 }

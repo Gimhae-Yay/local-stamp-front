@@ -1,25 +1,22 @@
-import { render, screen } from "@testing-library/react"
-import { MemoryRouter, Route, Routes } from "react-router-dom"
-import { beforeEach, describe, expect, it, vi } from "vitest"
-import { apiRequest } from "../api"
+import { render, screen } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { apiRequest } from "../api";
 import type {
   ContentDetail,
   OperatorRequestDetail,
   PublicContentDetail,
   PublicContentSessions,
   QrExceptionDetail,
-} from "../types"
-import {
-  ContentRevisionDetailPage,
-  PublishedContentDetailPage,
-} from "./ContentPages"
-import { OperatorRequestDetailPage } from "./OperatorPages"
-import { QrExceptionDetailPage } from "./QrPages"
+} from "../types";
+import { ContentRevisionDetailPage, PublishedContentDetailPage } from "./ContentPages";
+import { OperatorRequestDetailPage } from "./OperatorPages";
+import { QrExceptionDetailPage } from "./QrPages";
 
 vi.mock("../api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../api")>()
-  return { ...actual, apiRequest: vi.fn() }
-})
+  const actual = await importOriginal<typeof import("../api")>();
+  return { ...actual, apiRequest: vi.fn() };
+});
 
 const publicContent: PublicContentDetail = {
   contentId: "100",
@@ -35,12 +32,12 @@ const publicContent: PublicContentDetail = {
   ageRequirement: "전체 연령",
   materials: "준비물",
   cancellationPolicyText: "취소 정책",
-}
+};
 
 describe("region admin response consistency", () => {
   beforeEach(() => {
-    vi.mocked(apiRequest).mockReset()
-  })
+    vi.mocked(apiRequest).mockReset();
+  });
 
   it("loads and renders public sessions on the published content detail", async () => {
     const sessions: PublicContentSessions = {
@@ -52,11 +49,11 @@ describe("region admin response consistency", () => {
           endsAt: "2026-08-20T12:00:00+09:00",
         },
       ],
-    }
+    };
     vi.mocked(apiRequest).mockImplementation(async (path) => {
-      if (path.endsWith("/sessions")) return sessions
-      return publicContent
-    })
+      if (path.endsWith("/sessions")) return sessions;
+      return publicContent;
+    });
 
     render(
       <MemoryRouter initialEntries={["/region-admin/contents/published/100"]}>
@@ -67,14 +64,14 @@ describe("region admin response consistency", () => {
           />
         </Routes>
       </MemoryRouter>,
-    )
+    );
 
-    expect(await screen.findByText("회차 501")).toBeInTheDocument()
+    expect(await screen.findByText("회차 501")).toBeInTheDocument();
     expect(apiRequest).toHaveBeenCalledWith(
       "/api/v1/contents/100/sessions",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
-    )
-  })
+    );
+  });
 
   it("shows the full candidate snapshot for a pre-public revision", async () => {
     const candidate: ContentDetail = {
@@ -100,8 +97,8 @@ describe("region admin response consistency", () => {
       contentStatus: "APPROVED",
       candidatePublishAt: "2026-08-21T10:00:00+09:00",
       submittedAt: "2026-08-19T10:00:00Z",
-    }
-    vi.mocked(apiRequest).mockResolvedValue(candidate)
+    };
+    vi.mocked(apiRequest).mockResolvedValue(candidate);
 
     render(
       <MemoryRouter initialEntries={["/region-admin/content-revisions/700"]}>
@@ -112,14 +109,12 @@ describe("region admin response consistency", () => {
           />
         </Routes>
       </MemoryRouter>,
-    )
+    );
 
-    expect(await screen.findByText("후보 제목")).toBeInTheDocument()
-    expect(screen.getByText("수정 후보 설명")).toBeInTheDocument()
-    expect(
-      screen.getByText(/현재 원본이 아니라 승인 시 반영될 수정 후보/),
-    ).toBeInTheDocument()
-  })
+    expect(await screen.findByText("후보 제목")).toBeInTheDocument();
+    expect(screen.getByText("수정 후보 설명")).toBeInTheDocument();
+    expect(screen.getByText(/현재 원본이 아니라 승인 시 반영될 수정 후보/)).toBeInTheDocument();
+  });
 
   it("renders withdrawn operator data without blank sensitive fields", async () => {
     const detail: OperatorRequestDetail = {
@@ -132,8 +127,8 @@ describe("region admin response consistency", () => {
       status: "CANCELLED",
       inspectedUserId: null,
       rejectedReason: null,
-    }
-    vi.mocked(apiRequest).mockResolvedValue(detail)
+    };
+    vi.mocked(apiRequest).mockResolvedValue(detail);
 
     render(
       <MemoryRouter initialEntries={["/region-admin/operator-requests/10"]}>
@@ -144,13 +139,11 @@ describe("region admin response consistency", () => {
           />
         </Routes>
       </MemoryRouter>,
-    )
+    );
 
-    expect(await screen.findByText("연결 해제됨")).toBeInTheDocument()
-    expect(
-      screen.getByText("신청자 탈퇴로 확인할 수 없습니다."),
-    ).toBeInTheDocument()
-  })
+    expect(await screen.findByText("연결 해제됨")).toBeInTheDocument();
+    expect(screen.getByText("신청자 탈퇴로 확인할 수 없습니다.")).toBeInTheDocument();
+  });
 
   it("does not stringify a missing participant phone number", async () => {
     const detail: QrExceptionDetail = {
@@ -180,8 +173,8 @@ describe("region admin response consistency", () => {
         },
         checkIn: { checkedIn: false, canCheckIn: false, checkedAt: null },
       },
-    }
-    vi.mocked(apiRequest).mockResolvedValue(detail)
+    };
+    vi.mocked(apiRequest).mockResolvedValue(detail);
 
     render(
       <MemoryRouter initialEntries={["/region-admin/qr-exceptions/20"]}>
@@ -192,11 +185,9 @@ describe("region admin response consistency", () => {
           />
         </Routes>
       </MemoryRouter>,
-    )
+    );
 
-    expect(
-      await screen.findByText("탈퇴한 사용자 · 연락처 없음"),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/· null/)).not.toBeInTheDocument()
-  })
-})
+    expect(await screen.findByText("탈퇴한 사용자 · 연락처 없음")).toBeInTheDocument();
+    expect(screen.queryByText(/· null/)).not.toBeInTheDocument();
+  });
+});

@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom"
-import { PageHeader } from "../AdminComponents"
+import { Link } from "react-router-dom";
+import { PageHeader } from "../AdminComponents";
 
 export default function AdminNotFoundPage() {
   return (
@@ -19,11 +19,9 @@ export default function AdminNotFoundPage() {
             404
           </span>
           <h3 id="ra-not-found-title">존재하지 않는 관리 페이지입니다.</h3>
-          <p>
-            메뉴에서 필요한 업무를 다시 선택하거나 운영 홈으로 이동해 주세요.
-          </p>
+          <p>메뉴에서 필요한 업무를 다시 선택하거나 운영 홈으로 이동해 주세요.</p>
         </div>
       </section>
     </>
-  )
+  );
 }

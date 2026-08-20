@@ -1,17 +1,17 @@
-import { useState } from "react"
+import { useState } from "react";
 
-import { useNavigate } from "react-router-dom"
-import Badge from "./Badge"
-import PresignedImage from "./PresignedImage"
+import { useNavigate } from "react-router-dom";
+import Badge from "./Badge";
+import PresignedImage from "./PresignedImage";
 
 export interface Experience {
-  id: string
+  id: string;
 
-  title: string
-  location: string
-  imageUrl: string | null
-  imageUrlExpiresAt: string | null
-  reservationAvailable: boolean
+  title: string;
+  location: string;
+  imageUrl: string | null;
+  imageUrlExpiresAt: string | null;
+  reservationAvailable: boolean;
 }
 
 function PlaceholderImage() {
@@ -26,11 +26,7 @@ function PlaceholderImage() {
         flexShrink: 0,
       }}
     >
-      <svg
-        width="100%"
-        height="100%"
-        style={{ position: "absolute", inset: 0 }}
-      >
+      <svg width="100%" height="100%" style={{ position: "absolute", inset: 0 }}>
         <defs>
           <pattern
             id="hatch"
@@ -39,14 +35,7 @@ function PlaceholderImage() {
             patternUnits="userSpaceOnUse"
             patternTransform="rotate(45)"
           >
-            <line
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="16"
-              stroke="#d0d9cb"
-              strokeWidth="6"
-            />
+            <line x1="0" y1="0" x2="0" y2="16" stroke="#d0d9cb" strokeWidth="6" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#hatch)" />
@@ -73,19 +62,19 @@ function PlaceholderImage() {
         </span>
       </div>
     </div>
-  )
+  );
 }
 
 export default function ExperienceCard({
   exp,
   onImageRefresh,
 }: {
-  exp: Experience
-  onImageRefresh: (failedUrl?: string) => void
+  exp: Experience;
+  onImageRefresh: (failedUrl?: string) => void;
 }) {
-  const [hovered, setHovered] = useState(false)
+  const [hovered, setHovered] = useState(false);
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   return (
     <div
@@ -105,9 +94,7 @@ export default function ExperienceCard({
 
         transition: "box-shadow 0.18s, transform 0.18s",
 
-        boxShadow: hovered
-          ? "0 8px 24px rgba(0,0,0,0.08)"
-          : "0 1px 3px rgba(0,0,0,0.04)",
+        boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.08)" : "0 1px 3px rgba(0,0,0,0.04)",
 
         transform: hovered ? "translateY(-2px)" : "none",
 
@@ -152,12 +139,10 @@ export default function ExperienceCard({
         >
           {exp.title}
         </h3>
-        <div
-          style={{ fontSize: 12, color: "var(--text-sub)", lineHeight: 1.6 }}
-        >
+        <div style={{ fontSize: 12, color: "var(--text-sub)", lineHeight: 1.6 }}>
           <div>{exp.location}</div>
         </div>
       </div>
     </div>
-  )
+  );
 }

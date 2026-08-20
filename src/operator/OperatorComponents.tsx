@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { ApiError } from "../api/client"
+import { ApiError } from "../api/client";
 
 const statusLabels: Record<string, string> = {
   DRAFT: "초안",
@@ -46,26 +46,18 @@ const statusLabels: Record<string, string> = {
   VISIT_COUNT: "방문 횟수",
 
   CONTENT_SET: "콘텐츠 세트",
-}
+};
 
 export function statusLabel(value: string) {
-  return statusLabels[value] ?? value
+  return statusLabels[value] ?? value;
 }
 
 export function statusTone(value: string) {
-  if (
-    ["PUBLISHED", "APPROVED", "SCHEDULED", "CONFIRMED", "SUCCEEDED"].includes(
-      value,
-    )
-  )
-    return "success"
+  if (["PUBLISHED", "APPROVED", "SCHEDULED", "CONFIRMED", "SUCCEEDED"].includes(value))
+    return "success";
 
-  if (
-    ["PENDING", "EDIT_REQUESTED", "REVIEW_UNKNOWN", "PROCESSING"].includes(
-      value,
-    )
-  )
-    return "pending"
+  if (["PENDING", "EDIT_REQUESTED", "REVIEW_UNKNOWN", "PROCESSING"].includes(value))
+    return "pending";
 
   if (
     [
@@ -78,19 +70,15 @@ export function statusTone(value: string) {
       "ENDED",
     ].includes(value)
   )
-    return "danger"
+    return "danger";
 
-  if (value === "CHECKED_IN") return "blue"
+  if (value === "CHECKED_IN") return "blue";
 
-  return "draft"
+  return "draft";
 }
 
 export function StatusBadge({ value }: { value: string }) {
-  return (
-    <span className={`op-badge op-badge-${statusTone(value)}`}>
-      {statusLabel(value)}
-    </span>
-  )
+  return <span className={`op-badge op-badge-${statusTone(value)}`}>{statusLabel(value)}</span>;
 }
 
 export function PageHeader({
@@ -100,11 +88,11 @@ export function PageHeader({
 
   actions,
 }: {
-  title: string
+  title: string;
 
-  description: string
+  description: string;
 
-  actions?: ReactNode
+  actions?: ReactNode;
 }) {
   return (
     <header className="op-page-header">
@@ -114,11 +102,11 @@ export function PageHeader({
       </div>
       {actions && <div className="op-button-row">{actions}</div>}
     </header>
-  )
+  );
 }
 
 export function Breadcrumb({ children }: { children: ReactNode }) {
-  return <div className="op-breadcrumb">{children}</div>
+  return <div className="op-breadcrumb">{children}</div>;
 }
 
 export function RouteState({
@@ -130,13 +118,13 @@ export function RouteState({
 
   onRetry,
 }: {
-  loading?: boolean
+  loading?: boolean;
 
-  error?: string
+  error?: string;
 
-  empty?: string
+  empty?: string;
 
-  onRetry?: () => void
+  onRetry?: () => void;
 }) {
   return (
     <section className="op-state">
@@ -157,15 +145,15 @@ export function RouteState({
         )}
       </div>
     </section>
-  )
+  );
 }
 
 export function formatDate(value: string | null | undefined) {
-  if (!value) return "—"
+  if (!value) return "—";
 
-  const date = new Date(value)
+  const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return value
+  if (Number.isNaN(date.getTime())) return value;
 
   return new Intl.DateTimeFormat("ko-KR", {
     dateStyle: "medium",
@@ -173,7 +161,7 @@ export function formatDate(value: string | null | undefined) {
     timeStyle: "short",
 
     timeZone: "Asia/Seoul",
-  }).format(date)
+  }).format(date);
 }
 
 export function formatMoney(value: number, currency = "KRW") {
@@ -183,15 +171,15 @@ export function formatMoney(value: number, currency = "KRW") {
     currency,
 
     maximumFractionDigits: 0,
-  }).format(value)
+  }).format(value);
 }
 
 export function apiErrorMessage(caught: unknown, fallback: string) {
-  if (caught instanceof ApiError) return caught.message
+  if (caught instanceof ApiError) return caught.message;
 
-  if (caught instanceof Error && caught.message.trim()) return caught.message
+  if (caught instanceof Error && caught.message.trim()) return caught.message;
 
-  return fallback
+  return fallback;
 }
 
 export function ActionModal({
@@ -215,86 +203,80 @@ export function ActionModal({
 
   onConfirm,
 }: {
-  title: string
+  title: string;
 
-  description: string
+  description: string;
 
-  label?: string
+  label?: string;
 
-  placeholder?: string
+  placeholder?: string;
 
-  confirmLabel: string
+  confirmLabel: string;
 
-  tone?: "admin" | "danger" | "primary"
+  tone?: "admin" | "danger" | "primary";
 
-  initialReason?: string
+  initialReason?: string;
 
-  reasonOptions?: Array<{ value: string; label: string }>
+  reasonOptions?: Array<{ value: string; label: string }>;
 
-  onClose: () => void
+  onClose: () => void;
 
-  onConfirm: (reason: string) => Promise<void>
+  onConfirm: (reason: string) => Promise<void>;
 }) {
-  const [reason, setReason] = useState(initialReason)
+  const [reason, setReason] = useState(initialReason);
 
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState(false);
 
-  const [error, setError] = useState("")
+  const [error, setError] = useState("");
 
-  const dialogRef = useRef<HTMLElement>(null)
+  const dialogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null
+    const previous = document.activeElement as HTMLElement | null;
 
-    dialogRef.current?.focus()
+    dialogRef.current?.focus();
 
     const keydown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !submitting) onClose()
-    }
+      if (event.key === "Escape" && !submitting) onClose();
+    };
 
-    document.addEventListener("keydown", keydown)
+    document.addEventListener("keydown", keydown);
 
     return () => {
-      document.removeEventListener("keydown", keydown)
+      document.removeEventListener("keydown", keydown);
 
-      previous?.focus()
-    }
-  }, [onClose, submitting])
+      previous?.focus();
+    };
+  }, [onClose, submitting]);
 
   const submit = async () => {
     if (!reason.trim()) {
-      setError(`${label}을 입력해 주세요.`)
+      setError(`${label}을 입력해 주세요.`);
 
-      return
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
 
-    setError("")
+    setError("");
 
     try {
-      await onConfirm(reason.trim())
+      await onConfirm(reason.trim());
     } catch (caught) {
-      setError(apiErrorMessage(caught, "처리하지 못했습니다."))
+      setError(apiErrorMessage(caught, "처리하지 못했습니다."));
 
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <div
       className="op-modal-backdrop"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !submitting) onClose()
+        if (event.target === event.currentTarget && !submitting) onClose();
       }}
     >
-      <section
-        ref={dialogRef}
-        className="op-modal"
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
-      >
+      <section ref={dialogRef} className="op-modal" role="dialog" aria-modal="true" tabIndex={-1}>
         <header>
           <h2>{title}</h2>
           <p>{description}</p>
@@ -339,17 +321,13 @@ export function ActionModal({
           <button className="op-button" onClick={onClose} disabled={submitting}>
             취소
           </button>
-          <button
-            className={`op-button op-button-${tone}`}
-            onClick={submit}
-            disabled={submitting}
-          >
+          <button className={`op-button op-button-${tone}`} onClick={submit} disabled={submitting}>
             {submitting ? "처리 중…" : confirmLabel}
           </button>
         </footer>
       </section>
     </div>
-  )
+  );
 }
 
 export function ConfirmModal({
@@ -365,27 +343,27 @@ export function ConfirmModal({
 
   onConfirm,
 }: {
-  title: string
+  title: string;
 
-  description: string
+  description: string;
 
-  confirmLabel: string
+  confirmLabel: string;
 
-  tone?: "admin" | "danger" | "primary"
+  tone?: "admin" | "danger" | "primary";
 
-  onClose: () => void
+  onClose: () => void;
 
-  onConfirm: () => Promise<void>
+  onConfirm: () => Promise<void>;
 }) {
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState(false);
 
-  const [error, setError] = useState("")
+  const [error, setError] = useState("");
 
   return (
     <div
       className="op-modal-backdrop"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !submitting) onClose()
+        if (event.target === event.currentTarget && !submitting) onClose();
       }}
     >
       <section className="op-modal" role="dialog" aria-modal="true">
@@ -407,16 +385,16 @@ export function ConfirmModal({
           <button
             className={`op-button op-button-${tone}`}
             onClick={async () => {
-              setSubmitting(true)
+              setSubmitting(true);
 
-              setError("")
+              setError("");
 
               try {
-                await onConfirm()
+                await onConfirm();
               } catch (caught) {
-                setError(apiErrorMessage(caught, "처리하지 못했습니다."))
+                setError(apiErrorMessage(caught, "처리하지 못했습니다."));
 
-                setSubmitting(false)
+                setSubmitting(false);
               }
             }}
             disabled={submitting}
@@ -426,5 +404,5 @@ export function ConfirmModal({
         </footer>
       </section>
     </div>
-  )
+  );
 }

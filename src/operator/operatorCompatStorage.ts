@@ -1,11 +1,17 @@
-const STORAGE_PREFIX = "local-stamp:operator-compat:v1"
+const STORAGE_PREFIX = "local-stamp:operator-compat:v1";
 
-export type OperatorCompatResource = "content-price" | "content-revision" | "content-revision-latest" | "content-sessions" | "mission-title" | "stampbook-workspace"
+export type OperatorCompatResource =
+  | "content-price"
+  | "content-revision"
+  | "content-revision-latest"
+  | "content-sessions"
+  | "mission-title"
+  | "stampbook-workspace";
 
 export interface StoredOperatorCompatValue<T> {
-  value: T
+  value: T;
 
-  savedAt: string
+  savedAt: string;
 }
 
 function storageKey(
@@ -15,7 +21,7 @@ function storageKey(
 
   resourceId: string,
 ) {
-  return `${STORAGE_PREFIX}:${encodeURIComponent(userId)}:${resource}:${encodeURIComponent(resourceId)}`
+  return `${STORAGE_PREFIX}:${encodeURIComponent(userId)}:${resource}:${encodeURIComponent(resourceId)}`;
 }
 
 export function readOperatorCompatValue<T>(
@@ -25,23 +31,20 @@ export function readOperatorCompatValue<T>(
 
   resourceId: string,
 ): StoredOperatorCompatValue<T> | null {
-  if (typeof window === "undefined") return null
+  if (typeof window === "undefined") return null;
 
   try {
-    const raw = window.localStorage.getItem(
-      storageKey(userId, resource, resourceId),
-    )
+    const raw = window.localStorage.getItem(storageKey(userId, resource, resourceId));
 
-    if (!raw) return null
+    if (!raw) return null;
 
-    const parsed = JSON.parse(raw) as StoredOperatorCompatValue<T>
+    const parsed = JSON.parse(raw) as StoredOperatorCompatValue<T>;
 
-    if (!parsed || typeof parsed.savedAt !== "string" || !("value" in parsed))
-      return null
+    if (!parsed || typeof parsed.savedAt !== "string" || !("value" in parsed)) return null;
 
-    return parsed
+    return parsed;
   } catch {
-    return null
+    return null;
   }
 }
 
@@ -54,14 +57,14 @@ export function writeOperatorCompatValue<T>(
 
   value: T,
 ) {
-  if (typeof window === "undefined") return
+  if (typeof window === "undefined") return;
 
   try {
     window.localStorage.setItem(
       storageKey(userId, resource, resourceId),
 
       JSON.stringify({ value, savedAt: new Date().toISOString() }),
-    )
+    );
   } catch {
     // 임시 호환 저장소 오류는 실제 API 흐름을 막지 않는다.
   }
@@ -74,10 +77,10 @@ export function removeOperatorCompatValue(
 
   resourceId: string,
 ) {
-  if (typeof window === "undefined") return
+  if (typeof window === "undefined") return;
 
   try {
-    window.localStorage.removeItem(storageKey(userId, resource, resourceId))
+    window.localStorage.removeItem(storageKey(userId, resource, resourceId));
   } catch {
     // 임시 호환 저장소 오류는 실제 API 흐름을 막지 않는다.
   }

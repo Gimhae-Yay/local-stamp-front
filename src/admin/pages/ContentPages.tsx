@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState } from "react";
 import {
   Link,
   NavLink,
@@ -6,7 +6,7 @@ import {
   useNavigate,
   useParams,
   useSearchParams,
-} from "react-router-dom"
+} from "react-router-dom";
 import {
   ActionModal,
   AsyncContent,
@@ -20,9 +20,9 @@ import {
   formatMoney,
   useApiData,
   type ActionConfig,
-} from "../AdminComponents"
-import { useAdminAuth } from "../AdminAuth"
-import { withQuery } from "../api"
+} from "../AdminComponents";
+import { useAdminAuth } from "../AdminAuth";
+import { withQuery } from "../api";
 import type {
   ContentDetail,
   ContentHistory,
@@ -32,19 +32,12 @@ import type {
   PublicContentSessions,
   WithdrawalDetail,
   WithdrawalSummary,
-} from "../types"
+} from "../types";
 
-function ContentTabs({
-  active,
-}: {
-  active: "review" | "revisions" | "published" | "withdrawals"
-}) {
+function ContentTabs({ active }: { active: "review" | "revisions" | "published" | "withdrawals" }) {
   return (
     <nav className="ra-tabs" aria-label="콘텐츠 관리">
-      <NavLink
-        className={active === "review" ? "active" : ""}
-        to="/region-admin/contents/review"
-      >
+      <NavLink className={active === "review" ? "active" : ""} to="/region-admin/contents/review">
         최초 심사
       </NavLink>
       <NavLink
@@ -66,78 +59,68 @@ function ContentTabs({
         전체 철회
       </NavLink>
     </nav>
-  )
+  );
 }
 
-function ContentImage({ src, alt }: { src: string | null, alt: string }) {
+function ContentImage({ src, alt }: { src: string | null; alt: string }) {
   return src ? (
     <img className="ra-content-image" src={src} alt={alt} />
   ) : (
-    <div
-      className="ra-image-placeholder"
-      role="img"
-      aria-label={`${alt} 이미지 없음`}
-    >
+    <div className="ra-image-placeholder" role="img" aria-label={`${alt} 이미지 없음`}>
       대표 이미지
     </div>
-  )
+  );
 }
 
 export interface ContentRevisionComparisonField {
-  label: string
-  original: string
-  candidate: string
-  changed: boolean
+  label: string;
+  original: string;
+  candidate: string;
+  changed: boolean;
 }
 
 export function buildContentRevisionComparison(
   original: PublicContentDetail,
   candidate: ContentDetail,
 ): ContentRevisionComparisonField[] {
-  const fields: Array<[string, keyof PublicContentDetail, keyof ContentDetail]> =
-    [
-      ["제목", "title", "title"],
-      ["설명", "description", "description"],
-      ["장소", "locationText", "locationText"],
-      ["운영 시간", "operatingHoursText", "operatingHoursText"],
-      ["연락처", "contactText", "contactText"],
-      ["주의사항", "precautions", "precautions"],
-      ["연령 조건", "ageRequirement", "ageRequirement"],
-      ["준비물", "materials", "materials"],
-      ["취소 정책", "cancellationPolicyText", "cancellationPolicyText"],
-    ]
+  const fields: Array<[string, keyof PublicContentDetail, keyof ContentDetail]> = [
+    ["제목", "title", "title"],
+    ["설명", "description", "description"],
+    ["장소", "locationText", "locationText"],
+    ["운영 시간", "operatingHoursText", "operatingHoursText"],
+    ["연락처", "contactText", "contactText"],
+    ["주의사항", "precautions", "precautions"],
+    ["연령 조건", "ageRequirement", "ageRequirement"],
+    ["준비물", "materials", "materials"],
+    ["취소 정책", "cancellationPolicyText", "cancellationPolicyText"],
+  ];
 
   return fields.map(([label, originalKey, candidateKey]) => {
-    const originalValue = String(original[originalKey] ?? "—")
-    const candidateValue = String(candidate[candidateKey] ?? "—")
+    const originalValue = String(original[originalKey] ?? "—");
+    const candidateValue = String(candidate[candidateKey] ?? "—");
     return {
       label,
       original: originalValue,
       candidate: candidateValue,
       changed: originalValue !== candidateValue,
-    }
-  })
+    };
+  });
 }
 
 export function ContentReviewListPage() {
-  const [search, setSearch] = useSearchParams()
-  const status = search.get("status") === "APPROVED" ? "APPROVED" : "PENDING"
+  const [search, setSearch] = useSearchParams();
+  const status = search.get("status") === "APPROVED" ? "APPROVED" : "PENDING";
   const state = useApiData<{ contents: ContentSummary[] }>(
     withQuery("/api/v1/region-admin/contents", { status }),
-  )
+  );
   return (
     <>
-      <PageHeader
-        title="콘텐츠 관리"
-        description="승인 대기와 공개 전 삭제 대상을 관리합니다."
-      />
+      <PageHeader title="콘텐츠 관리" description="승인 대기와 공개 전 삭제 대상을 관리합니다." />
       <ContentTabs active="review" />
       <div className="ra-filter-bar">
         <div className="ra-filter-row">
           <button
-            className={`ra-button ra-button-small${
-              status === "PENDING" ? " ra-button-admin" : ""
-            }`}
+            className={`ra-button ra-button-small${status === "PENDING" ? " ra-button-admin" : ""}`}
             type="button"
             aria-pressed={status === "PENDING"}
             onClick={() => setSearch({ status: "PENDING" })}
@@ -155,10 +138,7 @@ export function ContentReviewListPage() {
             공개 전 삭제
           </button>
         </div>
-        <small>
-          {status === "PENDING" ? "제출" : "공개 예정"} 시각 오래된 순 · 정렬
-          고정
-        </small>
+        <small>{status === "PENDING" ? "제출" : "공개 예정"} 시각 오래된 순 · 정렬 고정</small>
       </div>
       <AsyncContent
         state={state}
@@ -170,15 +150,11 @@ export function ContentReviewListPage() {
         }
       >
         {({ contents }) => (
-          <ContentTable
-            contents={contents}
-            status={status}
-            onChanged={state.reload}
-          />
+          <ContentTable contents={contents} status={status} onChanged={state.reload} />
         )}
       </AsyncContent>
     </>
-  )
+  );
 }
 
 function ContentTable({
@@ -186,13 +162,13 @@ function ContentTable({
   status,
   onChanged,
 }: {
-  contents: ContentSummary[]
-  status: string
-  onChanged: () => void
+  contents: ContentSummary[];
+  status: string;
+  onChanged: () => void;
 }) {
-  const [deleteTarget, setDeleteTarget] = useState<ContentSummary | null>(null)
-  const location = useLocation()
-  const navigate = useNavigate()
+  const [deleteTarget, setDeleteTarget] = useState<ContentSummary | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   return (
     <>
@@ -214,35 +190,22 @@ function ContentTable({
             {contents.map((content) => (
               <tr key={content.contentId}>
                 <td>
-                  <ContentImage
-                    src={content.representativeImageUrl}
-                    alt={content.title}
-                  />
+                  <ContentImage src={content.representativeImageUrl} alt={content.title} />
                 </td>
                 <td>
                   <strong className="ra-cell-title">{content.title}</strong>
-                  <span className="ra-cell-sub">
-                    콘텐츠 {content.contentId}
-                  </span>
+                  <span className="ra-cell-sub">콘텐츠 {content.contentId}</span>
                 </td>
                 <td>
                   <StatusBadge value={content.contentType} />
                 </td>
                 <td>
-                  <strong className="ra-cell-title">
-                    {content.operator.name}
-                  </strong>
-                  <span className="ra-cell-sub">
-                    {content.operator.operatorId}
-                  </span>
+                  <strong className="ra-cell-title">{content.operator.name}</strong>
+                  <span className="ra-cell-sub">{content.operator.operatorId}</span>
                 </td>
                 <td>{formatDate(content.publishAt)}</td>
                 <td>
-                  {formatDate(
-                    status === "PENDING"
-                      ? content.submittedAt
-                      : content.approvedAt,
-                  )}
+                  {formatDate(status === "PENDING" ? content.submittedAt : content.approvedAt)}
                 </td>
                 <td>
                   <StatusBadge value={content.status} />
@@ -286,27 +249,23 @@ function ContentTable({
           }}
           onClose={() => setDeleteTarget(null)}
           onSuccess={() => {
-            setDeleteTarget(null)
-            onChanged()
+            setDeleteTarget(null);
+            onChanged();
             navigate(`${location.pathname}${location.search}`, {
               replace: true,
               state: {
                 completed: true,
                 successMessage: "공개 전 콘텐츠 삭제가 완료되었습니다.",
               },
-            })
+            });
           }}
         />
       )}
     </>
-  )
+  );
 }
 
-function ContentHistoryPanel({
-  state,
-}: {
-  state: ReturnType<typeof useApiData<ContentHistory>>
-}) {
+function ContentHistoryPanel({ state }: { state: ReturnType<typeof useApiData<ContentHistory>> }) {
   return (
     <Panel title="처리 이력">
       {state.loading && !state.data ? (
@@ -323,10 +282,7 @@ function ContentHistoryPanel({
           {state.data?.histories.length ? (
             <div className="ra-timeline">
               {state.data.histories.map((history, index) => (
-                <div
-                  className="ra-timeline-item"
-                  key={`${history.processedAt}-${index}`}
-                >
+                <div className="ra-timeline-item" key={`${history.processedAt}-${index}`}>
                   <span />
                   <div>
                     <strong>
@@ -345,20 +301,18 @@ function ContentHistoryPanel({
         </>
       )}
     </Panel>
-  )
+  );
 }
 
 export function ContentDetailPage() {
-  const { contentId = "" } = useParams()
-  const navigate = useNavigate()
-  const detailState = useApiData<ContentDetail>(
-    `/api/v1/region-admin/contents/${contentId}`,
-  )
+  const { contentId = "" } = useParams();
+  const navigate = useNavigate();
+  const detailState = useApiData<ContentDetail>(`/api/v1/region-admin/contents/${contentId}`);
   const historyState = useApiData<ContentHistory>(
     `/api/v1/region-admin/contents/${contentId}/history`,
-  )
-  const [action, setAction] = useState<ActionConfig | null>(null)
-  const backPath = "/region-admin/contents/review"
+  );
+  const [action, setAction] = useState<ActionConfig | null>(null);
+  const backPath = "/region-admin/contents/review";
   const actions = useMemo<Record<string, ActionConfig>>(
     () => ({
       approve: {
@@ -394,7 +348,7 @@ export function ContentDetailPage() {
       },
     }),
     [contentId],
-  )
+  );
 
   return (
     <>
@@ -411,14 +365,8 @@ export function ContentDetailPage() {
         {(detail) => (
           <div className="ra-detail-layout">
             <div className="ra-detail-main">
-              <Panel
-                title="콘텐츠 정보"
-                action={<StatusBadge value={detail.status} />}
-              >
-                <ContentImage
-                  src={detail.representativeImageUrl}
-                  alt={detail.title}
-                />
+              <Panel title="콘텐츠 정보" action={<StatusBadge value={detail.status} />}>
+                <ContentImage src={detail.representativeImageUrl} alt={detail.title} />
                 <KeyValueGrid
                   items={[
                     ["콘텐츠 ID", detail.contentId],
@@ -431,10 +379,7 @@ export function ContentDetailPage() {
                     ["연령 조건", detail.ageRequirement],
                     ["준비물", detail.materials],
                     ["예약 가격", formatMoney(detail.reservationPrice)],
-                    [
-                      "공개 예정",
-                      formatDate(detail.publishAt ?? detail.candidatePublishAt),
-                    ],
+                    ["공개 예정", formatDate(detail.publishAt ?? detail.candidatePublishAt)],
                     ["주의사항", detail.precautions, true],
                     ["취소 정책", detail.cancellationPolicyText, true],
                   ]}
@@ -450,13 +395,12 @@ export function ContentDetailPage() {
                           <StatusBadge value={session.status} />
                         </div>
                         <p>
-                          {formatDate(session.startsAt)} ~{" "}
-                          {formatDate(session.endsAt)}
+                          {formatDate(session.startsAt)} ~ {formatDate(session.endsAt)}
                         </p>
                         <small>
                           체크인 {formatDate(session.checkinOpenAt)} ~{" "}
-                          {formatDate(session.checkinCloseAt)} · 잔여{" "}
-                          {session.remainingCapacity}/{session.capacity}명
+                          {formatDate(session.checkinCloseAt)} · 잔여 {session.remainingCapacity}/
+                          {session.capacity}명
                         </small>
                       </article>
                     ))}
@@ -488,10 +432,7 @@ export function ContentDetailPage() {
                     >
                       반려
                     </button>
-                    <button
-                      className="ra-button"
-                      onClick={() => setAction(actions.delete)}
-                    >
+                    <button className="ra-button" onClick={() => setAction(actions.delete)}>
                       삭제
                     </button>
                   </>
@@ -516,19 +457,16 @@ export function ContentDetailPage() {
         />
       )}
     </>
-  )
+  );
 }
 
 export function ContentRevisionListPage() {
   const state = useApiData<{ revisions: ContentRevisionSummary[] }>(
     "/api/v1/region-admin/content-revisions?status=EDIT_REQUESTED",
-  )
+  );
   return (
     <>
-      <PageHeader
-        title="콘텐츠 관리"
-        description="제출된 콘텐츠 수정 후보를 검토합니다."
-      />
+      <PageHeader title="콘텐츠 관리" description="제출된 콘텐츠 수정 후보를 검토합니다." />
       <ContentTabs active="revisions" />
       <div className="ra-filter-bar">
         <div>
@@ -561,15 +499,10 @@ export function ContentRevisionListPage() {
                 {revisions.map((revision) => (
                   <tr key={revision.revisionId}>
                     <td>
-                      <ContentImage
-                        src={revision.representativeImageUrl}
-                        alt={revision.title}
-                      />
+                      <ContentImage src={revision.representativeImageUrl} alt={revision.title} />
                     </td>
                     <td>
-                      <strong className="ra-cell-title">
-                        {revision.title}
-                      </strong>
+                      <strong className="ra-cell-title">{revision.title}</strong>
                       <span className="ra-cell-sub">
                         수정본 {revision.revisionId} · 원본 {revision.contentId}
                       </span>
@@ -584,10 +517,7 @@ export function ContentRevisionListPage() {
                     <td>{revision.operator.name}</td>
                     <td>{formatDate(revision.submittedAt)}</td>
                     <td className="ra-right">
-                      <Link
-                        className="ra-button ra-button-small"
-                        to={`${revision.revisionId}`}
-                      >
+                      <Link className="ra-button ra-button-small" to={`${revision.revisionId}`}>
                         상세
                       </Link>
                     </td>
@@ -599,21 +529,17 @@ export function ContentRevisionListPage() {
         )}
       </AsyncContent>
     </>
-  )
+  );
 }
 
 export function ContentRevisionDetailPage() {
-  const { revisionId = "" } = useParams()
-  const navigate = useNavigate()
-  const state = useApiData<ContentDetail>(
-    `/api/v1/region-admin/content-revisions/${revisionId}`,
-  )
+  const { revisionId = "" } = useParams();
+  const navigate = useNavigate();
+  const state = useApiData<ContentDetail>(`/api/v1/region-admin/content-revisions/${revisionId}`);
   const originalState = useApiData<PublicContentDetail>(
-    state.data?.contentStatus === "PUBLISHED"
-      ? `/api/v1/contents/${state.data.contentId}`
-      : null,
-  )
-  const [action, setAction] = useState<ActionConfig | null>(null)
+    state.data?.contentStatus === "PUBLISHED" ? `/api/v1/contents/${state.data.contentId}` : null,
+  );
+  const [action, setAction] = useState<ActionConfig | null>(null);
   const configs: Record<string, ActionConfig> = {
     approve: {
       title: "콘텐츠 수정본 승인",
@@ -634,7 +560,7 @@ export function ContentRevisionDetailPage() {
       result: "콘텐츠 수정본 반려",
       reason: { label: "반려 사유", field: "reason", required: true },
     },
-  }
+  };
   return (
     <>
       <PageHeader
@@ -652,18 +578,13 @@ export function ContentRevisionDetailPage() {
             <div className="ra-detail-main">
               <Panel
                 title="심사 정보"
-                action={
-                  <StatusBadge value={detail.contentStatus ?? "PENDING"} />
-                }
+                action={<StatusBadge value={detail.contentStatus ?? "PENDING"} />}
               >
                 <KeyValueGrid
                   items={[
                     ["수정본 ID", detail.revisionId],
                     ["원본 콘텐츠 ID", detail.contentId],
-                    [
-                      "검토 유형",
-                      <StatusBadge value={detail.reviewType ?? ""} />,
-                    ],
+                    ["검토 유형", <StatusBadge value={detail.reviewType ?? ""} />],
                     ["가격", formatMoney(detail.reservationPrice)],
                     ["후보 공개 시각", formatDate(detail.candidatePublishAt)],
                     ["제출 시각", formatDate(detail.submittedAt)],
@@ -674,9 +595,8 @@ export function ContentRevisionDetailPage() {
                 {detail.contentStatus !== "PUBLISHED" ? (
                   <>
                     <div className="ra-inline-warning">
-                      공개 전 수정본은 원본 공개 상세 API가 제공되지 않아 후보
-                      정보만 확인할 수 있습니다. 아래 값은 현재 원본이 아니라
-                      승인 시 반영될 수정 후보입니다.
+                      공개 전 수정본은 원본 공개 상세 API가 제공되지 않아 후보 정보만 확인할 수
+                      있습니다. 아래 값은 현재 원본이 아니라 승인 시 반영될 수정 후보입니다.
                     </div>
                     <ContentImage
                       src={detail.representativeImageUrl}
@@ -699,25 +619,16 @@ export function ContentRevisionDetailPage() {
                 ) : originalState.loading && !originalState.data ? (
                   <p className="ra-muted">원본 정보를 불러오는 중입니다.</p>
                 ) : originalState.error && !originalState.data ? (
-                  <ErrorState
-                    error={originalState.error}
-                    onRetry={originalState.reload}
-                  />
+                  <ErrorState error={originalState.error} onRetry={originalState.reload} />
                 ) : originalState.data ? (
                   (() => {
-                    const fields = buildContentRevisionComparison(
-                      originalState.data,
-                      detail,
-                    )
-                    const changedCount = fields.filter(
-                      (field) => field.changed,
-                    ).length
+                    const fields = buildContentRevisionComparison(originalState.data, detail);
+                    const changedCount = fields.filter((field) => field.changed).length;
                     return (
                       <>
                         <div className="ra-status-line">
                           <p className="ra-muted">
-                            총 {fields.length}개 비교 필드 중 {changedCount}개가
-                            변경되었습니다.
+                            총 {fields.length}개 비교 필드 중 {changedCount}개가 변경되었습니다.
                           </p>
                           <StatusBadge
                             value={changedCount ? "PENDING" : "SUCCESS"}
@@ -751,31 +662,20 @@ export function ContentRevisionDetailPage() {
                             </thead>
                             <tbody>
                               {fields.map((field) => (
-                                <tr
-                                  className={field.changed ? "changed" : ""}
-                                  key={field.label}
-                                >
+                                <tr className={field.changed ? "changed" : ""} key={field.label}>
                                   <td>
                                     {field.label}
-                                    {field.changed && (
-                                      <span className="ra-change-mark">
-                                        변경
-                                      </span>
-                                    )}
+                                    {field.changed && <span className="ra-change-mark">변경</span>}
                                   </td>
-                                  <td className="ra-preline">
-                                    {field.original}
-                                  </td>
-                                  <td className="ra-preline">
-                                    {field.candidate}
-                                  </td>
+                                  <td className="ra-preline">{field.original}</td>
+                                  <td className="ra-preline">{field.candidate}</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
                       </>
-                    )
+                    );
                   })()
                 ) : null}
               </Panel>
@@ -813,19 +713,15 @@ export function ContentRevisionDetailPage() {
         />
       )}
     </>
-  )
+  );
 }
 
 export function PublishedContentDetailPage() {
-  const { contentId = "" } = useParams()
-  const navigate = useNavigate()
-  const detailState = useApiData<PublicContentDetail>(
-    `/api/v1/contents/${contentId}`,
-  )
-  const sessionsState = useApiData<PublicContentSessions>(
-    `/api/v1/contents/${contentId}/sessions`,
-  )
-  const [action, setAction] = useState<ActionConfig | null>(null)
+  const { contentId = "" } = useParams();
+  const navigate = useNavigate();
+  const detailState = useApiData<PublicContentDetail>(`/api/v1/contents/${contentId}`);
+  const sessionsState = useApiData<PublicContentSessions>(`/api/v1/contents/${contentId}/sessions`);
+  const [action, setAction] = useState<ActionConfig | null>(null);
   const actions = useMemo<Record<string, ActionConfig>>(
     () => ({
       suspend: {
@@ -850,7 +746,7 @@ export function PublishedContentDetailPage() {
       },
     }),
     [contentId],
-  )
+  );
 
   return (
     <>
@@ -867,14 +763,8 @@ export function PublishedContentDetailPage() {
         {(detail) => (
           <div className="ra-detail-layout">
             <div className="ra-detail-main">
-              <Panel
-                title="공개 정보"
-                action={<StatusBadge value="PUBLISHED" />}
-              >
-                <ContentImage
-                  src={detail.representativeImageUrl}
-                  alt={detail.title}
-                />
+              <Panel title="공개 정보" action={<StatusBadge value="PUBLISHED" />}>
+                <ContentImage src={detail.representativeImageUrl} alt={detail.title} />
                 <KeyValueGrid
                   items={[
                     ["콘텐츠 ID", detail.contentId],
@@ -895,10 +785,7 @@ export function PublishedContentDetailPage() {
                 {sessionsState.loading && !sessionsState.data ? (
                   <p className="ra-muted">회차 정보를 불러오는 중입니다.</p>
                 ) : sessionsState.error && !sessionsState.data ? (
-                  <ErrorState
-                    error={sessionsState.error}
-                    onRetry={sessionsState.reload}
-                  />
+                  <ErrorState error={sessionsState.error} onRetry={sessionsState.reload} />
                 ) : sessionsState.data?.sessions.length ? (
                   <div className="ra-session-cards">
                     {sessionsState.data.sessions.map((session) => (
@@ -908,8 +795,7 @@ export function PublishedContentDetailPage() {
                           <StatusBadge value="PUBLISHED" label="공개" />
                         </div>
                         <p>
-                          {formatDate(session.startsAt)} ~{" "}
-                          {formatDate(session.endsAt)}
+                          {formatDate(session.startsAt)} ~ {formatDate(session.endsAt)}
                         </p>
                       </article>
                     ))}
@@ -936,11 +822,7 @@ export function PublishedContentDetailPage() {
                 >
                   운영 중단
                 </button>
-                <button
-                  className="ra-button"
-                  type="button"
-                  onClick={() => setAction(actions.end)}
-                >
+                <button className="ra-button" type="button" onClick={() => setAction(actions.end)}>
                   정상 종료
                 </button>
               </section>
@@ -960,20 +842,19 @@ export function PublishedContentDetailPage() {
         />
       )}
     </>
-  )
+  );
 }
 
 export function PublishedContentListPage() {
-  const { session } = useAdminAuth()
-  const [search, setSearch] = useSearchParams()
-  const reservationAvailable = search.get("reservationAvailable")
+  const { session } = useAdminAuth();
+  const [search, setSearch] = useSearchParams();
+  const reservationAvailable = search.get("reservationAvailable");
   const path = withQuery("/api/v1/contents", {
     regionId: session!.assignment.regionId,
     contentType: "EVENT_EXPERIENCE",
-    reservationAvailable:
-      reservationAvailable === null ? null : reservationAvailable,
-  })
-  const state = useApiData<{ contents: ContentSummary[] }>(path)
+    reservationAvailable: reservationAvailable === null ? null : reservationAvailable,
+  });
+  const state = useApiData<{ contents: ContentSummary[] }>(path);
   return (
     <>
       <PageHeader
@@ -1040,10 +921,7 @@ export function PublishedContentListPage() {
                 {contents.map((content) => (
                   <tr key={content.contentId}>
                     <td>
-                      <ContentImage
-                        src={content.representativeImageUrl}
-                        alt={content.title}
-                      />
+                      <ContentImage src={content.representativeImageUrl} alt={content.title} />
                     </td>
                     <td>
                       <strong className="ra-cell-title">{content.title}</strong>
@@ -1055,24 +933,15 @@ export function PublishedContentListPage() {
                     <td>{content.locationText ?? "—"}</td>
                     <td>
                       <StatusBadge
-                        value={
-                          content.reservationAvailable ? "APPROVED" : "ENDED"
-                        }
-                        label={
-                          content.reservationAvailable
-                            ? "예약 가능"
-                            : "예약 불가"
-                        }
+                        value={content.reservationAvailable ? "APPROVED" : "ENDED"}
+                        label={content.reservationAvailable ? "예약 가능" : "예약 불가"}
                       />
                     </td>
                     <td>
                       <StatusBadge value="PUBLISHED" />
                     </td>
                     <td className="ra-right">
-                      <Link
-                        className="ra-button ra-button-small"
-                        to={`${content.contentId}`}
-                      >
+                      <Link className="ra-button ra-button-small" to={`${content.contentId}`}>
                         운영 상세
                       </Link>
                     </td>
@@ -1084,19 +953,16 @@ export function PublishedContentListPage() {
         )}
       </AsyncContent>
     </>
-  )
+  );
 }
 
 export function WithdrawalListPage() {
   const state = useApiData<{ withdrawalRequests: WithdrawalSummary[] }>(
     "/api/v1/region-admin/content-withdrawal-requests?status=PENDING",
-  )
+  );
   return (
     <>
-      <PageHeader
-        title="콘텐츠 관리"
-        description="전체 철회 요청을 오래된 순으로 확인합니다."
-      />
+      <PageHeader title="콘텐츠 관리" description="전체 철회 요청을 오래된 순으로 확인합니다." />
       <ContentTabs active="withdrawals" />
       <div className="ra-filter-bar">
         <div>
@@ -1128,9 +994,7 @@ export function WithdrawalListPage() {
                   <tr key={request.withdrawalRequestId}>
                     <td className="ra-mono">{request.withdrawalRequestId}</td>
                     <td>
-                      <strong className="ra-cell-title">
-                        {request.contentTitle}
-                      </strong>
+                      <strong className="ra-cell-title">{request.contentTitle}</strong>
                       <span className="ra-cell-sub">{request.contentId}</span>
                     </td>
                     <td>
@@ -1154,16 +1018,16 @@ export function WithdrawalListPage() {
         )}
       </AsyncContent>
     </>
-  )
+  );
 }
 
 export function WithdrawalDetailPage() {
-  const { requestId = "" } = useParams()
-  const navigate = useNavigate()
+  const { requestId = "" } = useParams();
+  const navigate = useNavigate();
   const state = useApiData<WithdrawalDetail>(
     `/api/v1/region-admin/content-withdrawal-requests/${requestId}`,
-  )
-  const [action, setAction] = useState<ActionConfig | null>(null)
+  );
+  const [action, setAction] = useState<ActionConfig | null>(null);
   const configs: Record<string, ActionConfig> = {
     approve: {
       title: "전체 철회 승인",
@@ -1185,7 +1049,7 @@ export function WithdrawalDetailPage() {
       result: "전체 철회 요청 반려",
       reason: { label: "반려 사유", field: "reason", required: true },
     },
-  }
+  };
   return (
     <>
       <PageHeader
@@ -1201,20 +1065,14 @@ export function WithdrawalDetailPage() {
         {(detail) => (
           <div className="ra-detail-layout">
             <div className="ra-detail-main">
-              <Panel
-                title="철회 요청"
-                action={<StatusBadge value={detail.status} />}
-              >
+              <Panel title="철회 요청" action={<StatusBadge value={detail.status} />}>
                 <KeyValueGrid
                   items={[
                     ["요청 ID", detail.withdrawalRequestId],
                     ["요청 시각", formatDate(detail.requestedAt)],
                     ["콘텐츠", detail.content.title, true],
                     ["콘텐츠 ID", detail.content.contentId],
-                    [
-                      "콘텐츠 상태",
-                      <StatusBadge value={detail.content.status} />,
-                    ],
+                    ["콘텐츠 상태", <StatusBadge value={detail.content.status} />],
                     ["요청자", detail.requester?.name ?? "연결 없음"],
                     ["요청 사유", detail.requestReason, true],
                   ]}
@@ -1254,5 +1112,5 @@ export function WithdrawalDetailPage() {
         />
       )}
     </>
-  )
+  );
 }

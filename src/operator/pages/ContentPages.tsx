@@ -1,14 +1,8 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-} from "react"
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
-import { ApiError, isAbortError } from "../../api/client"
+import { ApiError, isAbortError } from "../../api/client";
 
 import {
   cancelSession,
@@ -25,7 +19,7 @@ import {
   updateRejectedContent,
   uploadRepresentativeImage,
   withdrawContentRevision,
-} from "../api"
+} from "../api";
 import {
   ActionModal,
   apiErrorMessage,
@@ -36,8 +30,8 @@ import {
   RouteState,
   StatusBadge,
   statusLabel,
-} from "../OperatorComponents"
-import { useOperatorAuth } from "../OperatorAuth"
+} from "../OperatorComponents";
+import { useOperatorAuth } from "../OperatorAuth";
 import {
   mergeContentSessionSnapshots,
   isContentRevisionReviewFresh,
@@ -48,11 +42,8 @@ import {
   writeContentSessionSnapshots,
   type ContentRevisionSnapshot,
   type ContentSessionSnapshot,
-} from "../operatorContentSnapshots"
-import {
-  readOperatorCompatValue,
-  writeOperatorCompatValue,
-} from "../operatorCompatStorage"
+} from "../operatorContentSnapshots";
+import { readOperatorCompatValue, writeOperatorCompatValue } from "../operatorCompatStorage";
 
 import type {
   ContentDetail,
@@ -62,20 +53,20 @@ import type {
   CreatedContentSession,
   SessionChangeRequestResult,
   SessionInput,
-} from "../types"
+} from "../types";
 
 function toSeoulOffset(value: string) {
-  if (!value) return null
+  if (!value) return null;
 
-  return `${value.length === 16 ? `${value}:00` : value}+09:00`
+  return `${value.length === 16 ? `${value}:00` : value}+09:00`;
 }
 
 function toDateTimeInput(value: string | null | undefined) {
-  if (!value) return ""
+  if (!value) return "";
 
-  const date = new Date(value)
+  const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return value.slice(0, 16)
+  if (Number.isNaN(date.getTime())) return value.slice(0, 16);
 
   const parts = new Intl.DateTimeFormat("sv-SE", {
     year: "numeric",
@@ -91,9 +82,9 @@ function toDateTimeInput(value: string | null | undefined) {
     hour12: false,
 
     timeZone: "Asia/Seoul",
-  }).format(date)
+  }).format(date);
 
-  return parts.replace(" ", "T")
+  return parts.replace(" ", "T");
 }
 
 const emptyDraft = {
@@ -118,7 +109,7 @@ const emptyDraft = {
   reservationPrice: "",
 
   publishAt: "",
-}
+};
 
 const emptySession = {
   startsAt: "",
@@ -130,28 +121,28 @@ const emptySession = {
   checkinCloseAt: "",
 
   capacity: "",
-}
+};
 
 interface DisplayContentSession extends ContentSessionSummary {
-  status: string
+  status: string;
 
-  contentId?: string
+  contentId?: string;
 
-  checkinOpenAt?: string
+  checkinOpenAt?: string;
 
-  checkinCloseAt?: string
+  checkinCloseAt?: string;
 
-  capacity?: number
+  capacity?: number;
 
-  changeRequestId?: string
+  changeRequestId?: string;
 
-  changeRequestStatus?: string
+  changeRequestStatus?: string;
 }
 
 interface ContentDetailNavigationState {
-  createdSession?: CreatedContentSession
+  createdSession?: CreatedContentSession;
 
-  notice?: string
+  notice?: string;
 }
 
 export function canManageSession(
@@ -159,7 +150,7 @@ export function canManageSession(
 
   now = Date.now(),
 ) {
-  return session.status === "SCHEDULED" && Date.parse(session.startsAt) > now
+  return session.status === "SCHEDULED" && Date.parse(session.startsAt) > now;
 }
 
 export function sessionMutationErrorMessage(
@@ -171,48 +162,41 @@ export function sessionMutationErrorMessage(
     if (caught.code === "SESSION_STATE_CONFLICT") {
       return action === "change"
         ? "이미 변경 요청이 심사 중이거나 변경할 수 없는 회차입니다. 화면을 새로고침한 뒤 상태를 확인해 주세요."
-        : "이미 취소되었거나 현재 취소할 수 없는 회차입니다. 화면을 새로고침한 뒤 상태를 확인해 주세요."
+        : "이미 취소되었거나 현재 취소할 수 없는 회차입니다. 화면을 새로고침한 뒤 상태를 확인해 주세요.";
     }
 
     if (caught.code === "SESSION_NOT_CANCELLABLE")
-      return "이미 취소되었거나 현재 취소할 수 없는 회차입니다."
+      return "이미 취소되었거나 현재 취소할 수 없는 회차입니다.";
 
     if (caught.code === "INVALID_INPUT")
-      return `입력한 회차 정보를 확인해 주세요. ${caught.message}`
+      return `입력한 회차 정보를 확인해 주세요. ${caught.message}`;
   }
 
   return apiErrorMessage(
     caught,
 
-    action === "change"
-      ? "회차 변경을 요청하지 못했습니다."
-      : "회차를 취소하지 못했습니다.",
-  )
+    action === "change" ? "회차 변경을 요청하지 못했습니다." : "회차를 취소하지 못했습니다.",
+  );
 }
 
-export function contentMutationErrorMessage(
-  caught: unknown,
-  action: "submit" | "revision",
-) {
+export function contentMutationErrorMessage(caught: unknown, action: "submit" | "revision") {
   if (caught instanceof ApiError && caught.code === "CONTENT_STATE_CONFLICT") {
     return action === "submit"
       ? "이미 심사 요청되었거나 현재 제출할 수 없는 콘텐츠입니다. 최신 상태를 확인해 주세요."
-      : "이미 심사 중인 수정본이 있거나 현재 수정본을 만들 수 없는 콘텐츠입니다. 최신 상태를 확인해 주세요."
+      : "이미 심사 중인 수정본이 있거나 현재 수정본을 만들 수 없는 콘텐츠입니다. 최신 상태를 확인해 주세요.";
   }
   return apiErrorMessage(
     caught,
-    action === "submit"
-      ? "심사를 요청하지 못했습니다."
-      : "수정본을 생성하지 못했습니다.",
-  )
+    action === "submit" ? "심사를 요청하지 못했습니다." : "수정본을 생성하지 못했습니다.",
+  );
 }
 
 const requiredContentFields: Array<{
-  key: keyof typeof emptyDraft
+  key: keyof typeof emptyDraft;
 
-  label: string
+  label: string;
 
-  maxLength?: number
+  maxLength?: number;
 }> = [
   { key: "title", label: "콘텐츠 제목", maxLength: 255 },
 
@@ -231,45 +215,38 @@ const requiredContentFields: Array<{
   { key: "materials", label: "준비물" },
 
   { key: "cancellationPolicyText", label: "취소 정책 안내" },
-]
+];
 
 export function validateSessionDraft(draft: typeof emptySession, index = 0) {
-  const label = `회차 ${index + 1}`
+  const label = `회차 ${index + 1}`;
 
-  if (
-    !draft.startsAt ||
-    !draft.endsAt ||
-    !draft.checkinOpenAt ||
-    !draft.checkinCloseAt
-  )
-    return `${label}의 시각을 모두 입력해 주세요.`
+  if (!draft.startsAt || !draft.endsAt || !draft.checkinOpenAt || !draft.checkinCloseAt)
+    return `${label}의 시각을 모두 입력해 주세요.`;
 
-  const startsAt = Date.parse(toSeoulOffset(draft.startsAt)!)
+  const startsAt = Date.parse(toSeoulOffset(draft.startsAt)!);
 
-  const endsAt = Date.parse(toSeoulOffset(draft.endsAt)!)
+  const endsAt = Date.parse(toSeoulOffset(draft.endsAt)!);
 
-  const checkinOpenAt = Date.parse(toSeoulOffset(draft.checkinOpenAt)!)
+  const checkinOpenAt = Date.parse(toSeoulOffset(draft.checkinOpenAt)!);
 
-  const checkinCloseAt = Date.parse(toSeoulOffset(draft.checkinCloseAt)!)
+  const checkinCloseAt = Date.parse(toSeoulOffset(draft.checkinCloseAt)!);
 
   if ([startsAt, endsAt, checkinOpenAt, checkinCloseAt].some(Number.isNaN))
-    return `${label}의 날짜와 시각을 확인해 주세요.`
+    return `${label}의 날짜와 시각을 확인해 주세요.`;
 
-  if (startsAt >= endsAt)
-    return `${label}의 종료 시각은 시작 시각보다 늦어야 합니다.`
+  if (startsAt >= endsAt) return `${label}의 종료 시각은 시작 시각보다 늦어야 합니다.`;
 
   if (checkinOpenAt >= checkinCloseAt)
-    return `${label}의 체크인 종료는 체크인 시작보다 늦어야 합니다.`
+    return `${label}의 체크인 종료는 체크인 시작보다 늦어야 합니다.`;
 
-  if (checkinCloseAt >= endsAt)
-    return `${label}의 체크인 종료는 회차 종료보다 빨라야 합니다.`
+  if (checkinCloseAt >= endsAt) return `${label}의 체크인 종료는 회차 종료보다 빨라야 합니다.`;
 
-  const capacity = Number(draft.capacity)
+  const capacity = Number(draft.capacity);
 
   if (!Number.isInteger(capacity) || capacity <= 0)
-    return `${label}의 정원은 1명 이상의 정수여야 합니다.`
+    return `${label}의 정원은 1명 이상의 정수여야 합니다.`;
 
-  return null
+  return null;
 }
 
 export function validateContentDraft(
@@ -282,68 +259,67 @@ export function validateContentDraft(
   hasImage: boolean,
 ) {
   for (const field of requiredContentFields) {
-    const value = draft[field.key].trim()
+    const value = draft[field.key].trim();
 
-    if (!value) return `${field.label}을(를) 입력해 주세요.`
+    if (!value) return `${field.label}을(를) 입력해 주세요.`;
 
     if (field.maxLength && value.length > field.maxLength)
-      return `${field.label}은(는) ${field.maxLength}자 이내로 입력해 주세요.`
+      return `${field.label}은(는) ${field.maxLength}자 이내로 입력해 주세요.`;
   }
 
-  const price = Number(draft.reservationPrice)
+  const price = Number(draft.reservationPrice);
 
   if (!Number.isSafeInteger(price) || price < 0)
-    return "예약 기본 금액은 0원 이상의 정수로 입력해 주세요."
+    return "예약 기본 금액은 0원 이상의 정수로 입력해 주세요.";
 
   if (requiresImage) {
-    if (!draft.publishAt) return "공개 예정 시각을 입력해 주세요."
+    if (!draft.publishAt) return "공개 예정 시각을 입력해 주세요.";
 
-    if (!hasImage) return "대표 이미지를 선택해 주세요."
+    if (!hasImage) return "대표 이미지를 선택해 주세요.";
 
-    if (sessions.length === 0) return "하나 이상의 운영 회차를 추가해 주세요."
+    if (sessions.length === 0) return "하나 이상의 운영 회차를 추가해 주세요.";
 
     for (let index = 0; index < sessions.length; index += 1) {
-      const sessionError = validateSessionDraft(sessions[index], index)
+      const sessionError = validateSessionDraft(sessions[index], index);
 
-      if (sessionError) return sessionError
+      if (sessionError) return sessionError;
     }
   }
 
-  return null
+  return null;
 }
 
 export function ContentListPage() {
-  const [items, setItems] = useState<ContentSummary[]>([])
+  const [items, setItems] = useState<ContentSummary[]>([]);
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true);
 
-  const [error, setError] = useState("")
+  const [error, setError] = useState("");
 
-  const [version, setVersion] = useState(0)
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    const controller = new AbortController()
+    const controller = new AbortController();
 
-    setLoading(true)
+    setLoading(true);
 
-    setError("")
+    setError("");
 
     listMyContents(controller.signal)
-
       .then(({ contents }) => setItems(contents))
 
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal)) {
-          setError(apiErrorMessage(caught, "내 콘텐츠를 불러오지 못했습니다."))
+          setError(apiErrorMessage(caught, "내 콘텐츠를 불러오지 못했습니다."));
         }
       })
 
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
+        if (!controller.signal.aborted) setLoading(false);
+      });
 
-    return () => controller.abort()
-  }, [version])
+    return () => controller.abort();
+  }, [version]);
 
   return (
     <>
@@ -352,10 +328,7 @@ export function ContentListPage() {
         title="내 콘텐츠"
         description="내가 등록한 행사·체험의 심사와 공개 상태를 확인합니다."
         actions={
-          <Link
-            className="op-button op-button-primary"
-            to="/operator/contents/new"
-          >
+          <Link className="op-button op-button-primary" to="/operator/contents/new">
             ＋ 새 콘텐츠 등록
           </Link>
         }
@@ -363,10 +336,7 @@ export function ContentListPage() {
       {loading ? (
         <RouteState loading />
       ) : error ? (
-        <RouteState
-          error={error}
-          onRetry={() => setVersion((value) => value + 1)}
-        />
+        <RouteState error={error} onRetry={() => setVersion((value) => value + 1)} />
       ) : items.length === 0 ? (
         <RouteState empty="등록한 콘텐츠가 없습니다. 새 콘텐츠를 등록해 주세요." />
       ) : (
@@ -396,15 +366,11 @@ export function ContentListPage() {
                     <td>
                       <span className="op-cell-title">{item.title}</span>
                       {item.status === "REJECTED" && (
-                        <span className="op-cell-sub">
-                          반려 사유 확인 후 수정 가능
-                        </span>
+                        <span className="op-cell-sub">반려 사유 확인 후 수정 가능</span>
                       )}
                     </td>
                     <td>
-                      {item.contentType === "EVENT_EXPERIENCE"
-                        ? "행사·체험"
-                        : item.contentType}
+                      {item.contentType === "EVENT_EXPERIENCE" ? "행사·체험" : item.contentType}
                     </td>
                     <td>
                       <StatusBadge value={item.status} />
@@ -426,76 +392,75 @@ export function ContentListPage() {
         </>
       )}
     </>
-  )
+  );
 }
 
-type DetailModal = { kind: "withdraw" } | {
-  kind: "cancel"
+type DetailModal =
+  | { kind: "withdraw" }
+  | {
+      kind: "cancel";
 
-  session: DisplayContentSession
-} | { kind: "change", session: DisplayContentSession } | null
+      session: DisplayContentSession;
+    }
+  | { kind: "change"; session: DisplayContentSession }
+  | null;
 
 export function ContentDetailPage() {
-  const { contentId = "" } = useParams()
+  const { contentId = "" } = useParams();
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  const location = useLocation()
-  const { session } = useOperatorAuth()
-  const [content, setContent] = useState<ContentDetail | null>(null)
+  const location = useLocation();
+  const { session } = useOperatorAuth();
+  const [content, setContent] = useState<ContentDetail | null>(null);
 
-  const [sessions, setSessions] = useState<DisplayContentSession[]>([])
+  const [sessions, setSessions] = useState<DisplayContentSession[]>([]);
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true);
 
-  const [error, setError] = useState("")
+  const [error, setError] = useState("");
 
-  const [notice, setNotice] = useState("")
+  const [notice, setNotice] = useState("");
 
-  const [version, setVersion] = useState(0)
+  const [version, setVersion] = useState(0);
 
-  const [modal, setModal] = useState<DetailModal>(null)
+  const [modal, setModal] = useState<DetailModal>(null);
 
   useEffect(() => {
-    const controller = new AbortController()
+    const controller = new AbortController();
 
-    setLoading(true)
+    setLoading(true);
 
-    setError("")
+    setError("");
 
     getMyContent(contentId, controller.signal)
-
       .then(async (detail) => {
-        setContent(detail)
+        setContent(detail);
 
-        const navigationState =
-          location.state as ContentDetailNavigationState | null
+        const navigationState = location.state as ContentDetailNavigationState | null;
 
         const createdSession =
           navigationState?.createdSession?.contentId === contentId
             ? navigationState.createdSession
-            : null
+            : null;
 
-        let publicSessions: ContentSessionSummary[] = []
+        let publicSessions: ContentSessionSummary[] = [];
         if (detail.status === "PUBLISHED") {
-          const result = await listPublicContentSessions(
-            contentId,
-            controller.signal,
-          )
-          publicSessions = result.sessions
+          const result = await listPublicContentSessions(contentId, controller.signal);
+          publicSessions = result.sessions;
         }
         const storedSessions = session
           ? readContentSessionSnapshots(session.userId, contentId)
-          : []
-        const loadedSessions: DisplayContentSession[] =
-          mergeContentSessionSnapshots(publicSessions, storedSessions)
+          : [];
+        const loadedSessions: DisplayContentSession[] = mergeContentSessionSnapshots(
+          publicSessions,
+          storedSessions,
+        );
         if (
           createdSession &&
-          !loadedSessions.some(
-            (session) => session.sessionId === createdSession.sessionId,
-          )
+          !loadedSessions.some((session) => session.sessionId === createdSession.sessionId)
         ) {
-          loadedSessions.unshift(createdSession)
+          loadedSessions.unshift(createdSession);
         }
 
         if (session)
@@ -503,29 +468,27 @@ export function ContentDetailPage() {
             session.userId,
             contentId,
             loadedSessions as ContentSessionSnapshot[],
-          )
+          );
 
-        setSessions(loadedSessions)
+        setSessions(loadedSessions);
 
-        if (navigationState?.notice) setNotice(navigationState.notice)
+        if (navigationState?.notice) setNotice(navigationState.notice);
       })
 
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal)) {
-          setError(
-            apiErrorMessage(caught, "콘텐츠 상세를 불러오지 못했습니다."),
-          )
+          setError(apiErrorMessage(caught, "콘텐츠 상세를 불러오지 못했습니다."));
         }
       })
 
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
+        if (!controller.signal.aborted) setLoading(false);
+      });
 
-    return () => controller.abort()
-  }, [contentId, location.state, session, version])
+    return () => controller.abort();
+  }, [contentId, location.state, session, version]);
 
-  if (loading) return <RouteState loading />
+  if (loading) return <RouteState loading />;
 
   if (error || !content)
     return (
@@ -533,18 +496,16 @@ export function ContentDetailPage() {
         error={error || "콘텐츠가 없습니다."}
         onRetry={() => setVersion((value) => value + 1)}
       />
-    )
+    );
 
   const latestRevision = session
     ? readLatestContentRevisionSnapshot(session.userId, contentId)
-    : null
-  const revisionPending = isContentRevisionReviewFresh(latestRevision)
-  const revisionStateUnknown =
-    latestRevision?.status === "EDIT_REQUESTED" && !revisionPending
-  const revisionCreatable =
-    ["APPROVED", "PUBLISHED"].includes(content.status) && !revisionPending
-  const editable = content.status === "REJECTED" || revisionCreatable
-  const sessionCreatable = ["APPROVED", "PUBLISHED"].includes(content.status)
+    : null;
+  const revisionPending = isContentRevisionReviewFresh(latestRevision);
+  const revisionStateUnknown = latestRevision?.status === "EDIT_REQUESTED" && !revisionPending;
+  const revisionCreatable = ["APPROVED", "PUBLISHED"].includes(content.status) && !revisionPending;
+  const editable = content.status === "REJECTED" || revisionCreatable;
+  const sessionCreatable = ["APPROVED", "PUBLISHED"].includes(content.status);
 
   return (
     <>
@@ -558,10 +519,7 @@ export function ContentDetailPage() {
               목록으로
             </Link>
             {editable && (
-              <Link
-                className="op-button"
-                to={`/operator/contents/${contentId}/edit`}
-              >
+              <Link className="op-button" to={`/operator/contents/${contentId}/edit`}>
                 {content.status === "REJECTED" ? "반려 내용 수정" : "수정 요청"}
               </Link>
             )}
@@ -594,9 +552,7 @@ export function ContentDetailPage() {
                   alt={`${content.title} 대표`}
                 />
               ) : (
-                <div className="op-image-placeholder">
-                  등록된 대표 이미지가 없습니다.
-                </div>
+                <div className="op-image-placeholder">등록된 대표 이미지가 없습니다.</div>
               )}
               <dl className="op-kv-grid">
                 <div className="op-kv">
@@ -652,42 +608,33 @@ export function ContentDetailPage() {
             </header>
             <div className="op-panel-body">
               <div className="op-notice">
-                공개 예정 회차와 이 화면에서 방금 접수한 심사·취소 상태를
-                표시합니다. 운영자용 전체 회차 조회 API가 제공되기 전까지 다른
-                기기에서 접수한 상태는 표시되지 않을 수 있습니다.
+                공개 예정 회차와 이 화면에서 방금 접수한 심사·취소 상태를 표시합니다. 운영자용 전체
+                회차 조회 API가 제공되기 전까지 다른 기기에서 접수한 상태는 표시되지 않을 수
+                있습니다.
               </div>
               {sessions.length === 0 ? (
-                <p className="op-muted">
-                  조회 가능한 공개 예정 회차가 없습니다.
-                </p>
+                <p className="op-muted">조회 가능한 공개 예정 회차가 없습니다.</p>
               ) : (
                 <div className="op-list-cards">
                   {sessions.map((session, index) => {
-                    const manageable = canManageSession(session)
+                    const manageable = canManageSession(session);
 
-                    const changePending =
-                      session.changeRequestStatus === "PENDING"
-                    const changeUnknown =
-                      session.changeRequestStatus === "UNKNOWN"
+                    const changePending = session.changeRequestStatus === "PENDING";
+                    const changeUnknown = session.changeRequestStatus === "UNKNOWN";
 
                     return (
                       <div className="op-list-card" key={session.sessionId}>
                         <span>{index + 1}</span>
                         <div>
                           <strong>
-                            {formatDate(session.startsAt)}–
-                            {formatDate(session.endsAt)}
+                            {formatDate(session.startsAt)}–{formatDate(session.endsAt)}
                           </strong>
                           <small>회차 ID {session.sessionId}</small>
                           {changePending && (
-                            <small>
-                              변경 요청 {session.changeRequestId} · 심사 대기
-                            </small>
+                            <small>변경 요청 {session.changeRequestId} · 심사 대기</small>
                           )}
                           {changeUnknown && (
-                            <small>
-                              변경 요청 {session.changeRequestId} · 결과 미확인
-                            </small>
+                            <small>변경 요청 {session.changeRequestId} · 결과 미확인</small>
                           )}
                         </div>
                         <StatusBadge value={session.status} />
@@ -703,9 +650,7 @@ export function ContentDetailPage() {
                           <button
                             className="op-button op-button-small"
                             disabled={changePending}
-                            onClick={() =>
-                              setModal({ kind: "change", session })
-                            }
+                            onClick={() => setModal({ kind: "change", session })}
                           >
                             {changePending ? "변경 심사 중" : "변경 요청"}
                           </button>
@@ -713,18 +658,14 @@ export function ContentDetailPage() {
                         {manageable && !changePending && (
                           <button
                             className="op-button op-button-small op-button-danger-outline"
-                            onClick={() =>
-                              setModal({ kind: "cancel", session })
-                            }
+                            onClick={() => setModal({ kind: "cancel", session })}
                           >
                             회차 취소
                           </button>
                         )}
-                        {!manageable && (
-                          <span className="op-muted">변경·취소 불가</span>
-                        )}
+                        {!manageable && <span className="op-muted">변경·취소 불가</span>}
                       </div>
-                    )
+                    );
                   })}
                 </div>
               )}
@@ -739,14 +680,13 @@ export function ContentDetailPage() {
               className="op-button"
               to={`/operator/content-revisions/${latestRevision.revisionId}`}
             >
-              수정본 {latestRevision.revisionId} ·{" "}
-              {statusLabel(latestRevision.status)}
+              수정본 {latestRevision.revisionId} · {statusLabel(latestRevision.status)}
             </Link>
           )}
           {revisionStateUnknown && (
             <div className="op-notice">
-              마지막 수정본 요청 후 1시간이 지나 서버 상태를 확인할 수 없습니다.
-              다시 요청하면 Backend가 중복 여부를 최종 검증합니다.
+              마지막 수정본 요청 후 1시간이 지나 서버 상태를 확인할 수 없습니다. 다시 요청하면
+              Backend가 중복 여부를 최종 검증합니다.
             </div>
           )}
           {editable && (
@@ -758,10 +698,7 @@ export function ContentDetailPage() {
             </Link>
           )}
           {sessionCreatable && (
-            <Link
-              className="op-button"
-              to={`/operator/contents/${contentId}/sessions/new`}
-            >
+            <Link className="op-button" to={`/operator/contents/${contentId}/sessions/new`}>
               추가 회차 등록
             </Link>
           )}
@@ -792,11 +729,11 @@ export function ContentDetailPage() {
           tone="danger"
           onClose={() => setModal(null)}
           onConfirm={async (reason) => {
-            await requestContentWithdrawal(contentId, reason)
+            await requestContentWithdrawal(contentId, reason);
 
-            setModal(null)
+            setModal(null);
 
-            setNotice("콘텐츠 철회 요청이 접수되었습니다.")
+            setNotice("콘텐츠 철회 요청이 접수되었습니다.");
           }}
         />
       )}
@@ -814,27 +751,27 @@ export function ContentDetailPage() {
                 modal.session.sessionId,
 
                 reason,
-              )
+              );
 
               setSessions((current) => {
                 const next = current.map((session) =>
                   session.sessionId === result.sessionId
                     ? { ...session, status: result.status }
                     : session,
-                )
+                );
                 if (session)
                   writeContentSessionSnapshots(
                     session.userId,
                     contentId,
                     next as ContentSessionSnapshot[],
-                  )
-                return next
-              })
-              setModal(null)
+                  );
+                return next;
+              });
+              setModal(null);
 
-              setNotice("회차가 취소 상태로 변경되었습니다.")
+              setNotice("회차가 취소 상태로 변경되었습니다.");
             } catch (caught) {
-              throw new Error(sessionMutationErrorMessage(caught, "cancel"))
+              throw new Error(sessionMutationErrorMessage(caught, "cancel"));
             }
           }}
         />
@@ -855,23 +792,23 @@ export function ContentDetailPage() {
                       changeRequestedAt: new Date().toISOString(),
                     }
                   : session,
-              )
+              );
               if (session)
                 writeContentSessionSnapshots(
                   session.userId,
                   contentId,
                   next as ContentSessionSnapshot[],
-                )
-              return next
-            })
-            setModal(null)
+                );
+              return next;
+            });
+            setModal(null);
 
-            setNotice("회차 변경 요청이 심사 대기로 접수되었습니다.")
+            setNotice("회차 변경 요청이 심사 대기로 접수되었습니다.");
           }}
         />
       )}
     </>
-  )
+  );
 }
 
 function SessionChangeModal({
@@ -881,14 +818,11 @@ function SessionChangeModal({
 
   onSuccess,
 }: {
-  session: DisplayContentSession
+  session: DisplayContentSession;
 
-  onClose: () => void
+  onClose: () => void;
 
-  onSuccess: (
-    result: SessionChangeRequestResult,
-    candidate: SessionInput,
-  ) => void
+  onSuccess: (result: SessionChangeRequestResult, candidate: SessionInput) => void;
 }) {
   const [draft, setDraft] = useState({
     ...emptySession,
@@ -896,40 +830,40 @@ function SessionChangeModal({
     startsAt: toDateTimeInput(session.startsAt),
 
     endsAt: toDateTimeInput(session.endsAt),
-  })
+  });
 
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState(false);
 
-  const [error, setError] = useState("")
+  const [error, setError] = useState("");
 
   const set = (key: keyof typeof draft, value: string) =>
-    setDraft((current) => ({ ...current, [key]: value }))
+    setDraft((current) => ({ ...current, [key]: value }));
 
   const submit = async (event: FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();
 
-    const validationError = validateSessionDraft(draft)
+    const validationError = validateSessionDraft(draft);
 
     if (validationError) {
-      setError(validationError)
+      setError(validationError);
 
-      return
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
 
-    setError("")
+    setError("");
 
     try {
-      const candidate = sessionPayload(draft)
-      const result = await requestSessionChange(session.sessionId, candidate)
-      onSuccess(result, candidate)
+      const candidate = sessionPayload(draft);
+      const result = await requestSessionChange(session.sessionId, candidate);
+      onSuccess(result, candidate);
     } catch (caught) {
-      setError(sessionMutationErrorMessage(caught, "change"))
+      setError(sessionMutationErrorMessage(caught, "change"));
 
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="op-modal-backdrop">
@@ -984,44 +918,41 @@ function SessionChangeModal({
         </footer>
       </form>
     </div>
-  )
+  );
 }
 
 export function ContentFormPage() {
-  const { contentId } = useParams()
+  const { contentId } = useParams();
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  const { session } = useOperatorAuth()
+  const { session } = useOperatorAuth();
 
-  const editing = Boolean(contentId)
+  const editing = Boolean(contentId);
 
-  const [source, setSource] = useState<ContentDetail | null>(null)
+  const [source, setSource] = useState<ContentDetail | null>(null);
 
-  const [draft, setDraft] = useState(emptyDraft)
+  const [draft, setDraft] = useState(emptyDraft);
 
-  const [sessions, setSessions] = useState([{ ...emptySession }])
+  const [sessions, setSessions] = useState([{ ...emptySession }]);
 
-  const [file, setFile] = useState<File | null>(null)
+  const [file, setFile] = useState<File | null>(null);
 
-  const [loading, setLoading] = useState(editing)
+  const [loading, setLoading] = useState(editing);
 
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState(false);
 
-  const [savedRejected, setSavedRejected] = useState(false)
-  const [restoredPrice, setRestoredPrice] = useState(false)
-  const [error, setError] = useState("")
-  const [confirmation, setConfirmation] = useState<"save" | "resubmit" | null>(
-    null,
-  )
+  const [savedRejected, setSavedRejected] = useState(false);
+  const [restoredPrice, setRestoredPrice] = useState(false);
+  const [error, setError] = useState("");
+  const [confirmation, setConfirmation] = useState<"save" | "resubmit" | null>(null);
 
   useEffect(() => {
-    if (!contentId) return
+    if (!contentId) return;
 
-    const controller = new AbortController()
+    const controller = new AbortController();
 
     getMyContent(contentId, controller.signal)
-
       .then((detail) => {
         const storedPrice = session
           ? readOperatorCompatValue<number>(
@@ -1031,28 +962,24 @@ export function ContentFormPage() {
 
               contentId,
             )
-          : null
+          : null;
 
         const latestRevision = session
           ? readLatestContentRevisionSnapshot(session.userId, contentId)
-          : null
+          : null;
         const revisionPrice =
-          latestRevision &&
-          !["EDIT_WITHDRAWN", "EDIT_INVALIDATED"].includes(
-            latestRevision.status,
-          )
+          latestRevision && !["EDIT_WITHDRAWN", "EDIT_INVALIDATED"].includes(latestRevision.status)
             ? latestRevision.candidate.reservationPrice
-            : undefined
+            : undefined;
         const restoredPriceValue =
-          typeof storedPrice?.value === "number" &&
-          Number.isFinite(storedPrice.value)
+          typeof storedPrice?.value === "number" && Number.isFinite(storedPrice.value)
             ? storedPrice.value
-            : revisionPrice
-        const canRestorePrice = Number.isFinite(restoredPriceValue)
+            : revisionPrice;
+        const canRestorePrice = Number.isFinite(restoredPriceValue);
 
-        setSource(detail)
+        setSource(detail);
 
-        setRestoredPrice(canRestorePrice)
+        setRestoredPrice(canRestorePrice);
 
         setDraft({
           title: detail.title,
@@ -1075,35 +1002,31 @@ export function ContentFormPage() {
 
           reservationPrice: canRestorePrice ? String(restoredPriceValue) : "",
 
-          publishAt:
-            detail.status === "PUBLISHED"
-              ? ""
-              : toDateTimeInput(detail.publishAt),
-        })
+          publishAt: detail.status === "PUBLISHED" ? "" : toDateTimeInput(detail.publishAt),
+        });
       })
 
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setError(apiErrorMessage(caught, "콘텐츠를 불러오지 못했습니다."))
+          setError(apiErrorMessage(caught, "콘텐츠를 불러오지 못했습니다."));
       })
 
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
+        if (!controller.signal.aborted) setLoading(false);
+      });
 
-    return () => controller.abort()
-  }, [contentId, session])
+    return () => controller.abort();
+  }, [contentId, session]);
 
   const set = (key: keyof typeof draft, value: string) =>
-    setDraft((current) => ({ ...current, [key]: value }))
+    setDraft((current) => ({ ...current, [key]: value }));
 
   const payload = async (): Promise<ContentInput> => {
-    let imageObjectId: string | undefined
+    let imageObjectId: string | undefined;
 
-    if (file) imageObjectId = await uploadRepresentativeImage(file)
+    if (file) imageObjectId = await uploadRepresentativeImage(file);
 
-    if (!editing && !imageObjectId)
-      throw new Error("대표 이미지를 선택해 주세요.")
+    if (!editing && !imageObjectId) throw new Error("대표 이미지를 선택해 주세요.");
 
     return {
       title: draft.title.trim(),
@@ -1126,15 +1049,14 @@ export function ContentFormPage() {
 
       reservationPrice: Number(draft.reservationPrice),
 
-      publishAt:
-        source?.status === "PUBLISHED" ? null : toSeoulOffset(draft.publishAt),
+      publishAt: source?.status === "PUBLISHED" ? null : toSeoulOffset(draft.publishAt),
 
       ...(imageObjectId ? { representativeImageObjectId: imageObjectId } : {}),
-    }
-  }
+    };
+  };
 
   const requestSubmit = (event: FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();
     const validationError = validateContentDraft(
       draft,
 
@@ -1143,24 +1065,24 @@ export function ContentFormPage() {
       !editing,
 
       Boolean(file),
-    )
+    );
 
     if (validationError) {
-      setError(validationError)
-      return
+      setError(validationError);
+      return;
     }
-    setError("")
-    setConfirmation("save")
-  }
+    setError("");
+    setConfirmation("save");
+  };
 
   const save = async () => {
-    setSubmitting(true)
-    setError("")
+    setSubmitting(true);
+    setError("");
     try {
-      const input = await payload()
+      const input = await payload();
 
       if (!contentId) {
-        const result = await createContent(input, sessions.map(sessionPayload))
+        const result = await createContent(input, sessions.map(sessionPayload));
 
         if (session)
           writeOperatorCompatValue(
@@ -1171,11 +1093,11 @@ export function ContentFormPage() {
             result.contentId,
 
             input.reservationPrice,
-          )
+          );
 
-        navigate(`/operator/contents/${result.contentId}`, { replace: true })
+        navigate(`/operator/contents/${result.contentId}`, { replace: true });
       } else if (source?.status === "REJECTED") {
-        await updateRejectedContent(contentId, input)
+        await updateRejectedContent(contentId, input);
 
         if (session)
           writeOperatorCompatValue(
@@ -1186,11 +1108,11 @@ export function ContentFormPage() {
             contentId,
 
             input.reservationPrice,
-          )
+          );
 
-        setSavedRejected(true)
+        setSavedRejected(true);
       } else {
-        const result = await createContentRevision(contentId, input)
+        const result = await createContentRevision(contentId, input);
         if (session)
           writeOperatorCompatValue(
             session.userId,
@@ -1200,7 +1122,7 @@ export function ContentFormPage() {
             contentId,
 
             input.reservationPrice,
-          )
+          );
         if (session)
           writeContentRevisionSnapshot(session.userId, {
             revisionId: result.revisionId,
@@ -1208,13 +1130,13 @@ export function ContentFormPage() {
             status: result.status,
             candidate: input,
             submittedAt: result.submittedAt,
-          })
+          });
         navigate(`/operator/content-revisions/${result.revisionId}`, {
           replace: true,
           state: { notice: "수정본이 생성되어 심사 요청되었습니다." },
-        })
+        });
       }
-      setConfirmation(null)
+      setConfirmation(null);
     } catch (caught) {
       setError(
         caught instanceof ApiError && caught.code === "INVALID_INPUT"
@@ -1222,46 +1144,43 @@ export function ContentFormPage() {
           : contentId && source?.status !== "REJECTED"
             ? contentMutationErrorMessage(caught, "revision")
             : apiErrorMessage(caught, "콘텐츠를 저장하지 못했습니다."),
-      )
-      setConfirmation(null)
+      );
+      setConfirmation(null);
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const resubmit = async () => {
-    if (!contentId) return
+    if (!contentId) return;
 
-    setSubmitting(true)
+    setSubmitting(true);
 
-    setError("")
+    setError("");
 
     try {
-      await submitContent(contentId)
-      navigate(`/operator/contents/${contentId}`, { replace: true })
+      await submitContent(contentId);
+      navigate(`/operator/contents/${contentId}`, { replace: true });
     } catch (caught) {
-      setError(contentMutationErrorMessage(caught, "submit"))
-      setConfirmation(null)
-      setSubmitting(false)
+      setError(contentMutationErrorMessage(caught, "submit"));
+      setConfirmation(null);
+      setSubmitting(false);
     }
-  }
+  };
 
-  if (loading) return <RouteState loading />
+  if (loading) return <RouteState loading />;
 
-  if (editing && !source)
-    return <RouteState error={error || "콘텐츠를 불러오지 못했습니다."} />
+  if (editing && !source) return <RouteState error={error || "콘텐츠를 불러오지 못했습니다."} />;
 
   const mode = !editing
     ? "등록"
     : source?.status === "REJECTED"
       ? "반려 콘텐츠 보완"
-      : `${statusLabel(source?.status ?? "")} 콘텐츠 수정 요청`
+      : `${statusLabel(source?.status ?? "")} 콘텐츠 수정 요청`;
 
   return (
     <>
-      <Breadcrumb>
-        내 콘텐츠 › {editing ? source?.title : "새 콘텐츠 등록"}
-      </Breadcrumb>
+      <Breadcrumb>내 콘텐츠 › {editing ? source?.title : "새 콘텐츠 등록"}</Breadcrumb>
       <PageHeader
         title={mode}
         description={
@@ -1320,9 +1239,7 @@ export function ContentFormPage() {
                   type="number"
                   min="0"
                   value={draft.reservationPrice}
-                  onChange={(event) =>
-                    set("reservationPrice", event.target.value)
-                  }
+                  onChange={(event) => set("reservationPrice", event.target.value)}
                   required
                 />
                 <small>
@@ -1363,9 +1280,7 @@ export function ContentFormPage() {
                 />
               )}
               <label className="op-upload op-full">
-                <strong>
-                  {editing ? "대표 이미지 변경" : "대표 이미지 업로드"}
-                </strong>
+                <strong>{editing ? "대표 이미지 변경" : "대표 이미지 업로드"}</strong>
                 <span>
                   {file?.name ??
                     (editing
@@ -1383,8 +1298,7 @@ export function ContentFormPage() {
                 <div className="op-full">
                   <h3>운영 회차</h3>
                   <div className="op-notice">
-                    시간 순서: 회차 시작 &lt; 회차 종료, 체크인 시작 &lt; 체크인
-                    종료 &lt; 회차 종료
+                    시간 순서: 회차 시작 &lt; 회차 종료, 체크인 시작 &lt; 체크인 종료 &lt; 회차 종료
                   </div>
                   {sessions.map((session, index) => (
                     <SessionEditor
@@ -1394,24 +1308,18 @@ export function ContentFormPage() {
                       canDelete={sessions.length > 1}
                       onChange={(next) =>
                         setSessions((items) =>
-                          items.map((item, itemIndex) =>
-                            itemIndex === index ? next : item,
-                          ),
+                          items.map((item, itemIndex) => (itemIndex === index ? next : item)),
                         )
                       }
                       onDelete={() =>
-                        setSessions((items) =>
-                          items.filter((_, itemIndex) => itemIndex !== index),
-                        )
+                        setSessions((items) => items.filter((_, itemIndex) => itemIndex !== index))
                       }
                     />
                   ))}
                   <button
                     className="op-button"
                     type="button"
-                    onClick={() =>
-                      setSessions((items) => [...items, { ...emptySession }])
-                    }
+                    onClick={() => setSessions((items) => [...items, { ...emptySession }])}
                   >
                     ＋ 회차 추가
                   </button>
@@ -1442,10 +1350,7 @@ export function ContentFormPage() {
               </button>
             </>
           ) : (
-            <button
-              className="op-button op-button-primary"
-              disabled={submitting}
-            >
+            <button className="op-button op-button-primary" disabled={submitting}>
               {submitting
                 ? "저장 중…"
                 : !editing
@@ -1484,9 +1389,7 @@ export function ContentFormPage() {
                 ? "저장 후 별도의 재심사 요청이 필요합니다."
                 : "현재 원본은 유지되고 입력한 후보 정보가 수정본으로 제출됩니다."
           }
-          confirmLabel={
-            source?.status === "REJECTED" ? "보완 내용 저장" : "심사 요청"
-          }
+          confirmLabel={source?.status === "REJECTED" ? "보완 내용 저장" : "심사 요청"}
           tone="primary"
           onClose={() => setConfirmation(null)}
           onConfirm={save}
@@ -1503,7 +1406,7 @@ export function ContentFormPage() {
         />
       )}
     </>
-  )
+  );
 }
 
 function revisionDraft(snapshot: ContentRevisionSnapshot) {
@@ -1519,48 +1422,39 @@ function revisionDraft(snapshot: ContentRevisionSnapshot) {
     cancellationPolicyText: snapshot.candidate.cancellationPolicyText,
     reservationPrice: String(snapshot.candidate.reservationPrice),
     publishAt: toDateTimeInput(snapshot.candidate.publishAt),
-  }
+  };
 }
 
 export function ContentRevisionPage() {
-  const { revisionId = "" } = useParams()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { session } = useOperatorAuth()
-  const initialSnapshot = session
-    ? readContentRevisionSnapshot(session.userId, revisionId)
-    : null
-  const [snapshot, setSnapshot] = useState(initialSnapshot)
-  const [draft, setDraft] = useState(
-    initialSnapshot ? revisionDraft(initialSnapshot) : emptyDraft,
-  )
-  const [file, setFile] = useState<File | null>(null)
-  const [editing, setEditing] = useState(
-    initialSnapshot?.status === "EDIT_REJECTED",
-  )
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState("")
+  const { revisionId = "" } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { session } = useOperatorAuth();
+  const initialSnapshot = session ? readContentRevisionSnapshot(session.userId, revisionId) : null;
+  const [snapshot, setSnapshot] = useState(initialSnapshot);
+  const [draft, setDraft] = useState(initialSnapshot ? revisionDraft(initialSnapshot) : emptyDraft);
+  const [file, setFile] = useState<File | null>(null);
+  const [editing, setEditing] = useState(initialSnapshot?.status === "EDIT_REJECTED");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [notice, setNotice] = useState(
     (location.state as { notice?: string } | null)?.notice ?? "",
-  )
-  const [modal, setModal] = useState<"withdraw" | "resubmit" | null>(null)
+  );
+  const [modal, setModal] = useState<"withdraw" | "resubmit" | null>(null);
   const revisionStateUnknown =
-    snapshot?.status === "EDIT_REQUESTED" &&
-    !isContentRevisionReviewFresh(snapshot)
+    snapshot?.status === "EDIT_REQUESTED" && !isContentRevisionReviewFresh(snapshot);
 
   if (!session || !snapshot) {
     return (
       <RouteState error="이 브라우저에 저장된 수정본 정보가 없습니다. 수정본을 생성한 계정과 브라우저에서 다시 확인해 주세요." />
-    )
+    );
   }
 
   const set = (key: keyof typeof draft, value: string) =>
-    setDraft((current) => ({ ...current, [key]: value }))
+    setDraft((current) => ({ ...current, [key]: value }));
 
   const candidatePayload = async (): Promise<ContentInput> => {
-    const imageObjectId = file
-      ? await uploadRepresentativeImage(file)
-      : undefined
+    const imageObjectId = file ? await uploadRepresentativeImage(file) : undefined;
     return {
       title: draft.title.trim(),
       description: draft.description.trim(),
@@ -1572,80 +1466,73 @@ export function ContentRevisionPage() {
       materials: draft.materials.trim(),
       cancellationPolicyText: draft.cancellationPolicyText.trim(),
       reservationPrice: Number(draft.reservationPrice),
-      publishAt:
-        snapshot.candidate.publishAt === null
-          ? null
-          : toSeoulOffset(draft.publishAt),
+      publishAt: snapshot.candidate.publishAt === null ? null : toSeoulOffset(draft.publishAt),
       ...(imageObjectId
         ? { representativeImageObjectId: imageObjectId }
         : snapshot.candidate.representativeImageObjectId
           ? {
-              representativeImageObjectId:
-                snapshot.candidate.representativeImageObjectId,
+              representativeImageObjectId: snapshot.candidate.representativeImageObjectId,
             }
           : {}),
-    }
-  }
+    };
+  };
 
   const saveRevision = async (event: FormEvent) => {
-    event.preventDefault()
-    const validationError = validateContentDraft(draft, [], false, true)
+    event.preventDefault();
+    const validationError = validateContentDraft(draft, [], false, true);
     if (validationError) {
-      setError(validationError)
-      return
+      setError(validationError);
+      return;
     }
-    setSubmitting(true)
-    setError("")
+    setSubmitting(true);
+    setError("");
     try {
-      const candidate = await candidatePayload()
-      const result = await updateContentRevision(revisionId, candidate)
+      const candidate = await candidatePayload();
+      const result = await updateContentRevision(revisionId, candidate);
       const next: ContentRevisionSnapshot = {
         ...snapshot,
         status: result.status,
         candidate,
         updatedAt: result.updatedAt,
-      }
-      writeContentRevisionSnapshot(session.userId, next)
-      setSnapshot(next)
-      setEditing(false)
-      setNotice("수정본 데이터가 저장되었습니다.")
+      };
+      writeContentRevisionSnapshot(session.userId, next);
+      setSnapshot(next);
+      setEditing(false);
+      setNotice("수정본 데이터가 저장되었습니다.");
     } catch (caught) {
       setError(
         caught instanceof ApiError && caught.code === "CONTENT_STATE_CONFLICT"
           ? "아직 심사 중이거나 편집할 수 없는 수정본입니다. 최신 심사 결과를 확인해 주세요."
           : apiErrorMessage(caught, "수정본을 저장하지 못했습니다."),
-      )
+      );
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const resubmitRevision = async () => {
-    setSubmitting(true)
-    setError("")
+    setSubmitting(true);
+    setError("");
     try {
-      const result = await createContentRevision(
-        snapshot.contentId,
-        snapshot.candidate,
-      )
+      const result = await createContentRevision(snapshot.contentId, snapshot.candidate);
       const next: ContentRevisionSnapshot = {
         revisionId: result.revisionId,
         contentId: result.contentId,
         status: result.status,
         candidate: snapshot.candidate,
         submittedAt: result.submittedAt,
-      }
-      writeContentRevisionSnapshot(session.userId, next)
+      };
+      writeContentRevisionSnapshot(session.userId, next);
       navigate(`/operator/content-revisions/${result.revisionId}`, {
         replace: true,
         state: { notice: "새 수정본으로 재심사 요청되었습니다." },
-      })
+      });
     } catch (caught) {
-      setError(apiErrorMessage(caught, "수정본 재심사를 요청하지 못했습니다."))
-      setModal(null)
-      setSubmitting(false)
+      setError(apiErrorMessage(caught, "수정본 재심사를 요청하지 못했습니다."));
+      setModal(null);
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <>
@@ -1654,10 +1541,7 @@ export function ContentRevisionPage() {
         title={`콘텐츠 수정본 ${snapshot.revisionId}`}
         description={`원본 콘텐츠 ${snapshot.contentId}의 변경 후보입니다.`}
         actions={
-          <Link
-            className="op-button"
-            to={`/operator/contents/${snapshot.contentId}`}
-          >
+          <Link className="op-button" to={`/operator/contents/${snapshot.contentId}`}>
             원본 상세
           </Link>
         }
@@ -1669,9 +1553,8 @@ export function ContentRevisionPage() {
       )}
       {revisionStateUnknown && (
         <div className="op-notice">
-          마지막 요청 후 1시간이 지나 현재 심사 상태를 확인할 수 없습니다. 편집
-          저장을 시도하면 Backend가 반려 여부를 최종 확인하며, 아직 심사 중이면
-          저장하지 않고 안내합니다.
+          마지막 요청 후 1시간이 지나 현재 심사 상태를 확인할 수 없습니다. 편집 저장을 시도하면
+          Backend가 반려 여부를 최종 확인하며, 아직 심사 중이면 저장하지 않고 안내합니다.
         </div>
       )}
       {editing ? (
@@ -1679,9 +1562,7 @@ export function ContentRevisionPage() {
           <article className="op-panel">
             <header>
               <h2>
-                {snapshot.status === "EDIT_REJECTED"
-                  ? "반려 수정본 편집"
-                  : "수정본 편집 상태 확인"}
+                {snapshot.status === "EDIT_REJECTED" ? "반려 수정본 편집" : "수정본 편집 상태 확인"}
               </h2>
               <StatusBadge value={snapshot.status} />
             </header>
@@ -1721,9 +1602,7 @@ export function ContentRevisionPage() {
                     type="number"
                     min="0"
                     value={draft.reservationPrice}
-                    onChange={(event) =>
-                      set("reservationPrice", event.target.value)
-                    }
+                    onChange={(event) => set("reservationPrice", event.target.value)}
                     required
                   />
                 </label>
@@ -1759,15 +1638,11 @@ export function ContentRevisionPage() {
                 )}
                 <label className="op-upload op-full">
                   <strong>대표 이미지 변경</strong>
-                  <span>
-                    {file?.name ?? "변경하지 않으면 후보 이미지를 유지합니다."}
-                  </span>
+                  <span>{file?.name ?? "변경하지 않으면 후보 이미지를 유지합니다."}</span>
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
-                    onChange={(event) =>
-                      setFile(event.target.files?.[0] ?? null)
-                    }
+                    onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                   />
                 </label>
               </div>
@@ -1775,10 +1650,7 @@ export function ContentRevisionPage() {
           </article>
           <aside className="op-action-card">
             <h2>수정본 저장</h2>
-            <button
-              className="op-button op-button-primary"
-              disabled={submitting}
-            >
+            <button className="op-button op-button-primary" disabled={submitting}>
               {submitting ? "저장 중…" : "수정본 저장"}
             </button>
             <button
@@ -1810,37 +1682,13 @@ export function ContentRevisionPage() {
                   label="예약 기본 금액"
                   value={`${snapshot.candidate.reservationPrice.toLocaleString()}원`}
                 />
-                <RevisionValue
-                  label="위치"
-                  value={snapshot.candidate.locationText}
-                />
-                <RevisionValue
-                  label="운영 시간"
-                  value={snapshot.candidate.operatingHoursText}
-                />
-                <RevisionValue
-                  label="연락처"
-                  value={snapshot.candidate.contactText}
-                />
-                <RevisionValue
-                  label="연령 조건"
-                  value={snapshot.candidate.ageRequirement}
-                />
-                <RevisionValue
-                  label="소개"
-                  value={snapshot.candidate.description}
-                  full
-                />
-                <RevisionValue
-                  label="유의사항"
-                  value={snapshot.candidate.precautions}
-                  full
-                />
-                <RevisionValue
-                  label="준비물"
-                  value={snapshot.candidate.materials}
-                  full
-                />
+                <RevisionValue label="위치" value={snapshot.candidate.locationText} />
+                <RevisionValue label="운영 시간" value={snapshot.candidate.operatingHoursText} />
+                <RevisionValue label="연락처" value={snapshot.candidate.contactText} />
+                <RevisionValue label="연령 조건" value={snapshot.candidate.ageRequirement} />
+                <RevisionValue label="소개" value={snapshot.candidate.description} full />
+                <RevisionValue label="유의사항" value={snapshot.candidate.precautions} full />
+                <RevisionValue label="준비물" value={snapshot.candidate.materials} full />
                 <RevisionValue
                   label="취소 정책"
                   value={snapshot.candidate.cancellationPolicyText}
@@ -1853,11 +1701,7 @@ export function ContentRevisionPage() {
                   />
                 )}
                 {snapshot.withdrawalReason && (
-                  <RevisionValue
-                    label="철회 사유"
-                    value={snapshot.withdrawalReason}
-                    full
-                  />
+                  <RevisionValue label="철회 사유" value={snapshot.withdrawalReason} full />
                 )}
               </dl>
             </div>
@@ -1873,10 +1717,7 @@ export function ContentRevisionPage() {
                   수정본 철회
                 </button>
                 {revisionStateUnknown && (
-                  <button
-                    className="op-button op-button-primary"
-                    onClick={() => setEditing(true)}
-                  >
+                  <button className="op-button op-button-primary" onClick={() => setEditing(true)}>
                     반려 여부 확인하며 편집
                   </button>
                 )}
@@ -1884,16 +1725,10 @@ export function ContentRevisionPage() {
             )}
             {snapshot.status === "EDIT_REJECTED" && (
               <>
-                <button
-                  className="op-button op-button-primary"
-                  onClick={() => setEditing(true)}
-                >
+                <button className="op-button op-button-primary" onClick={() => setEditing(true)}>
                   반려 수정본 편집
                 </button>
-                <button
-                  className="op-button"
-                  onClick={() => setModal("resubmit")}
-                >
+                <button className="op-button" onClick={() => setModal("resubmit")}>
                   새 수정본으로 재심사 요청
                 </button>
               </>
@@ -1918,17 +1753,17 @@ export function ContentRevisionPage() {
           tone="danger"
           onClose={() => setModal(null)}
           onConfirm={async (reason) => {
-            const result = await withdrawContentRevision(revisionId, reason)
+            const result = await withdrawContentRevision(revisionId, reason);
             const next: ContentRevisionSnapshot = {
               ...snapshot,
               status: result.status,
               withdrawalReason: result.withdrawalReason,
               withdrawnAt: result.withdrawnAt,
-            }
-            writeContentRevisionSnapshot(session.userId, next)
-            setSnapshot(next)
-            setModal(null)
-            setNotice("수정본이 철회되었습니다.")
+            };
+            writeContentRevisionSnapshot(session.userId, next);
+            setSnapshot(next);
+            setModal(null);
+            setNotice("수정본이 철회되었습니다.");
           }}
         />
       )}
@@ -1943,81 +1778,72 @@ export function ContentRevisionPage() {
         />
       )}
     </>
-  )
+  );
 }
 
-function RevisionValue({
-  label,
-  value,
-  full,
-}: {
-  label: string
-  value: string
-  full?: boolean
-}) {
+function RevisionValue({ label, value, full }: { label: string; value: string; full?: boolean }) {
   return (
     <div className={`op-kv${full ? " op-full" : ""}`}>
       <dt>{label}</dt>
       <dd>{value}</dd>
     </div>
-  )
+  );
 }
 
 export function ContentSessionFormPage() {
-  const { contentId = "" } = useParams()
+  const { contentId = "" } = useParams();
 
-  const navigate = useNavigate()
-  const { session } = useOperatorAuth()
-  const [content, setContent] = useState<ContentDetail | null>(null)
+  const navigate = useNavigate();
+  const { session } = useOperatorAuth();
+  const [content, setContent] = useState<ContentDetail | null>(null);
 
-  const [draft, setDraft] = useState({ ...emptySession })
+  const [draft, setDraft] = useState({ ...emptySession });
 
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState(false);
 
-  const [error, setError] = useState("")
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const controller = new AbortController()
+    const controller = new AbortController();
 
     getMyContent(contentId, controller.signal)
-
       .then(setContent)
 
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setError(apiErrorMessage(caught, "콘텐츠를 불러오지 못했습니다."))
-      })
+          setError(apiErrorMessage(caught, "콘텐츠를 불러오지 못했습니다."));
+      });
 
-    return () => controller.abort()
-  }, [contentId])
+    return () => controller.abort();
+  }, [contentId]);
 
   const set = (key: keyof typeof draft, value: string) =>
-    setDraft((current) => ({ ...current, [key]: value }))
+    setDraft((current) => ({ ...current, [key]: value }));
 
   const submit = async (event: FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();
 
-    const validationError = validateSessionDraft(draft)
+    const validationError = validateSessionDraft(draft);
 
     if (validationError) {
-      setError(validationError)
+      setError(validationError);
 
-      return
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
 
-    setError("")
+    setError("");
 
     try {
-      const payload = sessionPayload(draft)
-      const result = await createContentSession(contentId, payload)
+      const payload = sessionPayload(draft);
+      const result = await createContentSession(contentId, payload);
       if (session) {
-        const stored = readContentSessionSnapshots(session.userId, contentId)
+        const stored = readContentSessionSnapshots(session.userId, contentId);
         writeContentSessionSnapshots(session.userId, contentId, [
           result,
           ...stored.filter((item) => item.sessionId !== result.sessionId),
-        ])
+        ]);
       }
       navigate(`/operator/contents/${contentId}`, {
         replace: true,
@@ -2027,19 +1853,17 @@ export function ContentSessionFormPage() {
 
           notice: "새 회차가 심사 대기 상태로 등록되었습니다.",
         } satisfies ContentDetailNavigationState,
-      })
+      });
     } catch (caught) {
-      setError(apiErrorMessage(caught, "회차를 등록하지 못했습니다."))
+      setError(apiErrorMessage(caught, "회차를 등록하지 못했습니다."));
 
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <>
-      <Breadcrumb>
-        내 콘텐츠 › {content?.title ?? `#${contentId}`} › 추가 회차 등록
-      </Breadcrumb>
+      <Breadcrumb>내 콘텐츠 › {content?.title ?? `#${contentId}`} › 추가 회차 등록</Breadcrumb>
       <PageHeader
         title="추가 회차 등록"
         description="승인 또는 공개 콘텐츠에 새 운영 회차를 심사 대기 상태로 추가합니다."
@@ -2088,10 +1912,7 @@ export function ContentSessionFormPage() {
         </article>
         <aside className="op-action-card">
           <h2>회차 생성</h2>
-          <p>
-            생성 직후 상태는 심사 대기이며 승인 전에는 공개 목록에 노출되지
-            않습니다.
-          </p>
+          <p>생성 직후 상태는 심사 대기이며 승인 전에는 공개 목록에 노출되지 않습니다.</p>
           <button className="op-button op-button-primary" disabled={submitting}>
             {submitting ? "등록 중…" : "회차 생성 및 심사 요청"}
           </button>
@@ -2102,7 +1923,7 @@ export function ContentSessionFormPage() {
         </aside>
       </form>
     </>
-  )
+  );
 }
 
 function sessionPayload(draft: typeof emptySession): SessionInput {
@@ -2116,7 +1937,7 @@ function sessionPayload(draft: typeof emptySession): SessionInput {
     checkinCloseAt: toSeoulOffset(draft.checkinCloseAt)!,
 
     capacity: Number(draft.capacity),
-  }
+  };
 }
 
 function TextField({
@@ -2128,13 +1949,13 @@ function TextField({
 
   full,
 }: {
-  label: string
+  label: string;
 
-  value: string
+  value: string;
 
-  onChange: (value: string) => void
+  onChange: (value: string) => void;
 
-  full?: boolean
+  full?: boolean;
 }) {
   return (
     <label className={`op-field${full ? " op-full" : ""}`}>
@@ -2146,7 +1967,7 @@ function TextField({
         required
       />
     </label>
-  )
+  );
 }
 
 function TextArea({
@@ -2158,13 +1979,13 @@ function TextArea({
 
   full,
 }: {
-  label: string
+  label: string;
 
-  value: string
+  value: string;
 
-  onChange: (value: string) => void
+  onChange: (value: string) => void;
 
-  full?: boolean
+  full?: boolean;
 }) {
   return (
     <label className={`op-field${full ? " op-full" : ""}`}>
@@ -2176,7 +1997,7 @@ function TextArea({
         required
       />
     </label>
-  )
+  );
 }
 
 function DateField({
@@ -2188,13 +2009,13 @@ function DateField({
 
   full,
 }: {
-  label: string
+  label: string;
 
-  value: string
+  value: string;
 
-  onChange: (value: string) => void
+  onChange: (value: string) => void;
 
-  full?: boolean
+  full?: boolean;
 }) {
   return (
     <label className={`op-field${full ? " op-full" : ""}`}>
@@ -2207,7 +2028,7 @@ function DateField({
         required
       />
     </label>
-  )
+  );
 }
 
 function SessionEditor({
@@ -2221,18 +2042,17 @@ function SessionEditor({
 
   onDelete,
 }: {
-  value: typeof emptySession
+  value: typeof emptySession;
 
-  index: number
+  index: number;
 
-  canDelete: boolean
+  canDelete: boolean;
 
-  onChange: (value: typeof emptySession) => void
+  onChange: (value: typeof emptySession) => void;
 
-  onDelete: () => void
+  onDelete: () => void;
 }) {
-  const set = (key: keyof typeof value, next: string) =>
-    onChange({ ...value, [key]: next })
+  const set = (key: keyof typeof value, next: string) => onChange({ ...value, [key]: next });
 
   return (
     <div className="op-session-editor">
@@ -2276,5 +2096,5 @@ function SessionEditor({
         )}
       </div>
     </div>
-  )
+  );
 }

@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Link, NavLink, useNavigate, useParams } from "react-router-dom"
+import { useState } from "react";
+import { Link, NavLink, useNavigate, useParams } from "react-router-dom";
 import {
   ActionModal,
   AsyncContent,
@@ -10,29 +10,19 @@ import {
   formatDate,
   useApiData,
   type ActionConfig,
-} from "../AdminComponents"
-import type {
-  PendingSession,
-  SessionRevisionDetail,
-  SessionRevisionSummary,
-} from "../types"
+} from "../AdminComponents";
+import type { PendingSession, SessionRevisionDetail, SessionRevisionSummary } from "../types";
 
-const SESSION_REVISION_APPROVABLE_CONTENT_STATUSES = new Set([
-  "APPROVED",
-  "PUBLISHED",
-])
+const SESSION_REVISION_APPROVABLE_CONTENT_STATUSES = new Set(["APPROVED", "PUBLISHED"]);
 
 export function isSessionRevisionApprovalAvailable(contentStatus: string) {
-  return SESSION_REVISION_APPROVABLE_CONTENT_STATUSES.has(contentStatus)
+  return SESSION_REVISION_APPROVABLE_CONTENT_STATUSES.has(contentStatus);
 }
 
 function SessionTabs({ active }: { active: "new" | "revision" }) {
   return (
     <nav className="ra-tabs" aria-label="회차 관리">
-      <NavLink
-        className={active === "new" ? "active" : ""}
-        to="/region-admin/sessions"
-      >
+      <NavLink className={active === "new" ? "active" : ""} to="/region-admin/sessions">
         추가 회차 심사
       </NavLink>
       <NavLink
@@ -42,19 +32,16 @@ function SessionTabs({ active }: { active: "new" | "revision" }) {
         회차 수정 심사
       </NavLink>
     </nav>
-  )
+  );
 }
 
 export function SessionListPage() {
   const state = useApiData<{ sessions: PendingSession[] }>(
     "/api/v1/region-admin/sessions?status=PENDING",
-  )
+  );
   return (
     <>
-      <PageHeader
-        title="회차 관리"
-        description="신규 회차 심사 대상을 확인합니다."
-      />
+      <PageHeader title="회차 관리" description="신규 회차 심사 대상을 확인합니다." />
       <SessionTabs active="new" />
       <div className="ra-filter-bar">
         <div>
@@ -89,9 +76,7 @@ export function SessionListPage() {
                   <tr key={session.sessionId}>
                     <td className="ra-mono">{session.sessionId}</td>
                     <td>
-                      <strong className="ra-cell-title">
-                        {session.contentTitle}
-                      </strong>
+                      <strong className="ra-cell-title">{session.contentTitle}</strong>
                       <span className="ra-cell-sub">{session.contentId}</span>
                     </td>
                     <td>
@@ -99,24 +84,17 @@ export function SessionListPage() {
                     </td>
                     <td>
                       {formatDate(session.startsAt)}
-                      <span className="ra-cell-sub">
-                        ~ {formatDate(session.endsAt)}
-                      </span>
+                      <span className="ra-cell-sub">~ {formatDate(session.endsAt)}</span>
                     </td>
                     <td>
                       {formatDate(session.checkinOpenAt)}
-                      <span className="ra-cell-sub">
-                        ~ {formatDate(session.checkinCloseAt)}
-                      </span>
+                      <span className="ra-cell-sub">~ {formatDate(session.checkinCloseAt)}</span>
                     </td>
                     <td>{session.capacity}명</td>
                     <td>{session.operator.name}</td>
                     <td>{formatDate(session.createdAt)}</td>
                     <td className="ra-right">
-                      <Link
-                        className="ra-button ra-button-small"
-                        to={`${session.sessionId}`}
-                      >
+                      <Link className="ra-button ra-button-small" to={`${session.sessionId}`}>
                         상세
                       </Link>
                     </td>
@@ -128,16 +106,14 @@ export function SessionListPage() {
         )}
       </AsyncContent>
     </>
-  )
+  );
 }
 
 export function SessionDetailPage() {
-  const { sessionId = "" } = useParams()
-  const navigate = useNavigate()
-  const state = useApiData<PendingSession>(
-    `/api/v1/region-admin/sessions/${sessionId}`,
-  )
-  const [action, setAction] = useState<ActionConfig | null>(null)
+  const { sessionId = "" } = useParams();
+  const navigate = useNavigate();
+  const state = useApiData<PendingSession>(`/api/v1/region-admin/sessions/${sessionId}`);
+  const [action, setAction] = useState<ActionConfig | null>(null);
   const configs: Record<string, ActionConfig> = {
     approve: {
       title: "추가 회차 승인",
@@ -158,7 +134,7 @@ export function SessionDetailPage() {
       result: "추가 회차 반려",
       reason: { label: "반려 사유", field: "reason", required: true },
     },
-  }
+  };
   return (
     <>
       <PageHeader
@@ -174,10 +150,7 @@ export function SessionDetailPage() {
         {(detail) => (
           <div className="ra-detail-layout">
             <div className="ra-detail-main">
-              <Panel
-                title="회차 정보"
-                action={<StatusBadge value={detail.status} />}
-              >
+              <Panel title="회차 정보" action={<StatusBadge value={detail.status} />}>
                 <KeyValueGrid
                   items={[
                     ["회차 ID", detail.sessionId],
@@ -189,10 +162,7 @@ export function SessionDetailPage() {
                     ["체크인 종료", formatDate(detail.checkinCloseAt)],
                     ["정원", `${detail.capacity}명`],
                     ["잔여 정원", `${detail.remainingCapacity}명`],
-                    [
-                      "운영자",
-                      `${detail.operator.name} (${detail.operator.operatorId})`,
-                    ],
+                    ["운영자", `${detail.operator.name} (${detail.operator.operatorId})`],
                     ["생성 시각", formatDate(detail.createdAt)],
                   ]}
                 />
@@ -231,19 +201,16 @@ export function SessionDetailPage() {
         />
       )}
     </>
-  )
+  );
 }
 
 export function SessionRevisionListPage() {
   const state = useApiData<{ revisions: SessionRevisionSummary[] }>(
     "/api/v1/region-admin/session-revisions?status=PENDING",
-  )
+  );
   return (
     <>
-      <PageHeader
-        title="회차 관리"
-        description="기존 회차 변경 요청을 확인합니다."
-      />
+      <PageHeader title="회차 관리" description="기존 회차 변경 요청을 확인합니다." />
       <SessionTabs active="revision" />
       <div className="ra-filter-bar">
         <div>
@@ -279,33 +246,24 @@ export function SessionRevisionListPage() {
                   <tr key={revision.revisionId}>
                     <td className="ra-mono">{revision.revisionId}</td>
                     <td>
-                      <strong className="ra-cell-title">
-                        {revision.contentTitle}
-                      </strong>
+                      <strong className="ra-cell-title">{revision.contentTitle}</strong>
                       <span className="ra-cell-sub">{revision.contentId}</span>
                     </td>
                     <td className="ra-mono">{revision.targetSessionId}</td>
                     <td>v{revision.baseSessionVersion}</td>
                     <td>
                       {formatDate(revision.startsAt)}
-                      <span className="ra-cell-sub">
-                        ~ {formatDate(revision.endsAt)}
-                      </span>
+                      <span className="ra-cell-sub">~ {formatDate(revision.endsAt)}</span>
                     </td>
                     <td>
                       {formatDate(revision.checkinOpenAt)}
-                      <span className="ra-cell-sub">
-                        ~ {formatDate(revision.checkinCloseAt)}
-                      </span>
+                      <span className="ra-cell-sub">~ {formatDate(revision.checkinCloseAt)}</span>
                     </td>
                     <td>{revision.capacity}명</td>
                     <td>{revision.operator.name}</td>
                     <td>{formatDate(revision.submittedAt)}</td>
                     <td className="ra-right">
-                      <Link
-                        className="ra-button ra-button-small"
-                        to={`${revision.revisionId}`}
-                      >
+                      <Link className="ra-button ra-button-small" to={`${revision.revisionId}`}>
                         비교
                       </Link>
                     </td>
@@ -317,7 +275,7 @@ export function SessionRevisionListPage() {
         )}
       </AsyncContent>
     </>
-  )
+  );
 }
 
 function CompareCard({
@@ -325,15 +283,15 @@ function CompareCard({
   candidate,
   data,
 }: {
-  title: string
-  candidate?: boolean
+  title: string;
+  candidate?: boolean;
   data: {
-    startsAt: string
-    endsAt: string
-    checkinOpenAt: string
-    checkinCloseAt: string
-    capacity: number
-  }
+    startsAt: string;
+    endsAt: string;
+    checkinOpenAt: string;
+    checkinCloseAt: string;
+    capacity: number;
+  };
 }) {
   return (
     <section className={`ra-compare-card${candidate ? " candidate" : ""}`}>
@@ -348,16 +306,16 @@ function CompareCard({
         ]}
       />
     </section>
-  )
+  );
 }
 
 export function SessionRevisionDetailPage() {
-  const { revisionId = "" } = useParams()
-  const navigate = useNavigate()
+  const { revisionId = "" } = useParams();
+  const navigate = useNavigate();
   const state = useApiData<SessionRevisionDetail>(
     `/api/v1/region-admin/session-revisions/${revisionId}`,
-  )
-  const [action, setAction] = useState<ActionConfig | null>(null)
+  );
+  const [action, setAction] = useState<ActionConfig | null>(null);
   const configs: Record<string, ActionConfig> = {
     approve: {
       title: "회차 변경 승인",
@@ -378,7 +336,7 @@ export function SessionRevisionDetailPage() {
       result: "회차 변경 반려",
       reason: { label: "반려 사유", field: "reason", required: true },
     },
-  }
+  };
   return (
     <>
       <PageHeader
@@ -392,9 +350,7 @@ export function SessionRevisionDetailPage() {
       />
       <AsyncContent state={state}>
         {(detail) => {
-          const approvalAvailable = isSessionRevisionApprovalAvailable(
-            detail.contentStatus,
-          )
+          const approvalAvailable = isSessionRevisionApprovalAvailable(detail.contentStatus);
 
           return (
             <div className="ra-detail-layout">
@@ -409,21 +365,14 @@ export function SessionRevisionDetailPage() {
                       ["콘텐츠 ID", detail.contentId],
                       ["대상 회차", detail.targetSession.sessionId],
                       ["기준 버전", `v${detail.baseSessionVersion}`],
-                      [
-                        "운영자",
-                        `${detail.operator.name} (${detail.operator.operatorId})`,
-                      ],
+                      ["운영자", `${detail.operator.name} (${detail.operator.operatorId})`],
                       ["제출 시각", formatDate(detail.submittedAt)],
                     ]}
                   />
                 </Panel>
                 <div className="ra-compare-grid">
                   <CompareCard title="현재 회차" data={detail.targetSession} />
-                  <CompareCard
-                    title="변경 후보"
-                    candidate
-                    data={detail.candidate}
-                  />
+                  <CompareCard title="변경 후보" candidate data={detail.candidate} />
                 </div>
               </div>
               <aside className="ra-detail-aside">
@@ -436,16 +385,13 @@ export function SessionRevisionDetailPage() {
                       id="session-revision-approval-warning"
                       role="status"
                     >
-                      현재 콘텐츠 상태({detail.contentStatus})에서는 변경을
-                      승인할 수 없습니다. 콘텐츠가 승인 또는 공개 상태가 된
-                      뒤 다시 확인해 주세요.
+                      현재 콘텐츠 상태({detail.contentStatus})에서는 변경을 승인할 수 없습니다.
+                      콘텐츠가 승인 또는 공개 상태가 된 뒤 다시 확인해 주세요.
                     </div>
                   )}
                   <button
                     aria-describedby={
-                      approvalAvailable
-                        ? undefined
-                        : "session-revision-approval-warning"
+                      approvalAvailable ? undefined : "session-revision-approval-warning"
                     }
                     className="ra-button ra-button-admin"
                     disabled={!approvalAvailable}
@@ -462,7 +408,7 @@ export function SessionRevisionDetailPage() {
                 </section>
               </aside>
             </div>
-          )
+          );
         }}
       </AsyncContent>
       {action && (
@@ -477,5 +423,5 @@ export function SessionRevisionDetailPage() {
         />
       )}
     </>
-  )
+  );
 }

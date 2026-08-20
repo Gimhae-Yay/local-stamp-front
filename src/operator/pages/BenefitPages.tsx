@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
-import { isAbortError } from "../../api/client"
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { isAbortError } from "../../api/client";
 import {
   createCouponPolicy,
   createMission,
@@ -21,7 +21,7 @@ import {
   updateCouponPolicy,
   updateMission,
   updateStampbook,
-} from "../api"
+} from "../api";
 import {
   ActionModal,
   apiErrorMessage,
@@ -33,8 +33,8 @@ import {
   RouteState,
   StatusBadge,
   statusLabel,
-} from "../OperatorComponents"
-import { useOperatorAuth } from "../OperatorAuth"
+} from "../OperatorComponents";
+import { useOperatorAuth } from "../OperatorAuth";
 import type {
   ContentSummary,
   CouponPolicyDetail,
@@ -46,12 +46,12 @@ import type {
   OperatorStampbookSummary,
   StampbookDraft,
   StampbookInput,
-} from "../types"
+} from "../types";
 
 function toInputDate(value: string | null | undefined) {
-  if (!value) return ""
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value.slice(0, 16)
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 16);
   return new Intl.DateTimeFormat("sv-SE", {
     year: "numeric",
     month: "2-digit",
@@ -62,73 +62,71 @@ function toInputDate(value: string | null | undefined) {
     timeZone: "Asia/Seoul",
   })
     .format(date)
-    .replace(" ", "T")
+    .replace(" ", "T");
 }
 
 function toInstant(value: string) {
-  return new Date(`${value}:00+09:00`).toISOString()
+  return new Date(`${value}:00+09:00`).toISOString();
 }
 
 function toOffset(value: string) {
-  return `${value}:00+09:00`
+  return `${value}:00+09:00`;
 }
 
 export function CouponListPage() {
-  const [items, setItems] = useState<CouponPolicySummary[]>([])
-  const [selectedId, setSelectedId] = useState("")
-  const [detail, setDetail] = useState<CouponPolicyDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-  const [notice, setNotice] = useState("")
-  const [version, setVersion] = useState(0)
-  const [modal, setModal] = useState<"publish" | "end" | null>(null)
+  const [items, setItems] = useState<CouponPolicySummary[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [detail, setDetail] = useState<CouponPolicyDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [version, setVersion] = useState(0);
+  const [modal, setModal] = useState<"publish" | "end" | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    setError("")
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
     listCouponPolicies(controller.signal)
       .then(({ couponPolicies }) => {
-        setItems(couponPolicies)
+        setItems(couponPolicies);
         setSelectedId((current) =>
           couponPolicies.some((item) => item.couponPolicyId === current)
             ? current
             : (couponPolicies[0]?.couponPolicyId ?? ""),
-        )
+        );
       })
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setError(apiErrorMessage(caught, "쿠폰 정책을 불러오지 못했습니다."))
+          setError(apiErrorMessage(caught, "쿠폰 정책을 불러오지 못했습니다."));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-    return () => controller.abort()
-  }, [version])
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [version]);
 
   useEffect(() => {
     if (!selectedId) {
-      setDetail(null)
-      return
+      setDetail(null);
+      return;
     }
-    const controller = new AbortController()
-    setError("")
+    const controller = new AbortController();
+    setError("");
     getCouponPolicy(selectedId, controller.signal)
       .then(setDetail)
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setError(
-            apiErrorMessage(caught, "쿠폰 정책 상세를 불러오지 못했습니다."),
-          )
-      })
-    return () => controller.abort()
-  }, [selectedId, version])
+          setError(apiErrorMessage(caught, "쿠폰 정책 상세를 불러오지 못했습니다."));
+      });
+    return () => controller.abort();
+  }, [selectedId, version]);
 
   const completed = (message: string) => {
-    setModal(null)
-    setNotice(message)
-    setVersion((value) => value + 1)
-  }
+    setModal(null);
+    setNotice(message);
+    setVersion((value) => value + 1);
+  };
   return (
     <>
       <Breadcrumb>P1 혜택 › 쿠폰 정책</Breadcrumb>
@@ -136,10 +134,7 @@ export function CouponListPage() {
         title="쿠폰 정책"
         description="내 콘텐츠에 연결된 쿠폰 정책을 생성하고 공개·종료 상태를 관리합니다."
         actions={
-          <Link
-            className="op-button op-button-primary"
-            to="/operator/coupon-policies/new"
-          >
+          <Link className="op-button op-button-primary" to="/operator/coupon-policies/new">
             ＋ 쿠폰 정책 만들기
           </Link>
         }
@@ -175,11 +170,7 @@ export function CouponListPage() {
                   {items.map((item) => (
                     <tr
                       key={item.couponPolicyId}
-                      className={
-                        selectedId === item.couponPolicyId
-                          ? "op-selected-row"
-                          : ""
-                      }
+                      className={selectedId === item.couponPolicyId ? "op-selected-row" : ""}
                     >
                       <td className="op-mono">{item.couponPolicyId}</td>
                       <td>
@@ -242,15 +233,13 @@ export function CouponListPage() {
                       <div className="op-kv">
                         <dt>발급 기간</dt>
                         <dd>
-                          {formatDate(detail.issueStartsAt)}–
-                          {formatDate(detail.issueEndsAt)}
+                          {formatDate(detail.issueStartsAt)}–{formatDate(detail.issueEndsAt)}
                         </dd>
                       </div>
                       <div className="op-kv">
                         <dt>발급 수량</dt>
                         <dd>
-                          {detail.issuedCount} /{" "}
-                          {detail.totalIssueLimit ?? "무제한"}
+                          {detail.issuedCount} / {detail.totalIssueLimit ?? "무제한"}
                         </dd>
                       </div>
                       <div className="op-kv">
@@ -309,8 +298,8 @@ export function CouponListPage() {
           confirmLabel="정책 공개"
           onClose={() => setModal(null)}
           onConfirm={async (reason) => {
-            await publishCouponPolicy(detail.couponPolicyId, reason)
-            completed("쿠폰 정책이 공개되었습니다.")
+            await publishCouponPolicy(detail.couponPolicyId, reason);
+            completed("쿠폰 정책이 공개되었습니다.");
           }}
         />
       )}
@@ -323,13 +312,13 @@ export function CouponListPage() {
           tone="danger"
           onClose={() => setModal(null)}
           onConfirm={async (reason) => {
-            await endCouponPolicy(detail.couponPolicyId, reason)
-            completed("쿠폰 정책이 종료되었습니다.")
+            await endCouponPolicy(detail.couponPolicyId, reason);
+            completed("쿠폰 정책이 종료되었습니다.");
           }}
         />
       )}
     </>
-  )
+  );
 }
 
 const emptyCoupon = {
@@ -344,100 +333,83 @@ const emptyCoupon = {
   issueStartsAt: "",
   issueEndsAt: "",
   reason: "",
-}
+};
 
-export type CouponDraft = typeof emptyCoupon
+export type CouponDraft = typeof emptyCoupon;
 
-const issueSourceTypes = new Set([
-  "VISIT",
-  "MISSION_REWARD",
-  "STAMPBOOK_COMPLETION",
-])
+const issueSourceTypes = new Set(["VISIT", "MISSION_REWARD", "STAMPBOOK_COMPLETION"]);
 
 function parseInteger(value: string) {
-  if (!/^\d+$/.test(value)) return null
-  const parsed = Number(value)
-  return Number.isSafeInteger(parsed) ? parsed : null
+  if (!/^\d+$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
 export function validateCouponDraft(draft: CouponDraft, editing = false) {
-  const name = draft.name.trim()
-  if (!/^[1-9]\d*$/.test(draft.contentId))
-    return "연결 콘텐츠를 선택해 주세요."
-  if (!issueSourceTypes.has(draft.issueSourceType))
-    return "발급 출처를 확인해 주세요."
-  if (!name) return "정책명을 입력해 주세요."
-  if (name.length > 255) return "정책명은 255자 이하로 입력해 주세요."
-  if (draft.description.length > 1_000)
-    return "정책 설명은 1,000자 이하로 입력해 주세요."
+  const name = draft.name.trim();
+  if (!/^[1-9]\d*$/.test(draft.contentId)) return "연결 콘텐츠를 선택해 주세요.";
+  if (!issueSourceTypes.has(draft.issueSourceType)) return "발급 출처를 확인해 주세요.";
+  if (!name) return "정책명을 입력해 주세요.";
+  if (name.length > 255) return "정책명은 255자 이하로 입력해 주세요.";
+  if (draft.description.length > 1_000) return "정책 설명은 1,000자 이하로 입력해 주세요.";
 
-  const discountAmount = parseInteger(draft.discountAmount)
+  const discountAmount = parseInteger(draft.discountAmount);
   if (discountAmount === null || discountAmount < 1)
-    return "할인 금액은 1원 이상의 정수로 입력해 주세요."
+    return "할인 금액은 1원 이상의 정수로 입력해 주세요.";
 
-  const minimumPaymentAmount = parseInteger(draft.minimumPaymentAmount)
+  const minimumPaymentAmount = parseInteger(draft.minimumPaymentAmount);
   if (minimumPaymentAmount === null || minimumPaymentAmount < discountAmount)
-    return "최소 결제 금액은 할인 금액 이상의 정수로 입력해 주세요."
+    return "최소 결제 금액은 할인 금액 이상의 정수로 입력해 주세요.";
 
-  const validDaysAfterIssue = parseInteger(draft.validDaysAfterIssue)
-  if (
-    validDaysAfterIssue === null ||
-    validDaysAfterIssue < 1 ||
-    validDaysAfterIssue > 365
-  )
-    return "발급 후 유효일은 1일 이상 365일 이하로 입력해 주세요."
+  const validDaysAfterIssue = parseInteger(draft.validDaysAfterIssue);
+  if (validDaysAfterIssue === null || validDaysAfterIssue < 1 || validDaysAfterIssue > 365)
+    return "발급 후 유효일은 1일 이상 365일 이하로 입력해 주세요.";
 
   if (draft.totalIssueLimit) {
-    const totalIssueLimit = parseInteger(draft.totalIssueLimit)
+    const totalIssueLimit = parseInteger(draft.totalIssueLimit);
     if (totalIssueLimit === null || totalIssueLimit < 1)
-      return "총 발급 한도는 1 이상의 정수로 입력해 주세요."
+      return "총 발급 한도는 1 이상의 정수로 입력해 주세요.";
   }
 
-  const issueStartsAt = Date.parse(`${draft.issueStartsAt}:00+09:00`)
-  const issueEndsAt = Date.parse(`${draft.issueEndsAt}:00+09:00`)
+  const issueStartsAt = Date.parse(`${draft.issueStartsAt}:00+09:00`);
+  const issueEndsAt = Date.parse(`${draft.issueEndsAt}:00+09:00`);
   if (!Number.isFinite(issueStartsAt) || !Number.isFinite(issueEndsAt))
-    return "발급 시작 시각과 종료 시각을 입력해 주세요."
-  if (issueStartsAt >= issueEndsAt)
-    return "발급 종료 시각은 시작 시각보다 뒤여야 합니다."
+    return "발급 시작 시각과 종료 시각을 입력해 주세요.";
+  if (issueStartsAt >= issueEndsAt) return "발급 종료 시각은 시작 시각보다 뒤여야 합니다.";
 
-  const reason = draft.reason.trim()
-  if (editing && !reason) return "수정 사유를 입력해 주세요."
-  if (editing && reason.length > 500)
-    return "수정 사유는 500자 이하로 입력해 주세요."
-  return ""
+  const reason = draft.reason.trim();
+  if (editing && !reason) return "수정 사유를 입력해 주세요.";
+  if (editing && reason.length > 500) return "수정 사유는 500자 이하로 입력해 주세요.";
+  return "";
 }
 
 export function CouponFormPage() {
-  const { couponPolicyId } = useParams()
-  const navigate = useNavigate()
-  const editing = Boolean(couponPolicyId)
-  const [contents, setContents] = useState<ContentSummary[]>([])
-  const [draft, setDraft] = useState(emptyCoupon)
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState("")
-  const [loadError, setLoadError] = useState("")
-  const [policyStatus, setPolicyStatus] = useState<string | null>(null)
+  const { couponPolicyId } = useParams();
+  const navigate = useNavigate();
+  const editing = Boolean(couponPolicyId);
+  const [contents, setContents] = useState<ContentSummary[]>([]);
+  const [draft, setDraft] = useState(emptyCoupon);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [policyStatus, setPolicyStatus] = useState<string | null>(null);
   useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    setError("")
-    setLoadError("")
-    setPolicyStatus(null)
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    setLoadError("");
+    setPolicyStatus(null);
     Promise.all([
       listMyContents(controller.signal),
-      couponPolicyId
-        ? getCouponPolicy(couponPolicyId, controller.signal)
-        : Promise.resolve(null),
+      couponPolicyId ? getCouponPolicy(couponPolicyId, controller.signal) : Promise.resolve(null),
     ])
       .then(([contentData, policy]) => {
         setContents(
-          contentData.contents.filter((item) =>
-            ["APPROVED", "PUBLISHED"].includes(item.status),
-          ),
-        )
+          contentData.contents.filter((item) => ["APPROVED", "PUBLISHED"].includes(item.status)),
+        );
         if (policy) {
-          setPolicyStatus(policy.status)
+          setPolicyStatus(policy.status);
           setDraft({
             contentId: policy.contentId,
             issueSourceType: policy.issueSourceType,
@@ -446,45 +418,39 @@ export function CouponFormPage() {
             discountAmount: String(policy.discountAmount),
             minimumPaymentAmount: String(policy.minimumPaymentAmount),
             validDaysAfterIssue: String(policy.validDaysAfterIssue),
-            totalIssueLimit:
-              policy.totalIssueLimit === null
-                ? ""
-                : String(policy.totalIssueLimit),
+            totalIssueLimit: policy.totalIssueLimit === null ? "" : String(policy.totalIssueLimit),
             issueStartsAt: toInputDate(policy.issueStartsAt),
             issueEndsAt: toInputDate(policy.issueEndsAt),
             reason: "",
-          })
+          });
         } else
           setDraft((current) => ({
             ...current,
             contentId:
-              contentData.contents.find((item) =>
-                ["APPROVED", "PUBLISHED"].includes(item.status),
-              )?.contentId ?? "",
-          }))
+              contentData.contents.find((item) => ["APPROVED", "PUBLISHED"].includes(item.status))
+                ?.contentId ?? "",
+          }));
       })
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setLoadError(
-            apiErrorMessage(caught, "정책 입력 정보를 불러오지 못했습니다."),
-          )
+          setLoadError(apiErrorMessage(caught, "정책 입력 정보를 불러오지 못했습니다."));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-    return () => controller.abort()
-  }, [couponPolicyId])
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [couponPolicyId]);
   const set = (key: keyof typeof draft, value: string) =>
-    setDraft((current) => ({ ...current, [key]: value }))
+    setDraft((current) => ({ ...current, [key]: value }));
   const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    setError("")
-    const validationError = validateCouponDraft(draft, editing)
+    event.preventDefault();
+    setError("");
+    const validationError = validateCouponDraft(draft, editing);
     if (validationError) {
-      setError(validationError)
-      return
+      setError(validationError);
+      return;
     }
-    setSubmitting(true)
+    setSubmitting(true);
     const input = {
       contentId: draft.contentId,
       issueSourceType: draft.issueSourceType,
@@ -493,12 +459,10 @@ export function CouponFormPage() {
       discountAmount: Number(draft.discountAmount),
       minimumPaymentAmount: Number(draft.minimumPaymentAmount),
       validDaysAfterIssue: Number(draft.validDaysAfterIssue),
-      totalIssueLimit: draft.totalIssueLimit
-        ? Number(draft.totalIssueLimit)
-        : null,
+      totalIssueLimit: draft.totalIssueLimit ? Number(draft.totalIssueLimit) : null,
       issueStartsAt: toInstant(draft.issueStartsAt),
       issueEndsAt: toInstant(draft.issueEndsAt),
-    }
+    };
     try {
       if (couponPolicyId)
         await updateCouponPolicy(couponPolicyId, {
@@ -511,25 +475,21 @@ export function CouponFormPage() {
           issueStartsAt: input.issueStartsAt,
           issueEndsAt: input.issueEndsAt,
           reason: draft.reason.trim(),
-        })
-      else await createCouponPolicy(input)
-      navigate("/operator/coupon-policies", { replace: true })
+        });
+      else await createCouponPolicy(input);
+      navigate("/operator/coupon-policies", { replace: true });
     } catch (caught) {
-      setError(apiErrorMessage(caught, "쿠폰 정책을 저장하지 못했습니다."))
-      setSubmitting(false)
+      setError(apiErrorMessage(caught, "쿠폰 정책을 저장하지 못했습니다."));
+      setSubmitting(false);
     }
-  }
-  if (loading) return <RouteState loading />
-  if (loadError) return <RouteState error={loadError} />
+  };
+  if (loading) return <RouteState loading />;
+  if (loadError) return <RouteState error={loadError} />;
   if (editing && policyStatus !== "DRAFT")
-    return (
-      <RouteState error="초안 상태의 쿠폰 정책만 수정할 수 있습니다." />
-    )
+    return <RouteState error="초안 상태의 쿠폰 정책만 수정할 수 있습니다." />;
   return (
     <>
-      <Breadcrumb>
-        쿠폰 정책 › {editing ? "정책 수정" : "새 정책 만들기"}
-      </Breadcrumb>
+      <Breadcrumb>쿠폰 정책 › {editing ? "정책 수정" : "새 정책 만들기"}</Breadcrumb>
       <PageHeader
         title={editing ? "쿠폰 정책 수정" : "쿠폰 정책 만들기"}
         description={
@@ -568,9 +528,7 @@ export function CouponFormPage() {
                 <select
                   className="op-control"
                   value={draft.issueSourceType}
-                  onChange={(event) =>
-                    set("issueSourceType", event.target.value)
-                  }
+                  onChange={(event) => set("issueSourceType", event.target.value)}
                   disabled={editing}
                 >
                   <option value="VISIT">방문</option>
@@ -649,11 +607,7 @@ export function CouponFormPage() {
               : "생성 직후 상태는 초안이며 공개 전에 수정할 수 있습니다."}
           </p>
           <button className="op-button op-button-primary" disabled={submitting}>
-            {submitting
-              ? "저장 중…"
-              : editing
-                ? "수정 내용 저장"
-                : "쿠폰 정책 초안 생성"}
+            {submitting ? "저장 중…" : editing ? "수정 내용 저장" : "쿠폰 정책 초안 생성"}
           </button>
           {error && <div className="op-alert">{error}</div>}
           <Link className="op-button" to="/operator/coupon-policies">
@@ -662,64 +616,64 @@ export function CouponFormPage() {
         </aside>
       </form>
     </>
-  )
+  );
 }
 
 export function MissionListPage() {
-  const [items, setItems] = useState<MissionSummary[]>([])
-  const [detail, setDetail] = useState<MissionDetail | null>(null)
-  const [selectedId, setSelectedId] = useState("")
-  const [status, setStatus] = useState("")
-  const [page, setPage] = useState(0)
-  const [size, setSize] = useState(20)
-  const [total, setTotal] = useState({ elements: 0, pages: 0 })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-  const [notice, setNotice] = useState("")
-  const [version, setVersion] = useState(0)
-  const [modal, setModal] = useState<"submit" | "end" | null>(null)
+  const [items, setItems] = useState<MissionSummary[]>([]);
+  const [detail, setDetail] = useState<MissionDetail | null>(null);
+  const [selectedId, setSelectedId] = useState("");
+  const [status, setStatus] = useState("");
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
+  const [total, setTotal] = useState({ elements: 0, pages: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [version, setVersion] = useState(0);
+  const [modal, setModal] = useState<"submit" | "end" | null>(null);
   useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    setError("")
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
     listMissions(status, page, size, controller.signal)
       .then((result) => {
-        setItems(result.content)
-        setTotal({ elements: result.totalElements, pages: result.totalPages })
+        setItems(result.content);
+        setTotal({ elements: result.totalElements, pages: result.totalPages });
         setSelectedId((current) =>
           result.content.some((item) => item.missionId === current)
             ? current
             : (result.content[0]?.missionId ?? ""),
-        )
+        );
       })
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setError(apiErrorMessage(caught, "미션 목록을 불러오지 못했습니다."))
+          setError(apiErrorMessage(caught, "미션 목록을 불러오지 못했습니다."));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-    return () => controller.abort()
-  }, [status, page, size, version])
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [status, page, size, version]);
   useEffect(() => {
     if (!selectedId) {
-      setDetail(null)
-      return
+      setDetail(null);
+      return;
     }
-    const controller = new AbortController()
+    const controller = new AbortController();
     getMission(selectedId, controller.signal)
       .then(setDetail)
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setError(apiErrorMessage(caught, "미션 상세를 불러오지 못했습니다."))
-      })
-    return () => controller.abort()
-  }, [selectedId, version])
+          setError(apiErrorMessage(caught, "미션 상세를 불러오지 못했습니다."));
+      });
+    return () => controller.abort();
+  }, [selectedId, version]);
   const refresh = (message: string) => {
-    setModal(null)
-    setNotice(message)
-    setVersion((value) => value + 1)
-  }
+    setModal(null);
+    setNotice(message);
+    setVersion((value) => value + 1);
+  };
   return (
     <>
       <Breadcrumb>P1 혜택 › 지역 미션</Breadcrumb>
@@ -727,10 +681,7 @@ export function MissionListPage() {
         title="지역 미션"
         description="방문 횟수 또는 대상 콘텐츠 세트 조건으로 미션을 구성하고 심사를 요청합니다."
         actions={
-          <Link
-            className="op-button op-button-primary"
-            to="/operator/missions/new"
-          >
+          <Link className="op-button op-button-primary" to="/operator/missions/new">
             ＋ 미션 초안 만들기
           </Link>
         }
@@ -745,8 +696,8 @@ export function MissionListPage() {
               className="op-control"
               value={status}
               onChange={(event) => {
-                setStatus(event.target.value)
-                setPage(0)
+                setStatus(event.target.value);
+                setPage(0);
               }}
             >
               <option value="">전체 상태</option>
@@ -762,8 +713,8 @@ export function MissionListPage() {
               className="op-control"
               value={size}
               onChange={(event) => {
-                setSize(Number(event.target.value))
-                setPage(0)
+                setSize(Number(event.target.value));
+                setPage(0);
               }}
             >
               <option value="20">20개</option>
@@ -799,9 +750,7 @@ export function MissionListPage() {
                   {items.map((item) => (
                     <tr
                       key={item.missionId}
-                      className={
-                        item.missionId === selectedId ? "op-selected-row" : ""
-                      }
+                      className={item.missionId === selectedId ? "op-selected-row" : ""}
                     >
                       <td className="op-mono">{item.missionId}</td>
                       <td>{statusLabel(item.conditionType)}</td>
@@ -873,11 +822,7 @@ export function MissionListPage() {
                     </div>
                     <div className="op-kv op-full">
                       <dt>대상 콘텐츠</dt>
-                      <dd>
-                        {detail.targetContents
-                          .map((item) => item.title)
-                          .join(", ")}
-                      </dd>
+                      <dd>{detail.targetContents.map((item) => item.title).join(", ")}</dd>
                     </div>
                   </dl>
                   <div className="op-button-row op-top-gap">
@@ -921,8 +866,8 @@ export function MissionListPage() {
           confirmLabel="심사 요청"
           onClose={() => setModal(null)}
           onConfirm={async () => {
-            await submitMission(detail.missionId)
-            refresh("미션 심사 요청이 접수되었습니다.")
+            await submitMission(detail.missionId);
+            refresh("미션 심사 요청이 접수되었습니다.");
           }}
         />
       )}
@@ -937,13 +882,13 @@ export function MissionListPage() {
           tone="danger"
           onClose={() => setModal(null)}
           onConfirm={async (reason) => {
-            await endMission(detail.missionId, reason)
-            refresh("미션이 종료되었습니다.")
+            await endMission(detail.missionId, reason);
+            refresh("미션이 종료되었습니다.");
           }}
         />
       )}
     </>
-  )
+  );
 }
 
 const missionEndReasons = [
@@ -963,7 +908,7 @@ const missionEndReasons = [
     value: "MISSION_OPERATION_SAFETY_CONCERN",
     label: "안전 문제",
   },
-]
+];
 
 const emptyMission = {
   title: "",
@@ -972,107 +917,94 @@ const emptyMission = {
   targetContentIds: [] as string[],
   rewardCouponPolicyId: "",
   endsAt: "",
-}
+};
 
 export function MissionFormPage() {
-  const { missionId } = useParams()
-  const navigate = useNavigate()
-  const editing = Boolean(missionId)
-  const [contents, setContents] = useState<ContentSummary[]>([])
-  const [coupons, setCoupons] = useState<CouponPolicySummary[]>([])
-  const [draft, setDraft] = useState(emptyMission)
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState("")
+  const { missionId } = useParams();
+  const navigate = useNavigate();
+  const editing = Boolean(missionId);
+  const [contents, setContents] = useState<ContentSummary[]>([]);
+  const [coupons, setCoupons] = useState<CouponPolicySummary[]>([]);
+  const [draft, setDraft] = useState(emptyMission);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   useEffect(() => {
-    const controller = new AbortController()
+    const controller = new AbortController();
     Promise.all([
       listMyContents(controller.signal),
       listCouponPolicies(controller.signal),
-      missionId
-        ? getMission(missionId, controller.signal)
-        : Promise.resolve(null),
+      missionId ? getMission(missionId, controller.signal) : Promise.resolve(null),
     ])
       .then(([contentData, couponData, mission]) => {
         const available = contentData.contents.filter((item) =>
           ["APPROVED", "PUBLISHED"].includes(item.status),
-        )
-        setContents(available)
-        setCoupons(couponData.couponPolicies)
+        );
+        setContents(available);
+        setCoupons(couponData.couponPolicies);
         if (mission) {
           setDraft({
             title: mission.title,
             conditionType: mission.conditionType,
             requiredVisitCount:
-              mission.requiredVisitCount === null
-                ? ""
-                : String(mission.requiredVisitCount),
-            targetContentIds: mission.targetContents.map(
-              (item) => item.contentId,
-            ),
+              mission.requiredVisitCount === null ? "" : String(mission.requiredVisitCount),
+            targetContentIds: mission.targetContents.map((item) => item.contentId),
             rewardCouponPolicyId: mission.rewardCouponPolicyId,
             endsAt: toInputDate(mission.endsAt),
-          })
+          });
         } else
           setDraft((current) => ({
             ...current,
-            rewardCouponPolicyId:
-              couponData.couponPolicies[0]?.couponPolicyId ?? "",
-          }))
+            rewardCouponPolicyId: couponData.couponPolicies[0]?.couponPolicyId ?? "",
+          }));
       })
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setError(
-            apiErrorMessage(caught, "미션 입력 정보를 불러오지 못했습니다."),
-          )
+          setError(apiErrorMessage(caught, "미션 입력 정보를 불러오지 못했습니다."));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-    return () => controller.abort()
-  }, [missionId])
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [missionId]);
   const set = (key: keyof typeof draft, value: string | string[]) =>
-    setDraft((current) => ({ ...current, [key]: value }))
+    setDraft((current) => ({ ...current, [key]: value }));
   const toggleContent = (id: string) =>
     set(
       "targetContentIds",
       draft.targetContentIds.includes(id)
         ? draft.targetContentIds.filter((item) => item !== id)
         : [...draft.targetContentIds, id],
-    )
+    );
   const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    setSubmitting(true)
-    setError("")
+    event.preventDefault();
+    setSubmitting(true);
+    setError("");
     const input: MissionInput = {
       title: draft.title.trim(),
       conditionType: draft.conditionType,
       requiredVisitCount:
-        draft.conditionType === "VISIT_COUNT"
-          ? Number(draft.requiredVisitCount)
-          : null,
+        draft.conditionType === "VISIT_COUNT" ? Number(draft.requiredVisitCount) : null,
       targetContentIds: draft.targetContentIds,
       rewardCouponPolicyId: draft.rewardCouponPolicyId,
       endsAt: toOffset(draft.endsAt),
-    }
+    };
     try {
       if (missionId) {
-        await updateMission(missionId, input)
+        await updateMission(missionId, input);
       } else {
-        await createMission(input)
+        await createMission(input);
       }
-      navigate("/operator/missions", { replace: true })
+      navigate("/operator/missions", { replace: true });
     } catch (caught) {
-      setError(apiErrorMessage(caught, "미션을 저장하지 못했습니다."))
-      setSubmitting(false)
+      setError(apiErrorMessage(caught, "미션을 저장하지 못했습니다."));
+      setSubmitting(false);
     }
-  }
-  if (loading) return <RouteState loading />
+  };
+  if (loading) return <RouteState loading />;
   return (
     <>
-      <Breadcrumb>
-        지역 미션 › {editing ? `미션 #${missionId} 수정` : "새 미션 초안"}
-      </Breadcrumb>
+      <Breadcrumb>지역 미션 › {editing ? `미션 #${missionId} 수정` : "새 미션 초안"}</Breadcrumb>
       <PageHeader
         title={editing ? "미션 초안 수정" : "미션 초안 만들기"}
         description="미션 제목과 참여 조건, 보상 쿠폰, 종료 시각을 설정합니다."
@@ -1117,9 +1049,7 @@ export function MissionFormPage() {
                     <label className="op-list-card" key={item.contentId}>
                       <input
                         type="checkbox"
-                        checked={draft.targetContentIds.includes(
-                          item.contentId,
-                        )}
+                        checked={draft.targetContentIds.includes(item.contentId)}
                         onChange={() => toggleContent(item.contentId)}
                       />
                       <div>
@@ -1138,19 +1068,13 @@ export function MissionFormPage() {
                 <select
                   className="op-control"
                   value={draft.rewardCouponPolicyId}
-                  onChange={(event) =>
-                    set("rewardCouponPolicyId", event.target.value)
-                  }
+                  onChange={(event) => set("rewardCouponPolicyId", event.target.value)}
                   required
                 >
                   <option value="">선택</option>
                   {coupons.map((item) => (
-                    <option
-                      key={item.couponPolicyId}
-                      value={item.couponPolicyId}
-                    >
-                      {item.name} (#{item.couponPolicyId},{" "}
-                      {statusLabel(item.status)})
+                    <option key={item.couponPolicyId} value={item.couponPolicyId}>
+                      {item.name} (#{item.couponPolicyId}, {statusLabel(item.status)})
                     </option>
                   ))}
                 </select>
@@ -1165,23 +1089,15 @@ export function MissionFormPage() {
         </article>
         <aside className="op-action-card">
           <h2>{editing ? "수정 저장" : "초안 생성"}</h2>
-          <p>
-            대상 콘텐츠와 보상 쿠폰은 Backend가 동일 담당 지역 범위인지
-            검증합니다.
-          </p>
+          <p>대상 콘텐츠와 보상 쿠폰은 Backend가 동일 담당 지역 범위인지 검증합니다.</p>
           <button
             className="op-button op-button-primary"
             disabled={
               submitting ||
-              (draft.conditionType === "CONTENT_SET" &&
-                draft.targetContentIds.length === 0)
+              (draft.conditionType === "CONTENT_SET" && draft.targetContentIds.length === 0)
             }
           >
-            {submitting
-              ? "저장 중…"
-              : editing
-                ? "수정 내용 저장"
-                : "미션 초안 생성"}
+            {submitting ? "저장 중…" : editing ? "수정 내용 저장" : "미션 초안 생성"}
           </button>
           {error && <div className="op-alert">{error}</div>}
           <Link className="op-button" to="/operator/missions">
@@ -1190,50 +1106,46 @@ export function MissionFormPage() {
         </aside>
       </form>
     </>
-  )
+  );
 }
 
-type StampbookFormDraft = Omit<StampbookInput, "regionId">
+type StampbookFormDraft = Omit<StampbookInput, "regionId">;
 
 const emptyStampbookWorkspaceDraft: StampbookFormDraft = {
   title: "",
   contentIds: [],
   rewardCouponPolicyId: "",
   reason: "",
-}
+};
 
 export function validateStampbookDraft(draft: StampbookFormDraft) {
-  if (!draft.title.trim()) return "스탬프북 제목을 입력해 주세요."
-  if (draft.title.trim().length > 100)
-    return "스탬프북 제목은 100자 이하로 입력해 주세요."
-  if (draft.contentIds.length === 0)
-    return "대상 콘텐츠를 하나 이상 선택해 주세요."
-  if (!draft.rewardCouponPolicyId)
-    return "완주 보상 쿠폰을 선택해 주세요."
-  if (!draft.reason.trim()) return "생성·수정 사유를 입력해 주세요."
-  if (draft.reason.trim().length > 500)
-    return "생성·수정 사유는 500자 이하로 입력해 주세요."
-  return ""
+  if (!draft.title.trim()) return "스탬프북 제목을 입력해 주세요.";
+  if (draft.title.trim().length > 100) return "스탬프북 제목은 100자 이하로 입력해 주세요.";
+  if (draft.contentIds.length === 0) return "대상 콘텐츠를 하나 이상 선택해 주세요.";
+  if (!draft.rewardCouponPolicyId) return "완주 보상 쿠폰을 선택해 주세요.";
+  if (!draft.reason.trim()) return "생성·수정 사유를 입력해 주세요.";
+  if (draft.reason.trim().length > 500) return "생성·수정 사유는 500자 이하로 입력해 주세요.";
+  return "";
 }
 
 export function StampbookListPage() {
-  const [items, setItems] = useState<OperatorStampbookSummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const [items, setItems] = useState<OperatorStampbookSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const controller = new AbortController()
+    const controller = new AbortController();
     listStampbooks(controller.signal)
       .then(({ stampbooks }) => setItems(stampbooks))
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setError(apiErrorMessage(caught, "스탬프북 목록을 불러오지 못했습니다."))
+          setError(apiErrorMessage(caught, "스탬프북 목록을 불러오지 못했습니다."));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-    return () => controller.abort()
-  }, [])
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
 
   return (
     <>
@@ -1242,10 +1154,7 @@ export function StampbookListPage() {
         title="스탬프북"
         description="담당 지역과 소유 콘텐츠 범위의 스탬프북을 조회하고 관리합니다."
         actions={
-          <Link
-            className="op-button op-button-primary"
-            to="/operator/stampbooks/new"
-          >
+          <Link className="op-button op-button-primary" to="/operator/stampbooks/new">
             ＋ 스탬프북 만들기
           </Link>
         }
@@ -1293,36 +1202,36 @@ export function StampbookListPage() {
         </div>
       )}
     </>
-  )
+  );
 }
 
 export function StampbookDetailPage() {
-  const { stampbookId = "" } = useParams()
-  const [detail, setDetail] = useState<OperatorStampbookDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-  const [modal, setModal] = useState<"publish" | "end" | null>(null)
-  const [notice, setNotice] = useState("")
-  const [version, setVersion] = useState(0)
+  const { stampbookId = "" } = useParams();
+  const [detail, setDetail] = useState<OperatorStampbookDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [modal, setModal] = useState<"publish" | "end" | null>(null);
+  const [notice, setNotice] = useState("");
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    setError("")
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
     getStampbook(stampbookId, controller.signal)
       .then(setDetail)
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setError(apiErrorMessage(caught, "스탬프북 상세를 불러오지 못했습니다."))
+          setError(apiErrorMessage(caught, "스탬프북 상세를 불러오지 못했습니다."));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-    return () => controller.abort()
-  }, [stampbookId, version])
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [stampbookId, version]);
 
-  if (loading) return <RouteState loading />
-  if (!detail) return <RouteState error={error || "스탬프북을 찾을 수 없습니다."} />
+  if (loading) return <RouteState loading />;
+  if (!detail) return <RouteState error={error || "스탬프북을 찾을 수 없습니다."} />;
 
   return (
     <>
@@ -1384,25 +1293,16 @@ export function StampbookDetailPage() {
           <h2>가능한 처리</h2>
           {detail.status === "DRAFT" && (
             <>
-              <Link
-                className="op-button"
-                to={`/operator/stampbooks/${detail.stampbookId}/edit`}
-              >
+              <Link className="op-button" to={`/operator/stampbooks/${detail.stampbookId}/edit`}>
                 초안 수정
               </Link>
-              <button
-                className="op-button op-button-admin"
-                onClick={() => setModal("publish")}
-              >
+              <button className="op-button op-button-admin" onClick={() => setModal("publish")}>
                 공개 심사 요청
               </button>
             </>
           )}
           {detail.status === "PUBLISHED" && (
-            <button
-              className="op-button op-button-danger-outline"
-              onClick={() => setModal("end")}
-            >
+            <button className="op-button op-button-danger-outline" onClick={() => setModal("end")}>
               스탬프북 종료
             </button>
           )}
@@ -1417,10 +1317,10 @@ export function StampbookDetailPage() {
           confirmLabel="공개 심사 요청"
           onClose={() => setModal(null)}
           onConfirm={async (reason) => {
-            await publishStampbook(detail.stampbookId, reason)
-            setNotice("스탬프북 공개 심사 요청이 접수되었습니다.")
-            setModal(null)
-            setVersion((value) => value + 1)
+            await publishStampbook(detail.stampbookId, reason);
+            setNotice("스탬프북 공개 심사 요청이 접수되었습니다.");
+            setModal(null);
+            setVersion((value) => value + 1);
           }}
         />
       )}
@@ -1434,135 +1334,118 @@ export function StampbookDetailPage() {
           tone="danger"
           onClose={() => setModal(null)}
           onConfirm={async (reason) => {
-            await endStampbook(detail.stampbookId, reason)
-            setNotice("스탬프북이 종료되었습니다.")
-            setModal(null)
-            setVersion((value) => value + 1)
+            await endStampbook(detail.stampbookId, reason);
+            setNotice("스탬프북이 종료되었습니다.");
+            setModal(null);
+            setVersion((value) => value + 1);
           }}
         />
       )}
     </>
-  )
+  );
 }
 
 export function StampbookFormPage() {
-  const { stampbookId } = useParams()
-  const navigate = useNavigate()
-  const { session } = useOperatorAuth()
-  const editing = Boolean(stampbookId)
-  const [source, setSource] = useState<OperatorStampbookDetail | null>(null)
-  const [contents, setContents] = useState<ContentSummary[]>([])
-  const [coupons, setCoupons] = useState<CouponPolicySummary[]>([])
+  const { stampbookId } = useParams();
+  const navigate = useNavigate();
+  const { session } = useOperatorAuth();
+  const editing = Boolean(stampbookId);
+  const [source, setSource] = useState<OperatorStampbookDetail | null>(null);
+  const [contents, setContents] = useState<ContentSummary[]>([]);
+  const [coupons, setCoupons] = useState<CouponPolicySummary[]>([]);
   const [draft, setDraft] = useState<StampbookFormDraft>({
     ...emptyStampbookWorkspaceDraft,
-  })
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState("")
+  });
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const controller = new AbortController()
+    const controller = new AbortController();
     Promise.all([
       listMyContents(controller.signal),
       listCouponPolicies(controller.signal),
-      stampbookId
-        ? getStampbook(stampbookId, controller.signal)
-        : Promise.resolve(null),
+      stampbookId ? getStampbook(stampbookId, controller.signal) : Promise.resolve(null),
     ])
       .then(([contentData, couponData, stampbook]) => {
-        setContents(contentData.contents)
-        setCoupons(couponData.couponPolicies)
-        setSource(stampbook)
+        setContents(contentData.contents);
+        setCoupons(couponData.couponPolicies);
+        setSource(stampbook);
         setDraft(
           stampbook
             ? {
                 title: stampbook.title,
-                contentIds: stampbook.targetContents.map(
-                  (item) => item.contentId,
-                ),
-                rewardCouponPolicyId:
-                  stampbook.rewardCouponPolicy.couponPolicyId,
+                contentIds: stampbook.targetContents.map((item) => item.contentId),
+                rewardCouponPolicyId: stampbook.rewardCouponPolicy.couponPolicyId,
                 reason: "",
               }
             : {
                 ...emptyStampbookWorkspaceDraft,
-                rewardCouponPolicyId:
-                  couponData.couponPolicies[0]?.couponPolicyId ?? "",
+                rewardCouponPolicyId: couponData.couponPolicies[0]?.couponPolicyId ?? "",
               },
-        )
+        );
       })
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setError(
-            apiErrorMessage(
-              caught,
-              "스탬프북 입력 정보를 불러오지 못했습니다.",
-            ),
-          )
+          setError(apiErrorMessage(caught, "스탬프북 입력 정보를 불러오지 못했습니다."));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-    return () => controller.abort()
-  }, [stampbookId])
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [stampbookId]);
 
   const eligible = useMemo(
-    () =>
-      contents.filter((item) =>
-        ["APPROVED", "PUBLISHED"].includes(item.status),
-      ),
+    () => contents.filter((item) => ["APPROVED", "PUBLISHED"].includes(item.status)),
     [contents],
-  )
+  );
   const toggle = (id: string) =>
     setDraft((current) => ({
       ...current,
       contentIds: current.contentIds.includes(id)
         ? current.contentIds.filter((item) => item !== id)
         : [...current.contentIds, id],
-    }))
+    }));
 
   const save = async (event: FormEvent) => {
-    event.preventDefault()
-    const validationError = validateStampbookDraft(draft)
+    event.preventDefault();
+    const validationError = validateStampbookDraft(draft);
     if (validationError) {
-      setError(validationError)
-      return
+      setError(validationError);
+      return;
     }
-    if (!session) return
-    setSubmitting(true)
-    setError("")
-    const input = { ...draft, regionId: session.assignment.regionId }
+    if (!session) return;
+    setSubmitting(true);
+    setError("");
+    const input = { ...draft, regionId: session.assignment.regionId };
     try {
-      let created: StampbookDraft
+      let created: StampbookDraft;
       if (editing && source) {
-        const result = await updateStampbook(source.stampbookId, input)
+        const result = await updateStampbook(source.stampbookId, input);
         navigate(`/operator/stampbooks/${result.stampbookId}`, {
           replace: true,
-        })
+        });
       } else {
-        created = await createStampbook(input)
+        created = await createStampbook(input);
         navigate(`/operator/stampbooks/${created.stampbookId}`, {
           replace: true,
-        })
+        });
       }
     } catch (caught) {
-      setError(apiErrorMessage(caught, "스탬프북을 저장하지 못했습니다."))
+      setError(apiErrorMessage(caught, "스탬프북을 저장하지 못했습니다."));
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
-  if (loading) return <RouteState loading />
-  if (editing && !source)
-    return <RouteState error={error || "스탬프북을 찾을 수 없습니다."} />
+  if (loading) return <RouteState loading />;
+  if (editing && !source) return <RouteState error={error || "스탬프북을 찾을 수 없습니다."} />;
   if (editing && source?.status !== "DRAFT")
-    return <RouteState error="초안 상태의 스탬프북만 수정할 수 있습니다." />
+    return <RouteState error="초안 상태의 스탬프북만 수정할 수 있습니다." />;
 
   return (
     <>
-      <Breadcrumb>
-        P1 혜택 › 스탬프북 › {editing ? "초안 수정" : "새 스탬프북"}
-      </Breadcrumb>
+      <Breadcrumb>P1 혜택 › 스탬프북 › {editing ? "초안 수정" : "새 스탬프북"}</Breadcrumb>
       <PageHeader
         title={editing ? "스탬프북 초안 수정" : "스탬프북 만들기"}
         description="대상 콘텐츠와 완주 보상 쿠폰 정책을 선택해 초안을 저장합니다."
@@ -1578,9 +1461,7 @@ export function StampbookFormPage() {
               <Text
                 label="스탬프북 제목"
                 value={draft.title}
-                set={(value) =>
-                  setDraft((current) => ({ ...current, title: value }))
-                }
+                set={(value) => setDraft((current) => ({ ...current, title: value }))}
                 maxLength={100}
                 full
               />
@@ -1607,10 +1488,7 @@ export function StampbookFormPage() {
                 >
                   <option value="">선택</option>
                   {coupons.map((item) => (
-                    <option
-                      key={item.couponPolicyId}
-                      value={item.couponPolicyId}
-                    >
+                    <option key={item.couponPolicyId} value={item.couponPolicyId}>
                       {item.name} (#{item.couponPolicyId})
                     </option>
                   ))}
@@ -1622,12 +1500,10 @@ export function StampbookFormPage() {
                   {contents.map((item) => {
                     const available = eligible.some(
                       (candidate) => candidate.contentId === item.contentId,
-                    )
+                    );
                     return (
                       <label
-                        className={`op-list-card${
-                          available ? "" : " disabled"
-                        }`}
+                        className={`op-list-card${available ? "" : " disabled"}`}
                         key={item.contentId}
                       >
                         <input
@@ -1639,8 +1515,7 @@ export function StampbookFormPage() {
                         <div>
                           <strong>{item.title}</strong>
                           <small>
-                            콘텐츠 ID {item.contentId} ·{" "}
-                            {statusLabel(item.status)}
+                            콘텐츠 ID {item.contentId} · {statusLabel(item.status)}
                           </small>
                         </div>
                         {available ? (
@@ -1651,16 +1526,14 @@ export function StampbookFormPage() {
                           <StatusBadge value="REJECTED" />
                         )}
                       </label>
-                    )
+                    );
                   })}
                 </div>
               </div>
               <Area
                 label={editing ? "수정 사유" : "생성 사유"}
                 value={draft.reason}
-                set={(value) =>
-                  setDraft((current) => ({ ...current, reason: value }))
-                }
+                set={(value) => setDraft((current) => ({ ...current, reason: value }))}
                 maxLength={500}
                 full
               />
@@ -1669,18 +1542,9 @@ export function StampbookFormPage() {
         </article>
         <aside className="op-action-card">
           <h2>{editing ? "수정 저장" : "초안 생성"}</h2>
-          <p>
-            저장 성공 후 Backend 상세 화면으로 이동합니다.
-          </p>
-          <button
-            className="op-button op-button-primary"
-            disabled={submitting}
-          >
-            {submitting
-              ? "처리 중…"
-              : editing
-                ? "수정 내용 저장"
-                : "스탬프북 초안 생성"}
+          <p>저장 성공 후 Backend 상세 화면으로 이동합니다.</p>
+          <button className="op-button op-button-primary" disabled={submitting}>
+            {submitting ? "처리 중…" : editing ? "수정 내용 저장" : "스탬프북 초안 생성"}
           </button>
           {error && <div className="op-alert">{error}</div>}
           <Link className="op-button" to="/operator/stampbooks">
@@ -1689,7 +1553,7 @@ export function StampbookFormPage() {
         </aside>
       </form>
     </>
-  )
+  );
 }
 
 function Text({
@@ -1699,11 +1563,11 @@ function Text({
   full,
   maxLength,
 }: {
-  label: string
-  value: string
-  set: (value: string) => void
-  full?: boolean
-  maxLength?: number
+  label: string;
+  value: string;
+  set: (value: string) => void;
+  full?: boolean;
+  maxLength?: number;
 }) {
   return (
     <label className={`op-field${full ? " op-full" : ""}`}>
@@ -1716,7 +1580,7 @@ function Text({
         required
       />
     </label>
-  )
+  );
 }
 function Area({
   label,
@@ -1726,12 +1590,12 @@ function Area({
   required = true,
   maxLength,
 }: {
-  label: string
-  value: string
-  set: (value: string) => void
-  full?: boolean
-  required?: boolean
-  maxLength?: number
+  label: string;
+  value: string;
+  set: (value: string) => void;
+  full?: boolean;
+  required?: boolean;
+  maxLength?: number;
 }) {
   return (
     <label className={`op-field${full ? " op-full" : ""}`}>
@@ -1744,7 +1608,7 @@ function Area({
         maxLength={maxLength}
       />
     </label>
-  )
+  );
 }
 function NumberField({
   label,
@@ -1754,12 +1618,12 @@ function NumberField({
   max,
   required = true,
 }: {
-  label: string
-  value: string
-  set: (value: string) => void
-  min: string
-  max?: string
-  required?: boolean
+  label: string;
+  value: string;
+  set: (value: string) => void;
+  min: string;
+  max?: string;
+  required?: boolean;
 }) {
   return (
     <label className="op-field">
@@ -1774,16 +1638,16 @@ function NumberField({
         required={required}
       />
     </label>
-  )
+  );
 }
 function DateTime({
   label,
   value,
   set,
 }: {
-  label: string
-  value: string
-  set: (value: string) => void
+  label: string;
+  value: string;
+  set: (value: string) => void;
 }) {
   return (
     <label className="op-field">
@@ -1796,5 +1660,5 @@ function DateTime({
         required
       />
     </label>
-  )
+  );
 }

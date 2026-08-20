@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react"
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
-import { useAdminAuth } from "./AdminAuth"
+import { useEffect, useRef, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useAdminAuth } from "./AdminAuth";
 
 const navigation = [
   {
@@ -40,7 +40,7 @@ const navigation = [
     icon: "◇",
     path: "/region-admin/stampbooks",
   },
-]
+];
 
 const accountNavigation = [
   { group: "공통", label: "운영 홈", icon: "⌂", path: "/region-admin" },
@@ -98,31 +98,30 @@ const accountNavigation = [
     icon: "◎",
     path: "/region-admin/missions",
   },
-]
+];
 
 export default function AdminLayout() {
-  const { session, logout } = useAdminAuth()
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
-  const accountMenuRef = useRef<HTMLDivElement>(null)
-  const navigate = useNavigate()
-  const location = useLocation()
-  const assignment = session!.assignment
+  const { session, logout } = useAdminAuth();
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const assignment = session!.assignment;
 
   useEffect(() => {
     const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!accountMenuRef.current?.contains(event.target as Node))
-        setAccountMenuOpen(false)
-    }
+      if (!accountMenuRef.current?.contains(event.target as Node)) setAccountMenuOpen(false);
+    };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setAccountMenuOpen(false)
-    }
-    document.addEventListener("mousedown", closeOnOutsideClick)
-    document.addEventListener("keydown", closeOnEscape)
+      if (event.key === "Escape") setAccountMenuOpen(false);
+    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.removeEventListener("mousedown", closeOnOutsideClick)
-      document.removeEventListener("keydown", closeOnEscape)
-    }
-  }, [])
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
 
   const isActive = (path: string) => {
     if (path.endsWith("/contents/review"))
@@ -130,27 +129,21 @@ export default function AdminLayout() {
         location.pathname.includes("/contents") ||
         location.pathname.includes("/content-revisions") ||
         location.pathname.includes("/withdrawal-requests")
-      )
+      );
     if (path.endsWith("/sessions"))
       return (
-        location.pathname.includes("/sessions") ||
-        location.pathname.includes("/session-revisions")
-      )
+        location.pathname.includes("/sessions") || location.pathname.includes("/session-revisions")
+      );
     if (path.endsWith("/stampbooks"))
-      return (
-        location.pathname.includes("/stampbooks") ||
-        location.pathname.includes("/missions")
-      )
-    return (
-      location.pathname === path || location.pathname.startsWith(`${path}/`)
-    )
-  }
+      return location.pathname.includes("/stampbooks") || location.pathname.includes("/missions");
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
 
   const handleLogout = async () => {
-    setAccountMenuOpen(false)
-    await logout()
-    navigate("/region-admin/login", { replace: true })
-  }
+    setAccountMenuOpen(false);
+    await logout();
+    navigate("/region-admin/login", { replace: true });
+  };
 
   return (
     <div className="ra-shell">
@@ -182,10 +175,7 @@ export default function AdminLayout() {
               <span aria-hidden="true">⌄</span>
             </button>
             {accountMenuOpen && (
-              <aside
-                className="ra-account-popover"
-                aria-label="지역 관리자 계정 메뉴"
-              >
+              <aside className="ra-account-popover" aria-label="지역 관리자 계정 메뉴">
                 <div className="ra-account-profile">
                   <span className="ra-avatar">관</span>
                   <div>
@@ -219,11 +209,7 @@ export default function AdminLayout() {
                     </section>
                   ))}
                 </div>
-                <button
-                  className="ra-account-logout"
-                  type="button"
-                  onClick={handleLogout}
-                >
+                <button className="ra-account-logout" type="button" onClick={handleLogout}>
                   로그아웃
                 </button>
               </aside>
@@ -238,7 +224,7 @@ export default function AdminLayout() {
             {navigation
               .filter((item) => item.group === group)
               .map((item) => {
-                const active = isActive(item.path)
+                const active = isActive(item.path);
                 return (
                   <NavLink
                     key={item.path}
@@ -250,13 +236,13 @@ export default function AdminLayout() {
                     <span aria-hidden="true">{item.icon}</span>
                     {item.label}
                   </NavLink>
-                )
+                );
               })}
           </section>
         ))}
         <div className="ra-sidebar-note">
-          <strong>{assignment.regionName}</strong>서버에 등록된 담당 지역
-          기준으로 모든 관리 업무가 제한됩니다.
+          <strong>{assignment.regionName}</strong>서버에 등록된 담당 지역 기준으로 모든 관리 업무가
+          제한됩니다.
         </div>
       </aside>
       <main className="ra-main">
@@ -265,5 +251,5 @@ export default function AdminLayout() {
         </div>
       </main>
     </div>
-  )
+  );
 }
