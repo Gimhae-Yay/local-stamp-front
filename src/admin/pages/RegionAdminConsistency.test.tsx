@@ -70,7 +70,10 @@ describe("region admin response consistency", () => {
     )
 
     expect(await screen.findByText("회차 501")).toBeInTheDocument()
-    expect(apiRequest).toHaveBeenCalledWith("/api/v1/contents/100/sessions")
+    expect(apiRequest).toHaveBeenCalledWith(
+      "/api/v1/contents/100/sessions",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
   })
 
   it("shows the full candidate snapshot for a pre-public revision", async () => {

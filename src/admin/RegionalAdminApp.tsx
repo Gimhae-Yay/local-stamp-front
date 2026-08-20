@@ -1,7 +1,8 @@
-import { Navigate, Route, Routes } from "react-router-dom"
+import { Route, Routes } from "react-router-dom"
 import { AdminAuthProvider, AdminGuard, AdminLoginPage } from "./AdminAuth"
 import AdminLayout from "./AdminLayout"
 import AdminHomePage from "./pages/AdminHomePage"
+import AdminNotFoundPage from "./pages/AdminNotFoundPage"
 import {
   MissionDetailPage,
   MissionListPage,
@@ -95,7 +96,7 @@ export default function RegionalAdminApp() {
             />
             <Route path="missions" element={<MissionListPage />} />
             <Route path="missions/:missionId" element={<MissionDetailPage />} />
-            <Route path="*" element={<Navigate to="/region-admin" replace />} />
+            <Route path="*" element={<AdminNotFoundPage />} />
           </Route>
         </Route>
       </Routes>

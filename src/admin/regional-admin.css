@@ -173,6 +173,7 @@ textarea.ra-control { min-height: 116px; padding: 12px; resize: vertical; }
 .ra-state-inner h3 { margin: 12px 0 5px; }
 .ra-state-inner p { margin: 0; color: var(--ra-muted); }
 .ra-empty-icon { display: grid; width: 54px; height: 54px; margin: auto; place-items: center; border-radius: 50%; background: #f0f3ed; color: #7d897f; font-size: 22px; }
+.ra-not-found-code { display: block; color: var(--ra-orange); font-family: Outfit, Inter, sans-serif; font-size: 52px; font-weight: 850; letter-spacing: -.05em; line-height: 1; }
 .ra-spinner { display: inline-block; width: 34px; height: 34px; border: 3px solid var(--ra-line); border-top-color: var(--ra-orange); border-radius: 50%; animation: ra-spin .8s linear infinite; }
 @keyframes ra-spin { to { transform: rotate(360deg); } }
 .ra-alert { display: grid; gap: 4px; border-color: #e5b2ad; background: var(--ra-danger-soft); padding: 16px 18px; color: #7e3d38; }
