@@ -6,6 +6,8 @@ import {
   isLocalFakeImageStorageUrl,
   getStampbook,
   listStampbooks,
+  listOperatorContentSessions,
+  requestContentWithdrawal,
   updateContentRevision,
   withdrawContentRevision,
 } from "./api"
@@ -163,6 +165,36 @@ describe("운영자 콘텐츠 수정본 명령", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[1]![1]?.body))).toEqual({
       reason: "일정 변경",
     })
+  })
+})
+
+describe("운영자 콘텐츠 회차·철회 계약", () => {
+  it("운영자 전용 회차 조회 URL을 사용한다", async () => {
+    const fetchMock = vi.fn(() => success({ contentId: "104", sessions: [] }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await listOperatorContentSessions("104")
+
+    expect(String(fetchMock.mock.calls[0]![0])).toContain(
+      "/api/v1/operator/contents/104/sessions",
+    )
+  })
+
+  it("전체 철회 재시도에 호출자가 지정한 멱등 키를 유지한다", async () => {
+    const fetchMock = vi.fn(() =>
+      success({ withdrawalRequestId: "701", status: "PENDING" }),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await requestContentWithdrawal("104", "운영 종료", "withdrawal-key")
+    await requestContentWithdrawal("104", "운영 종료", "withdrawal-key")
+
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(new Headers(init?.headers).get("Idempotency-Key")).toBe(
+        "withdrawal-key",
+      )
+      expect(JSON.parse(String(init?.body))).toEqual({ reason: "운영 종료" })
+    }
   })
 })
 

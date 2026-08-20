@@ -6,6 +6,7 @@ import type {
   ContentInput,
   ContentRevisionResult,
   CreatedContentSession,
+  OperatorContentSession,
   ContentSessionSummary,
   ContentSummary,
   CouponPolicyDetail,
@@ -58,6 +59,20 @@ export function listPublicContentSessions(
 
     { auth: "none", signal },
   )
+}
+
+export function listOperatorContentSessions(
+  contentId: string,
+
+  signal?: AbortSignal,
+) {
+  return apiRequest<{
+    contentId: string
+
+    sessions: OperatorContentSession[]
+  }>(`/api/v1/operator/contents/${encodeURIComponent(contentId)}/sessions`, {
+    signal,
+  })
 }
 
 async function sha256Base64(file: File) {
@@ -217,11 +232,21 @@ export function cancelSession(sessionId: string, cancellationReason: string) {
   )
 }
 
-export function requestContentWithdrawal(contentId: string, reason: string) {
+export function requestContentWithdrawal(
+  contentId: string,
+
+  reason: string,
+
+  idempotencyKey: string,
+) {
   return apiRequest<{ withdrawalRequestId: string, status: string }>(
     `/api/v1/operator/contents/${encodeURIComponent(contentId)}/withdrawal-requests`,
 
-    { method: "POST", body: jsonBody({ reason }) },
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: jsonBody({ reason }),
+    },
   )
 }
 

@@ -7,6 +7,8 @@ const statusLabels: Record<string, string> = {
 
   PENDING: "심사 대기",
 
+  PENDING_REVIEW: "심사 대기",
+
   EDIT_REQUESTED: "수정 심사 중",
   EDIT_APPROVED: "수정 승인",
   EDIT_REJECTED: "수정 반려",
@@ -25,6 +27,8 @@ const statusLabels: Record<string, string> = {
 
   ENDED: "종료",
 
+  COMPLETED: "완료",
+
   CONFIRMED: "확정",
 
   CHECKED_IN: "체크인",
@@ -36,6 +40,8 @@ const statusLabels: Record<string, string> = {
   SUCCEEDED: "완료",
 
   FAILED: "실패",
+
+  OPEN: "확인 필요",
 
   VISIT: "방문",
 
@@ -54,14 +60,25 @@ export function statusLabel(value: string) {
 
 export function statusTone(value: string) {
   if (
-    ["PUBLISHED", "APPROVED", "SCHEDULED", "CONFIRMED", "SUCCEEDED"].includes(
-      value,
-    )
+    [
+      "PUBLISHED",
+      "APPROVED",
+      "SCHEDULED",
+      "CONFIRMED",
+      "SUCCEEDED",
+      "COMPLETED",
+    ].includes(value)
   )
     return "success"
 
   if (
-    ["PENDING", "EDIT_REQUESTED", "REVIEW_UNKNOWN", "PROCESSING"].includes(
+    [
+      "PENDING",
+      "PENDING_REVIEW",
+      "EDIT_REQUESTED",
+      "REVIEW_UNKNOWN",
+      "PROCESSING",
+    ].includes(
       value,
     )
   )
@@ -75,6 +92,7 @@ export function statusTone(value: string) {
       "EDIT_INVALIDATED",
       "CANCELLED",
       "FAILED",
+      "OPEN",
       "ENDED",
     ].includes(value)
   )

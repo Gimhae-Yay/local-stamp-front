@@ -104,7 +104,10 @@ describe("운영자 회차 생성·변경·취소 흐름", () => {
         if (url.endsWith("/api/v1/operator/contents/104")) {
           return success(content)
         }
-        if (url.endsWith("/api/v1/contents/104/sessions")) {
+        if (
+          url.endsWith("/api/v1/operator/contents/104/sessions") &&
+          !init?.method
+        ) {
           return success({ contentId: "104", sessions: [] })
         }
         if (
@@ -154,12 +157,16 @@ describe("운영자 회차 생성·변경·취소 흐름", () => {
         if (url.endsWith("/api/v1/operator/contents/104")) {
           return success(content)
         }
-        if (url.endsWith("/api/v1/contents/104/sessions")) {
+        if (
+          url.endsWith("/api/v1/operator/contents/104/sessions") &&
+          !init?.method
+        ) {
           return success({
             contentId: "104",
             sessions: [
               {
                 sessionId: "204",
+                status: "SCHEDULED",
                 startsAt: "2099-08-25T01:00:00Z",
                 endsAt: "2099-08-25T03:00:00Z",
               },
@@ -214,12 +221,16 @@ describe("운영자 회차 생성·변경·취소 흐름", () => {
         if (url.endsWith("/api/v1/operator/contents/104")) {
           return success(content)
         }
-        if (url.endsWith("/api/v1/contents/104/sessions")) {
+        if (
+          url.endsWith("/api/v1/operator/contents/104/sessions") &&
+          !init?.method
+        ) {
           return success({
             contentId: "104",
             sessions: [
               {
                 sessionId: "204",
+                status: "SCHEDULED",
                 startsAt: "2099-08-25T01:00:00Z",
                 endsAt: "2099-08-25T03:00:00Z",
               },

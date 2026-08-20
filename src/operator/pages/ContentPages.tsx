@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from "react"
@@ -17,7 +18,7 @@ import {
   createContentSession,
   getMyContent,
   listMyContents,
-  listPublicContentSessions,
+  listOperatorContentSessions,
   requestContentWithdrawal,
   requestSessionChange,
   submitContent,
@@ -39,7 +40,6 @@ import {
 } from "../OperatorComponents"
 import { useOperatorAuth } from "../OperatorAuth"
 import {
-  mergeContentSessionSnapshots,
   isContentRevisionReviewFresh,
   readContentRevisionSnapshot,
   readContentSessionSnapshots,
@@ -146,6 +146,8 @@ interface DisplayContentSession extends ContentSessionSummary {
   changeRequestId?: string
 
   changeRequestStatus?: string
+
+  cancellationReason?: string | null
 }
 
 interface ContentDetailNavigationState {
@@ -456,6 +458,10 @@ export function ContentDetailPage() {
 
   const [modal, setModal] = useState<DetailModal>(null)
 
+  const withdrawalIdempotencyKey = useRef(
+    `operator-content-withdrawal-${crypto.randomUUID()}`,
+  )
+
   useEffect(() => {
     const controller = new AbortController()
 
@@ -476,19 +482,18 @@ export function ContentDetailPage() {
             ? navigationState.createdSession
             : null
 
-        let publicSessions: ContentSessionSummary[] = []
-        if (detail.status === "PUBLISHED") {
-          const result = await listPublicContentSessions(
+        const result = await listOperatorContentSessions(
+          contentId,
+          controller.signal,
+        )
+        const loadedSessions: DisplayContentSession[] = result.sessions.map(
+          (item) => ({
+            ...item,
             contentId,
-            controller.signal,
-          )
-          publicSessions = result.sessions
-        }
-        const storedSessions = session
-          ? readContentSessionSnapshots(session.userId, contentId)
-          : []
-        const loadedSessions: DisplayContentSession[] =
-          mergeContentSessionSnapshots(publicSessions, storedSessions)
+            changeRequestId: item.pendingChangeRequest?.revisionId,
+            changeRequestStatus: item.pendingChangeRequest?.status,
+          }),
+        )
         if (
           createdSession &&
           !loadedSessions.some(
@@ -497,13 +502,6 @@ export function ContentDetailPage() {
         ) {
           loadedSessions.unshift(createdSession)
         }
-
-        if (session)
-          writeContentSessionSnapshots(
-            session.userId,
-            contentId,
-            loadedSessions as ContentSessionSnapshot[],
-          )
 
         setSessions(loadedSessions)
 
@@ -652,9 +650,7 @@ export function ContentDetailPage() {
             </header>
             <div className="op-panel-body">
               <div className="op-notice">
-                공개 예정 회차와 이 화면에서 방금 접수한 심사·취소 상태를
-                표시합니다. 운영자용 전체 회차 조회 API가 제공되기 전까지 다른
-                기기에서 접수한 상태는 표시되지 않을 수 있습니다.
+                운영자용 전체 회차 조회 결과와 현재 변경 요청 상태를 표시합니다.
               </div>
               {sessions.length === 0 ? (
                 <p className="op-muted">
@@ -689,6 +685,10 @@ export function ContentDetailPage() {
                               변경 요청 {session.changeRequestId} · 결과 미확인
                             </small>
                           )}
+                          {session.status === "CANCELLED" &&
+                            session.cancellationReason && (
+                              <small>취소 사유: {session.cancellationReason}</small>
+                            )}
                         </div>
                         <StatusBadge value={session.status} />
                         {session.status === "SCHEDULED" && (
@@ -792,7 +792,11 @@ export function ContentDetailPage() {
           tone="danger"
           onClose={() => setModal(null)}
           onConfirm={async (reason) => {
-            await requestContentWithdrawal(contentId, reason)
+            await requestContentWithdrawal(
+              contentId,
+              reason,
+              withdrawalIdempotencyKey.current,
+            )
 
             setModal(null)
 

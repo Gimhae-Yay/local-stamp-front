@@ -88,12 +88,13 @@ describe("운영자 결제 조회·체크인 프론트 흐름", () => {
           ],
         })
       }
-      if (url.endsWith("/api/v1/contents/104/sessions")) {
+      if (url.endsWith("/api/v1/operator/contents/104/sessions")) {
         return success({
           contentId: "104",
           sessions: [
             {
               sessionId: "204",
+              status: "SCHEDULED",
               startsAt: "2099-08-25T10:00:00+09:00",
               endsAt: "2099-08-25T12:00:00+09:00",
             },

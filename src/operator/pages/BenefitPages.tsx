@@ -846,7 +846,7 @@ export function MissionListPage() {
             {detail ? (
               <>
                 <header>
-                  <h2>{detail.title}</h2>
+                  <h2>{detail.title || `미션 #${detail.missionId}`}</h2>
                   <StatusBadge value={detail.status} />
                 </header>
                 <div className="op-panel-body">
@@ -1250,9 +1250,10 @@ export function StampbookListPage() {
           </Link>
         }
       />
-      {error && <div className="op-alert">{error}</div>}
       {loading ? (
         <RouteState loading />
+      ) : error ? (
+        <RouteState error={error} />
       ) : items.length === 0 ? (
         <RouteState empty="생성된 스탬프북이 없습니다." />
       ) : (

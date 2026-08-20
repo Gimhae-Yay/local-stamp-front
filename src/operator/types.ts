@@ -82,6 +82,34 @@ export interface CreatedContentSession extends ContentSessionSummary {
   capacity: number
 }
 
+export interface OperatorContentSession extends CreatedContentSession {
+  version: number
+
+  remainingCapacity: number
+
+  rejectReason: string | null
+
+  cancelledAt: string | null
+
+  cancellationReason: string | null
+
+  completedAt: string | null
+
+  createdAt: string
+
+  pendingChangeRequest: null | {
+    revisionId: string
+
+    status: string
+
+    baseSessionVersion: number
+
+    candidate: SessionInput
+
+    submittedAt: string
+  }
+}
+
 export interface SessionChangeRequestResult {
   revisionId: string
 
