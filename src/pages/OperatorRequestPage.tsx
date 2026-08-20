@@ -3,7 +3,7 @@ import { Link } from "react-router-dom"
 import {
   reapplyForOperator,
   type CreateOperatorResponse,
-} from "../api/operator"
+} from "../api/operatorRequest"
 import { useAppState } from "../components/AppLayout"
 import {
   Breadcrumbs,

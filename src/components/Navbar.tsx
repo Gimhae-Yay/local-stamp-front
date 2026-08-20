@@ -202,7 +202,7 @@ export default function Navbar({
                 {[
                   ...(operatorRole
                     ? [
-                        ["내 콘텐츠 관리", "/operator/contents"],
+                        ["내 콘텐츠 관리", "/operator"],
                         ["예약번호 검색", "/operator/reservations"],
                       ]
                     : []),

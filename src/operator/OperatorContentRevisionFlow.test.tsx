@@ -122,6 +122,15 @@ describe("운영자 콘텐츠 수정본 생성·철회 흐름", () => {
     expect(
       await screen.findByRole("heading", { name: "콘텐츠 수정본 501" }),
     ).toBeInTheDocument()
+    const revisionCall = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        String(input).endsWith("/api/v1/operator/contents/104/revisions") &&
+        init?.method === "POST",
+    )
+    expect(revisionCall).toBeDefined()
+    expect(JSON.parse(String(revisionCall?.[1]?.body))).toMatchObject({
+      publishAt: null,
+    })
     expect(screen.getByText("가야 문화를 체험합니다.")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "수정본 철회" }))
     const withdrawDialog = screen.getByRole("dialog")
