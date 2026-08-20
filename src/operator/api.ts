@@ -390,7 +390,13 @@ export function submitMission(id: string) {
 }
 
 export function endMission(id: string, reasonCode: string) {
-  return apiRequest<{ missionId: string, status: string }>(
+  return apiRequest<{
+    missionId: string
+
+    status: string
+
+    endedAt: string
+  }>(
     `/api/v1/operator/missions/${encodeURIComponent(id)}/end`,
 
     { method: "POST", body: jsonBody({ reasonCode }) },
@@ -450,7 +456,13 @@ export function publishStampbook(id: string, reason: string) {
 }
 
 export function endStampbook(id: string, reason: string) {
-  return apiRequest<{ stampbookId: string, status: string }>(
+  return apiRequest<{
+    stampbookId: string
+
+    status: string
+
+    endedAt: string
+  }>(
     `/api/v1/operator/stampbooks/${encodeURIComponent(id)}/end`,
 
     { method: "POST", body: jsonBody({ reason }) },

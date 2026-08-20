@@ -349,6 +349,8 @@ export interface MissionSummary {
 }
 
 export interface MissionDetail extends MissionSummary {
+  title: string
+
   regionId: string
 
   requiredVisitCount: number | null
