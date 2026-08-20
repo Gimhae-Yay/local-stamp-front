@@ -4,7 +4,11 @@ import {
   cancelOperatorSession,
   createContentRevision,
   createOperatorSession,
+  getOperatorContentSessions,
+  getOperatorSessionReservations,
+  requestContentWithdrawal,
   requestSessionChange,
+  searchOperatorReservation,
   updateContentRevision,
   withdrawContentRevision,
   type ContentRevisionFields,
@@ -122,6 +126,71 @@ describe("operator content commands", () => {
     ).toBe(true)
     expect(fetchMock.mock.calls[2]?.[1]?.body).toBe(
       JSON.stringify({ cancellationReason: "기상 악화" }),
+    )
+  })
+
+  it("loads every operator-owned session from the content session endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      response({
+        contentId: "10",
+        sessions: [
+          {
+            sessionId: "21",
+            status: "REJECTED",
+            version: 2,
+            startsAt: "2026-09-01T10:00:00+09:00",
+            endsAt: "2026-09-01T12:00:00+09:00",
+            checkinOpenAt: "2026-09-01T09:30:00+09:00",
+            checkinCloseAt: "2026-09-01T11:30:00+09:00",
+            capacity: 30,
+            remainingCapacity: 30,
+            rejectReason: "운영 시간 확인 필요",
+            cancelledAt: null,
+            cancellationReason: null,
+            completedAt: null,
+            createdAt: "2026-08-20T01:00:00Z",
+            pendingChangeRequest: null,
+          },
+        ],
+      }),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    const result = await getOperatorContentSessions("10")
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/api/v1/operator/contents/10/sessions",
+    )
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBeUndefined()
+    expect(result.sessions[0]?.status).toBe("REJECTED")
+  })
+
+  it("uses the withdrawal idempotency and operator reservation read contracts", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(response({})))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await requestContentWithdrawal("10", "운영 계획 변경", "same-key")
+    await requestContentWithdrawal("10", "운영 계획 변경", "same-key")
+    await requestContentWithdrawal("10", "운영 계획 변경", "different-key")
+    await getOperatorSessionReservations("10", "21")
+    await searchOperatorReservation("R-2026")
+
+    expect(fetchMock.mock.calls.map(([input]) => input)).toEqual([
+      "/api/v1/operator/contents/10/withdrawal-requests",
+      "/api/v1/operator/contents/10/withdrawal-requests",
+      "/api/v1/operator/contents/10/withdrawal-requests",
+      "/api/v1/operator/contents/10/reservations?sessionId=21",
+      "/api/v1/operator/reservations/search?reservationNo=R-2026",
+    ])
+    expect(
+      fetchMock.mock.calls
+        .slice(0, 3)
+        .map(([, init]) => new Headers(init?.headers).get("Idempotency-Key")),
+    ).toEqual(["same-key", "same-key", "different-key"])
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(
+      JSON.stringify({ reason: "운영 계획 변경" }),
     )
   })
 })

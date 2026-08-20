@@ -153,7 +153,10 @@ export default function Navbar({
                 </div>
                 {[
                   ...(operatorRole
-                    ? [["내 콘텐츠 관리", "/operator/contents"]]
+                    ? [
+                        ["내 콘텐츠 관리", "/operator/contents"],
+                        ["예약번호 검색", "/operator/reservations/search"],
+                      ]
                     : []),
                   ...(visitorRole
                     ? [

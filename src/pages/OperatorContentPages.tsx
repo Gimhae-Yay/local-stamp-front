@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { ApiError } from "../api/client"
+import { ApiError, createIdempotencyKey } from "../api/client"
 import {
   cancelOperatorSession,
   createContentRevision,
   createOperatorSession,
   getOperatorContent,
+  getOperatorContentSessions,
   getOperatorContents,
+  getOperatorSessionReservations,
+  requestContentWithdrawal,
   requestSessionChange,
   updateContentRevision,
   withdrawContentRevision,
@@ -15,11 +18,12 @@ import {
   type OperatorContentDetail,
   type OperatorContentStatus,
   type OperatorContentSummary,
+  type OperatorReservationStatus,
   type OperatorSession,
-  type SessionChangeRequestResponse,
+  type OperatorSessionStatus,
+  type OperatorSessionReservationsResponse,
   type SessionFields,
 } from "../api/operator"
-import { getPublicContentSessions, getPublicSession } from "../api/public"
 import {
   Breadcrumbs,
   Notice,
@@ -28,7 +32,6 @@ import {
 } from "../components/PageElements"
 
 const revisionCachePrefix = "local-stamp:operator-revision:"
-const sessionCachePrefix = "local-stamp:operator-sessions:"
 
 const contentStatusLabels: Record<OperatorContentStatus, string> = {
   PENDING: "심사 대기",
@@ -46,6 +49,32 @@ const revisionStatusLabels: Record<ContentRevisionStatus, string> = {
   EDIT_APPROVED: "수정본 승인",
   EDIT_WITHDRAWN: "수정본 철회",
   EDIT_INVALIDATED: "수정본 무효",
+}
+
+const reservationStatusLabels: Record<OperatorReservationStatus, string> = {
+  CONFIRMED: "예약 확정",
+  CHECKED_IN: "체크인 완료",
+  CANCELLED: "예약 취소",
+  EXPIRED: "예약 만료",
+}
+
+const sessionStatusLabels: Record<OperatorSessionStatus, string> = {
+  PENDING: "승인 대기",
+  SCHEDULED: "운영 예정",
+  REJECTED: "반려",
+  COMPLETED: "운영 완료",
+  CANCELLED: "취소됨",
+}
+
+const sessionStatusTones: Record<
+  OperatorSessionStatus,
+  "green" | "amber" | "gray" | "red"
+> = {
+  PENDING: "amber",
+  SCHEDULED: "green",
+  REJECTED: "red",
+  COMPLETED: "gray",
+  CANCELLED: "gray",
 }
 
 const contentStatusTones: Record<OperatorContentStatus, "green" | "amber" | "gray" | "blue" | "red"> =
@@ -118,22 +147,13 @@ function toKoreaDateTime(value: string) {
   return value ? `${value}:00+09:00` : ""
 }
 
-function toLocalFromDate(date: Date) {
-  const korea = new Date(date.getTime() + 9 * 60 * 60 * 1000)
-  return korea.toISOString().slice(0, 16)
-}
-
 function defaultSessionForm(session?: OperatorSession): SessionFormState {
   if (session) {
-    const start = new Date(session.startsAt)
-    const end = new Date(session.endsAt)
     return {
       startsAt: toDateTimeLocal(session.startsAt),
       endsAt: toDateTimeLocal(session.endsAt),
-      checkinOpenAt: toLocalFromDate(
-        new Date(start.getTime() - 30 * 60 * 1000),
-      ),
-      checkinCloseAt: toLocalFromDate(new Date(end.getTime() - 30 * 60 * 1000)),
+      checkinOpenAt: toDateTimeLocal(session.checkinOpenAt),
+      checkinCloseAt: toDateTimeLocal(session.checkinCloseAt),
       capacity: String(session.capacity),
     }
   }
@@ -283,34 +303,6 @@ function readContentRevision(contentId: string) {
     `${revisionCachePrefix}content:${contentId}`,
   )
   return revisionId ? readCachedRevision(revisionId) : null
-}
-
-function readCachedSessions(contentId: string) {
-  try {
-    const raw = sessionStorage.getItem(`${sessionCachePrefix}${contentId}`)
-    return raw ? JSON.parse(raw) as OperatorSession[] : []
-  } catch {
-    return []
-  }
-}
-
-function writeCachedSessions(contentId: string, sessions: OperatorSession[]) {
-  sessionStorage.setItem(
-    `${sessionCachePrefix}${contentId}`,
-    JSON.stringify(sessions),
-  )
-}
-
-function mergeSessions(
-  serverSessions: OperatorSession[],
-  cachedSessions: OperatorSession[],
-) {
-  const merged = new Map<string, OperatorSession>()
-  serverSessions.forEach((session) => merged.set(session.sessionId, session))
-  cachedSessions.forEach((session) => merged.set(session.sessionId, session))
-  return Array.from(merged.values()).sort((a, b) =>
-    a.startsAt.localeCompare(b.startsAt),
-  )
 }
 
 function ContentRevisionFieldsForm({
@@ -596,13 +588,17 @@ export function OperatorContentListPage() {
 
 export function OperatorContentDetailPage() {
   const { contentId = "" } = useParams()
+  const withdrawalIdempotencyKey = useMemo(
+    () => createIdempotencyKey(),
+    [contentId],
+  )
   const [content, setContent] = useState<OperatorContentDetail | null>(null)
   const [sessions, setSessions] = useState<OperatorSession[]>([])
-  const [pendingChanges, setPendingChanges] =
-    useState<Record<string, SessionChangeRequestResponse>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [sessionWarning, setSessionWarning] = useState<string | null>(null)
+  const [sessionLoading, setSessionLoading] = useState(true)
+  const [sessionError, setSessionError] = useState<string | null>(null)
+  const [sessionReloadKey, setSessionReloadKey] = useState(0)
   const [showCreateSession, setShowCreateSession] = useState(false)
   const [changingSessionId, setChangingSessionId] = useState<string | null>(
     null,
@@ -613,6 +609,29 @@ export function OperatorContentDetailPage() {
   const [cancellationReason, setCancellationReason] = useState("")
   const [cancelError, setCancelError] = useState<string | null>(null)
   const [cancelBusy, setCancelBusy] = useState(false)
+  const [showContentWithdrawal, setShowContentWithdrawal] = useState(false)
+  const [contentWithdrawalReason, setContentWithdrawalReason] = useState("")
+  const [contentWithdrawalBusy, setContentWithdrawalBusy] = useState(false)
+  const [contentWithdrawalError, setContentWithdrawalError] =
+    useState<string | null>(null)
+  const [contentWithdrawalPending, setContentWithdrawalPending] =
+    useState(false)
+  const [selectedReservationSessionId, setSelectedReservationSessionId] =
+    useState<string | null>(null)
+  const [sessionReservations, setSessionReservations] =
+    useState<OperatorSessionReservationsResponse | null>(null)
+  const [reservationLoading, setReservationLoading] = useState(false)
+  const [reservationError, setReservationError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setShowContentWithdrawal(false)
+    setContentWithdrawalReason("")
+    setContentWithdrawalError(null)
+    setContentWithdrawalPending(false)
+    setSelectedReservationSessionId(null)
+    setSessionReservations(null)
+    setReservationError(null)
+  }, [contentId])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -634,56 +653,38 @@ export function OperatorContentDetailPage() {
   useEffect(() => {
     if (!contentId) return
     const controller = new AbortController()
-    const cached = readCachedSessions(contentId)
-    setSessions(cached)
-    setSessionWarning(null)
-    getPublicContentSessions(contentId, controller.signal)
-      .then(async ({ sessions: publicSessions }) => {
-        const details = await Promise.all(
-          publicSessions.map((session) =>
-            getPublicSession(session.sessionId, controller.signal),
-          ),
-        )
-        const scheduled: OperatorSession[] = details.map((session) => ({
-          sessionId: session.sessionId,
-          contentId: session.contentId,
-          status: "SCHEDULED",
-          startsAt: session.startsAt,
-          endsAt: session.endsAt,
-          checkinOpenAt: session.startsAt,
-          checkinCloseAt: session.endsAt,
-          capacity: session.remainingCapacity,
-          remainingCapacity: session.remainingCapacity,
-          price: session.price,
-        }))
-        if (!controller.signal.aborted) {
-          setSessions(mergeSessions(scheduled, readCachedSessions(contentId)))
-        }
+    setSessionLoading(true)
+    setSessionError(null)
+    getOperatorContentSessions(contentId, controller.signal)
+      .then(({ sessions: ownedSessions }) => {
+        if (!controller.signal.aborted) setSessions(ownedSessions)
       })
-      .catch(() => {
-        if (!controller.signal.aborted && cached.length === 0) {
-          setSessionWarning(
-            "공개 회차를 조회할 수 없습니다. 이 화면에서 생성·처리한 회차는 계속 표시됩니다.",
+      .catch((requestError: unknown) => {
+        if (!controller.signal.aborted) {
+          setSessionError(
+            errorMessage(requestError, "운영자 회차를 불러오지 못했습니다."),
           )
         }
       })
+      .finally(() => {
+        if (!controller.signal.aborted) setSessionLoading(false)
+      })
     return () => controller.abort()
-  }, [contentId])
+  }, [contentId, sessionReloadKey])
 
   const cachedRevision = useMemo(
     () => (contentId ? readContentRevision(contentId) : null),
     [contentId],
   )
 
-  const updateSessions = (nextSessions: OperatorSession[]) => {
-    setSessions(nextSessions)
-    writeCachedSessions(contentId, nextSessions)
-  }
+  const refreshSessions = () => setSessionReloadKey((current) => current + 1)
 
   const canManageSessions =
     content?.status === "APPROVED" || content?.status === "PUBLISHED"
   const canCreateRevision =
     content?.status === "APPROVED" || content?.status === "PUBLISHED"
+  const canRequestWithdrawal =
+    content?.status === "PUBLISHED" && !contentWithdrawalPending
 
   if (loading) {
     return (
@@ -704,15 +705,15 @@ export function OperatorContentDetailPage() {
   }
 
   const createSession = async (request: SessionFields) => {
-    const created = await createOperatorSession(contentId, request)
-    updateSessions(mergeSessions(sessions, [created]))
+    await createOperatorSession(contentId, request)
     setShowCreateSession(false)
+    refreshSessions()
   }
 
   const changeSession = async (sessionId: string, request: SessionFields) => {
-    const result = await requestSessionChange(sessionId, request)
-    setPendingChanges((current) => ({ ...current, [sessionId]: result }))
+    await requestSessionChange(sessionId, request)
     setChangingSessionId(null)
+    refreshSessions()
   }
 
   const cancelSession = async (sessionId: string) => {
@@ -723,25 +724,87 @@ export function OperatorContentDetailPage() {
     setCancelBusy(true)
     setCancelError(null)
     try {
-      const result = await cancelOperatorSession(
+      await cancelOperatorSession(
         sessionId,
         cancellationReason.trim(),
       )
-      updateSessions(
-        sessions.map((session) =>
-          session.sessionId === sessionId
-            ? { ...session, status: result.status }
-            : session,
-        ),
-      )
       setCancellingSessionId(null)
       setCancellationReason("")
+      refreshSessions()
     } catch (requestError) {
       setCancelError(
         commandErrorMessage(requestError, "회차를 취소하지 못했습니다."),
       )
     } finally {
       setCancelBusy(false)
+    }
+  }
+
+  const withdrawContent = async () => {
+    if (!contentWithdrawalReason.trim()) {
+      setContentWithdrawalError("전체 철회 사유를 입력해 주세요.")
+      return
+    }
+    setContentWithdrawalBusy(true)
+    setContentWithdrawalError(null)
+    try {
+      await requestContentWithdrawal(
+        contentId,
+        contentWithdrawalReason.trim(),
+        withdrawalIdempotencyKey,
+      )
+      setContentWithdrawalPending(true)
+      setShowContentWithdrawal(false)
+    } catch (requestError) {
+      if (requestError instanceof ApiError) {
+        if (requestError.code === "CONTENT_STATE_CONFLICT") {
+          setContentWithdrawalError(
+            "이미 처리 대기 중인 철회 요청이 있거나 현재 철회할 수 없는 콘텐츠입니다.",
+          )
+        } else if (requestError.code === "IDEMPOTENCY_KEY_CONFLICT") {
+          setContentWithdrawalError(
+            "요청 정보가 이전 시도와 다릅니다. 화면을 새로고침한 뒤 다시 요청해 주세요.",
+          )
+        } else {
+          setContentWithdrawalError(requestError.message)
+        }
+      } else {
+        setContentWithdrawalError(
+          errorMessage(requestError, "전체 콘텐츠 철회를 요청하지 못했습니다."),
+        )
+      }
+    } finally {
+      setContentWithdrawalBusy(false)
+    }
+  }
+
+  const loadSessionReservations = async (sessionId: string) => {
+    setSelectedReservationSessionId(sessionId)
+    setSessionReservations(null)
+    setReservationLoading(true)
+    setReservationError(null)
+    try {
+      setSessionReservations(
+        await getOperatorSessionReservations(contentId, sessionId),
+      )
+    } catch (requestError) {
+      if (requestError instanceof ApiError) {
+        if (requestError.code === "NOT_FOUND") {
+          setReservationError(
+            "선택한 회차가 이 콘텐츠에 속하지 않거나 조회할 수 없습니다.",
+          )
+        } else if (requestError.code === "FORBIDDEN") {
+          setReservationError("이 회차의 예약자를 조회할 권한이 없습니다.")
+        } else {
+          setReservationError(requestError.message)
+        }
+      } else {
+        setReservationError(
+          errorMessage(requestError, "예약자 목록을 불러오지 못했습니다."),
+        )
+      }
+    } finally {
+      setReservationLoading(false)
     }
   }
 
@@ -757,13 +820,28 @@ export function OperatorContentDetailPage() {
         title={content.title}
         description={`콘텐츠 #${content.contentId}`}
         action={
-          canCreateRevision ? (
-            <Link
-              className="button-primary"
-              to={`/operator/contents/${content.contentId}/revisions/new`}
-            >
-              수정본 생성
-            </Link>
+          canCreateRevision || canRequestWithdrawal ? (
+            <div className="operator-header-actions">
+              {canRequestWithdrawal && (
+                <button
+                  className="button-danger"
+                  onClick={() => {
+                    setShowContentWithdrawal(true)
+                    setContentWithdrawalError(null)
+                  }}
+                >
+                  전체 콘텐츠 철회 요청
+                </button>
+              )}
+              {canCreateRevision && (
+                <Link
+                  className="button-primary"
+                  to={`/operator/contents/${content.contentId}/revisions/new`}
+                >
+                  수정본 생성
+                </Link>
+              )}
+            </div>
           ) : undefined
         }
       >
@@ -785,6 +863,48 @@ export function OperatorContentDetailPage() {
             수정본 열기
           </Link>
         </Notice>
+      )}
+      {contentWithdrawalPending && (
+        <Notice>
+          전체 콘텐츠 철회 요청이 접수되었습니다. 지역 관리자 심사를 기다리고
+          있습니다.
+        </Notice>
+      )}
+      {showContentWithdrawal && (
+        <section className="operator-command-form operator-withdraw-panel">
+          <h2>전체 콘텐츠 철회를 요청할까요?</h2>
+          <p>
+            요청이 승인되면 콘텐츠 전체가 철회됩니다. 요청 사유를 입력해 주세요.
+          </p>
+          <label>
+            전체 철회 사유
+            <textarea
+              maxLength={500}
+              value={contentWithdrawalReason}
+              onChange={(event) =>
+                setContentWithdrawalReason(event.target.value)
+              }
+            />
+          </label>
+          {contentWithdrawalError && (
+            <Notice tone="red">{contentWithdrawalError}</Notice>
+          )}
+          <div className="operator-form-actions">
+            <button
+              className="button-outline"
+              onClick={() => setShowContentWithdrawal(false)}
+            >
+              돌아가기
+            </button>
+            <button
+              className="button-danger"
+              disabled={contentWithdrawalBusy}
+              onClick={withdrawContent}
+            >
+              {contentWithdrawalBusy ? "요청 중…" : "철회 요청 확정"}
+            </button>
+          </div>
+        </section>
       )}
 
       <section className="operator-detail-card">
@@ -819,14 +939,19 @@ export function OperatorContentDetailPage() {
             <h2>회차 관리</h2>
             <p>새 회차를 만들거나 예정된 회차의 변경·취소를 요청합니다.</p>
           </div>
-          {canManageSessions && !showCreateSession && (
-            <button
-              className="button-primary"
-              onClick={() => setShowCreateSession(true)}
-            >
-              회차 생성
-            </button>
-          )}
+          <div className="operator-header-actions">
+            <Link className="button-outline" to="/operator/reservations/search">
+              예약번호 검색
+            </Link>
+            {canManageSessions && !showCreateSession && (
+              <button
+                className="button-primary"
+                onClick={() => setShowCreateSession(true)}
+              >
+                회차 생성
+              </button>
+            )}
+          </div>
         </div>
         {!canManageSessions && (
           <Notice>
@@ -842,33 +967,32 @@ export function OperatorContentDetailPage() {
             onCancel={() => setShowCreateSession(false)}
           />
         )}
-        {sessionWarning && <Notice>{sessionWarning}</Notice>}
+        {sessionError && (
+          <Notice tone="red">
+            {sessionError}{" "}
+            <button className="text-link-button" onClick={refreshSessions}>
+              다시 시도
+            </button>
+          </Notice>
+        )}
         <div className="operator-session-list">
-          {sessions.length === 0 ? (
+          {sessionLoading && sessions.length === 0 ? (
+            <p className="operator-page-state">회차를 불러오는 중입니다.</p>
+          ) : sessions.length === 0 ? (
             <p className="operator-page-state">표시할 회차가 없습니다.</p>
           ) : (
             sessions.map((session) => {
               const isScheduled = session.status === "SCHEDULED"
               const isFuture = new Date(session.startsAt).getTime() > Date.now()
-              const pendingChange = pendingChanges[session.sessionId]
+              const pendingChange = session.pendingChangeRequest
               return (
                 <article key={session.sessionId}>
                   <div className="operator-session-summary">
                     <div>
                       <StatusPill
-                        tone={
-                          session.status === "SCHEDULED"
-                            ? "green"
-                            : session.status === "PENDING"
-                              ? "amber"
-                              : "gray"
-                        }
+                        tone={sessionStatusTones[session.status]}
                       >
-                        {session.status === "SCHEDULED"
-                          ? "운영 예정"
-                          : session.status === "PENDING"
-                            ? "승인 대기"
-                            : "취소됨"}
+                        {sessionStatusLabels[session.status]}
                       </StatusPill>
                       {pendingChange && (
                         <StatusPill tone="amber">변경 심사 대기</StatusPill>
@@ -882,39 +1006,67 @@ export function OperatorContentDetailPage() {
                     <p>
                       정원 {session.capacity}명 · 잔여{" "}
                       {session.remainingCapacity}명
-                      {session.price !== undefined
-                        ? ` · ${session.price.toLocaleString("ko-KR")}원`
-                        : ""}
                     </p>
+                    {pendingChange && (
+                      <p>
+                        변경안: {new Date(
+                          pendingChange.candidate.startsAt,
+                        ).toLocaleString("ko-KR", {
+                          timeZone: "Asia/Seoul",
+                        })}{" "}
+                        · 정원 {pendingChange.candidate.capacity}명
+                      </p>
+                    )}
+                    {session.rejectReason && (
+                      <p>반려 사유: {session.rejectReason}</p>
+                    )}
+                    {session.cancellationReason && (
+                      <p>취소 사유: {session.cancellationReason}</p>
+                    )}
                     <small>회차 #{session.sessionId}</small>
                   </div>
-                  {isScheduled && isFuture && !pendingChange && (
-                    <div className="operator-session-actions">
-                      <button
-                        className="button-outline"
-                        onClick={() => {
-                          setChangingSessionId(session.sessionId)
-                          setCancellingSessionId(null)
-                        }}
-                      >
-                        변경 요청
-                      </button>
-                      <button
-                        className="button-danger"
-                        onClick={() => {
-                          setCancellingSessionId(session.sessionId)
-                          setChangingSessionId(null)
-                          setCancelError(null)
-                        }}
-                      >
-                        회차 취소
-                      </button>
-                    </div>
-                  )}
+                  <div className="operator-session-actions">
+                    <button
+                      className="button-outline"
+                      disabled={reservationLoading}
+                      onClick={() => loadSessionReservations(session.sessionId)}
+                    >
+                      {reservationLoading &&
+                      selectedReservationSessionId === session.sessionId
+                        ? "예약자 조회 중…"
+                        : "예약자 보기"}
+                    </button>
+                    {canManageSessions &&
+                      isScheduled &&
+                      isFuture &&
+                      !pendingChange && (
+                      <>
+                        <button
+                          className="button-outline"
+                          onClick={() => {
+                            setChangingSessionId(session.sessionId)
+                            setCancellingSessionId(null)
+                          }}
+                        >
+                          변경 요청
+                        </button>
+                        <button
+                          className="button-danger"
+                          onClick={() => {
+                            setCancellingSessionId(session.sessionId)
+                            setChangingSessionId(null)
+                            setCancelError(null)
+                          }}
+                        >
+                          회차 취소
+                        </button>
+                      </>
+                    )}
+                  </div>
                   {changingSessionId === session.sessionId && (
                     <SessionForm
                       initialValues={defaultSessionForm(session)}
-                      inheritedPrice={session.price ?? content.reservationPrice}
+                      inheritedPrice={content.reservationPrice}
                       submitLabel="변경 심사 요청"
                       onSubmit={(request) =>
                         changeSession(session.sessionId, request)
@@ -962,6 +1114,70 @@ export function OperatorContentDetailPage() {
             })
           )}
         </div>
+        {selectedReservationSessionId && (
+          <section className="operator-reservation-panel" aria-live="polite">
+            <div className="operator-section-heading">
+              <div>
+                <h2>회차 예약자 목록</h2>
+                <p>회차 #{selectedReservationSessionId}</p>
+              </div>
+            </div>
+            {reservationLoading && (
+              <p className="operator-page-state">
+                예약자 목록을 불러오는 중입니다.
+              </p>
+            )}
+            {reservationError && <Notice tone="red">{reservationError}</Notice>}
+            {sessionReservations &&
+              sessionReservations.reservations.length === 0 && (
+                <p className="operator-page-state">
+                  이 회차에는 예약자가 없습니다.
+                </p>
+              )}
+            {sessionReservations &&
+              sessionReservations.reservations.length > 0 && (
+                <div className="operator-reservation-list">
+                  {sessionReservations.reservations.map((reservation) => (
+                    <article key={reservation.reservationId}>
+                      <div>
+                        <StatusPill
+                          tone={
+                            reservation.status === "CONFIRMED"
+                              ? "green"
+                              : reservation.status === "CHECKED_IN"
+                                ? "blue"
+                                : "gray"
+                          }
+                        >
+                          {reservationStatusLabels[reservation.status]}
+                        </StatusPill>
+                        <h3>{reservation.participant.name}</h3>
+                        <p>{reservation.participant.phone ?? "연락처 없음"}</p>
+                      </div>
+                      <dl>
+                        <div>
+                          <dt>예약번호</dt>
+                          <dd>{reservation.reservationNo}</dd>
+                        </div>
+                        <div>
+                          <dt>예약 인원</dt>
+                          <dd>{reservation.quantity}명</dd>
+                        </div>
+                        <div>
+                          <dt>체크인</dt>
+                          <dd>
+                            {reservation.checkIn.checkedIn
+                              ? "체크인 완료"
+                              : "미체크인"}
+                          </dd>
+                        </div>
+                      </dl>
+                    </article>
+                  ))}
+                </div>
+              )}
+          </section>
+        )}
       </section>
     </section>
   )

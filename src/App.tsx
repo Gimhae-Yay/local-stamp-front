@@ -37,6 +37,7 @@ import {
 
 import { LoginPage, SignupPage } from "./pages/AuthPages"
 import OperatorRequestPage from "./pages/OperatorRequestPage"
+import OperatorReservationSearchPage from "./pages/OperatorReservationPages"
 import {
   CreateContentRevisionPage,
   EditContentRevisionPage,
@@ -115,6 +116,10 @@ export default function App() {
               <Route
                 path="/operator/content-revisions/:revisionId/edit"
                 element={<EditContentRevisionPage />}
+              />
+              <Route
+                path="/operator/reservations/search"
+                element={<OperatorReservationSearchPage />}
               />
             </Route>
             <Route path="/payment/complete" element={<PaymentCompletePage />} />

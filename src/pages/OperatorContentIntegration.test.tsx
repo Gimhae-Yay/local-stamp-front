@@ -49,6 +49,31 @@ const content = {
   updatedAt: "2026-08-01T00:00:00Z",
 }
 
+function operatorSession(
+  sessionId: string,
+  day: string,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    sessionId,
+    status: "SCHEDULED",
+    version: 1,
+    startsAt: `2027-09-${day}T10:00:00+09:00`,
+    endsAt: `2027-09-${day}T12:00:00+09:00`,
+    checkinOpenAt: `2027-09-${day}T09:30:00+09:00`,
+    checkinCloseAt: `2027-09-${day}T11:30:00+09:00`,
+    capacity: 30,
+    remainingCapacity: 30,
+    rejectReason: null,
+    cancelledAt: null,
+    cancellationReason: null,
+    completedAt: null,
+    createdAt: "2026-08-20T01:00:00Z",
+    pendingChangeRequest: null,
+    ...overrides,
+  }
+}
+
 afterEach(() => {
   cleanup()
   window.sessionStorage.clear()
@@ -192,50 +217,16 @@ describe("operator content integration", () => {
   })
 
   it("creates, changes, and cancels sessions while reflecting each status", async () => {
-    const fetchMock = vi.fn().mockImplementation((input: string) => {
+    let sessionList = [operatorSession("21", "01"), operatorSession("22", "02")]
+    const fetchMock = vi.fn().mockImplementation((input: string, init?: RequestInit) => {
       if (input === "/api/v1/operator/contents/10") {
         return Promise.resolve(response(content))
       }
-      if (input === "/api/v1/contents/10/sessions") {
-        return Promise.resolve(
-          response({
-            contentId: "10",
-            sessions: [
-              {
-                sessionId: "21",
-                startsAt: "2027-09-01T10:00:00+09:00",
-                endsAt: "2027-09-01T12:00:00+09:00",
-              },
-              {
-                sessionId: "22",
-                startsAt: "2027-09-02T10:00:00+09:00",
-                endsAt: "2027-09-02T12:00:00+09:00",
-              },
-            ],
-          }),
-        )
-      }
-      if (input === "/api/v1/sessions/21" || input === "/api/v1/sessions/22") {
-        const sessionId = input.endsWith("21") ? "21" : "22"
-        const day = sessionId === "21" ? "01" : "02"
-        return Promise.resolve(
-          response({
-            sessionId,
-            contentId: "10",
-            startsAt: `2027-09-${day}T10:00:00+09:00`,
-            endsAt: `2027-09-${day}T12:00:00+09:00`,
-            price: 10000,
-            remainingCapacity: 30,
-            reservable: true,
-          }),
-        )
-      }
       if (input === "/api/v1/operator/contents/10/sessions") {
-        return Promise.resolve(
-          response(
-            {
-              sessionId: "23",
-              contentId: "10",
+        if (init?.method === "POST") {
+          sessionList = [
+            ...sessionList,
+            operatorSession("23", "03", {
               status: "PENDING",
               startsAt: "2027-10-01T10:00:00+09:00",
               endsAt: "2027-10-01T12:00:00+09:00",
@@ -243,13 +234,53 @@ describe("operator content integration", () => {
               checkinCloseAt: "2027-10-01T11:30:00+09:00",
               capacity: 20,
               remainingCapacity: 20,
-              createdAt: "2026-08-20T01:00:00Z",
-            },
-            201,
-          ),
+            }),
+          ]
+          return Promise.resolve(
+            response(
+              {
+                sessionId: "23",
+                contentId: "10",
+                status: "PENDING",
+                startsAt: "2027-10-01T10:00:00+09:00",
+                endsAt: "2027-10-01T12:00:00+09:00",
+                checkinOpenAt: "2027-10-01T09:30:00+09:00",
+                checkinCloseAt: "2027-10-01T11:30:00+09:00",
+                capacity: 20,
+                remainingCapacity: 20,
+                createdAt: "2026-08-20T01:00:00Z",
+              },
+              201,
+            ),
+          )
+        }
+        return Promise.resolve(
+          response({
+            contentId: "10",
+            sessions: sessionList,
+          }),
         )
       }
       if (input === "/api/v1/operator/sessions/21/change-requests") {
+        sessionList = sessionList.map((session) =>
+          session.sessionId === "21"
+            ? operatorSession("21", "01", {
+                pendingChangeRequest: {
+                  revisionId: "31",
+                  status: "PENDING",
+                  baseSessionVersion: 1,
+                  candidate: {
+                    startsAt: "2027-09-01T10:00:00+09:00",
+                    endsAt: "2027-09-01T12:00:00+09:00",
+                    checkinOpenAt: "2027-09-01T09:30:00+09:00",
+                    checkinCloseAt: "2027-09-01T11:30:00+09:00",
+                    capacity: 30,
+                  },
+                  submittedAt: "2026-08-20T01:00:00Z",
+                },
+              })
+            : session,
+        )
         return Promise.resolve(
           response(
             {
@@ -270,6 +301,15 @@ describe("operator content integration", () => {
         )
       }
       if (input === "/api/v1/operator/sessions/22/cancel") {
+        sessionList = sessionList.map((session) =>
+          session.sessionId === "22"
+            ? operatorSession("22", "02", {
+                status: "CANCELLED",
+                cancelledAt: "2026-08-20T01:00:00Z",
+                cancellationReason: "기상 악화",
+              })
+            : session,
+        )
         return Promise.resolve(
           response({
             sessionId: "22",
@@ -346,39 +386,146 @@ describe("operator content integration", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("shows server validation and duplicate command errors", async () => {
+  it("requests full content withdrawal and loads reservations for each session", async () => {
     const fetchMock = vi.fn().mockImplementation((input: string) => {
       if (input === "/api/v1/operator/contents/10") {
         return Promise.resolve(response(content))
       }
-      if (input === "/api/v1/contents/10/sessions") {
+      if (input === "/api/v1/operator/contents/10/sessions") {
         return Promise.resolve(
           response({
             contentId: "10",
-            sessions: [
+            sessions: [operatorSession("21", "01"), operatorSession("22", "02")],
+          }),
+        )
+      }
+      if (input === "/api/v1/operator/contents/10/withdrawal-requests") {
+        return Promise.resolve(
+          response(
+            {
+              withdrawalRequestId: "7001",
+              contentId: "10",
+              status: "PENDING",
+              requestReason: "운영 계획 변경",
+              requestedAt: "2026-08-20T01:00:00Z",
+            },
+            201,
+          ),
+        )
+      }
+      if (input === "/api/v1/operator/contents/10/reservations?sessionId=21") {
+        return Promise.resolve(
+          response({
+            contentId: "10",
+            session: {
+              sessionId: "21",
+              status: "SCHEDULED",
+              startsAt: "2027-09-01T10:00:00+09:00",
+              endsAt: "2027-09-01T12:00:00+09:00",
+              checkinOpenAt: "2027-09-01T09:30:00+09:00",
+              checkinCloseAt: "2027-09-01T10:30:00+09:00",
+            },
+            reservations: [
               {
-                sessionId: "21",
-                startsAt: "2027-09-01T10:00:00+09:00",
-                endsAt: "2027-09-01T12:00:00+09:00",
+                reservationId: "301",
+                reservationNo: "R2026-301",
+                status: "CONFIRMED",
+                quantity: 2,
+                confirmedAt: "2026-08-20T01:00:00Z",
+                participant: { name: "김*수", phone: "010-****-1234" },
+                checkIn: { checkedIn: false, checkedAt: null },
               },
             ],
           }),
         )
       }
-      if (input === "/api/v1/sessions/21") {
+      if (input === "/api/v1/operator/contents/10/reservations?sessionId=22") {
         return Promise.resolve(
           response({
-            sessionId: "21",
             contentId: "10",
-            startsAt: "2027-09-01T10:00:00+09:00",
-            endsAt: "2027-09-01T12:00:00+09:00",
-            price: 10000,
-            remainingCapacity: 30,
-            reservable: true,
+            session: {
+              sessionId: "22",
+              status: "SCHEDULED",
+              startsAt: "2027-09-02T10:00:00+09:00",
+              endsAt: "2027-09-02T12:00:00+09:00",
+              checkinOpenAt: "2027-09-02T09:30:00+09:00",
+              checkinCloseAt: "2027-09-02T10:30:00+09:00",
+            },
+            reservations: [],
           }),
         )
       }
+      return Promise.reject(new Error(`unexpected request: ${input}`))
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <MemoryRouter initialEntries={["/operator/contents/10"]}>
+        <Routes>
+          <Route
+            path="/operator/contents/:contentId"
+            element={<OperatorContentDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(
+      await screen.findByRole("button", { name: "전체 콘텐츠 철회 요청" }),
+    )
+    await user.click(screen.getByRole("button", { name: "철회 요청 확정" }))
+    expect(
+      screen.getByText("전체 철회 사유를 입력해 주세요."),
+    ).toBeInTheDocument()
+    await user.type(screen.getByLabelText("전체 철회 사유"), "운영 계획 변경")
+    await user.click(screen.getByRole("button", { name: "철회 요청 확정" }))
+
+    expect(
+      await screen.findByText(/전체 콘텐츠 철회 요청이 접수되었습니다/),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "전체 콘텐츠 철회 요청" }),
+    ).not.toBeInTheDocument()
+    const withdrawalCall = fetchMock.mock.calls.find(
+      ([input]) => input === "/api/v1/operator/contents/10/withdrawal-requests",
+    )
+    expect(withdrawalCall?.[1]?.method).toBe("POST")
+    expect(
+      new Headers(withdrawalCall?.[1]?.headers).get("Idempotency-Key"),
+    ).toMatch(/.+/)
+
+    const session21 = screen.getByText("회차 #21").closest("article")!
+    await user.click(
+      within(session21).getByRole("button", { name: "예약자 보기" }),
+    )
+    expect(await screen.findByText("R2026-301")).toBeInTheDocument()
+    expect(screen.getByText("예약 확정")).toBeInTheDocument()
+    expect(screen.getByText("김*수")).toBeInTheDocument()
+
+    const session22 = screen.getByText("회차 #22").closest("article")!
+    await user.click(
+      within(session22).getByRole("button", { name: "예약자 보기" }),
+    )
+    expect(
+      await screen.findByText("이 회차에는 예약자가 없습니다."),
+    ).toBeInTheDocument()
+  })
+
+  it("shows server validation and duplicate command errors", async () => {
+    const fetchMock = vi.fn().mockImplementation((input: string, init?: RequestInit) => {
+      if (input === "/api/v1/operator/contents/10") {
+        return Promise.resolve(response(content))
+      }
       if (input === "/api/v1/operator/contents/10/sessions") {
+        if (init?.method !== "POST") {
+          return Promise.resolve(
+            response({
+              contentId: "10",
+              sessions: [operatorSession("21", "01")],
+            }),
+          )
+        }
         return Promise.resolve(
           errorResponse("INVALID_INPUT", "회차 일정이 올바르지 않습니다.", 400),
         )
