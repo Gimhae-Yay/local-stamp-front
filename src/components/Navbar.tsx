@@ -86,7 +86,7 @@ export default function Navbar({
 
         zIndex: 100,
 
-        background: "rgba(247,248,245,0.92)",
+        background: "rgba(251,242,222,0.92)",
 
         borderBottom: "1px solid var(--border)",
 
@@ -96,12 +96,11 @@ export default function Navbar({
       }}
     >
       <div
+        className="navbar-inner"
         style={{
-          maxWidth: 900,
-
           margin: "0 auto",
 
-          padding: "0 24px",
+          padding: 0,
 
           height: 60,
 
@@ -121,7 +120,7 @@ export default function Navbar({
 
               borderRadius: 7,
 
-              background: "var(--green)",
+              background: "var(--color-primary)",
 
               display: "flex",
 

@@ -4,6 +4,7 @@ import {
   checkInByQr,
   checkInManually,
   isLocalFakeImageStorageUrl,
+  resolveImageUploadUrl,
   getStampbook,
   getLatestContentRevision,
   listStampbooks,
@@ -55,6 +56,22 @@ describe("운영자 대표 이미지 업로드 환경 판별", () => {
     expect(
       isLocalFakeImageStorageUrl("https://example.com/local-image-storage/contents/demo.webp"),
     ).toBe(false);
+  });
+
+  it("로컬 개발에서는 지정한 S3 presigned URL을 같은 Origin 프록시 경로로 바꾼다", () => {
+    const uploadUrl =
+      "https://images.example.com/contents/demo.png?X-Amz-Signature=test&X-Amz-Expires=600";
+
+    expect(resolveImageUploadUrl(uploadUrl, "https://images.example.com", true)).toBe(
+      "/image-upload/contents/demo.png?X-Amz-Signature=test&X-Amz-Expires=600",
+    );
+  });
+
+  it("운영 환경과 다른 저장소 Origin은 presigned URL을 그대로 사용한다", () => {
+    const uploadUrl = "https://images.example.com/contents/demo.png?signature=test";
+
+    expect(resolveImageUploadUrl(uploadUrl, "https://images.example.com", false)).toBe(uploadUrl);
+    expect(resolveImageUploadUrl(uploadUrl, "https://other.example.com", true)).toBe(uploadUrl);
   });
 });
 

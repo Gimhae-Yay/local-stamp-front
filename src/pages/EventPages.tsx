@@ -261,14 +261,12 @@ export function EventDetailPage() {
         expiresAt={content.representativeImageUrlExpiresAt}
         alt={`${content.title} 대표 이미지`}
         onRefresh={refreshContent}
+        className="detail-hero-image"
         fallbackTall
         style={{
           width: "100%",
-          height: 214,
           objectFit: "cover",
           display: "block",
-          border: "1px solid #c8ddc6",
-          borderRadius: "var(--radius)",
         }}
       />
       <h1>{content.title}</h1>
