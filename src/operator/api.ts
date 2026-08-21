@@ -16,9 +16,11 @@ import type {
   MissionDetail,
   MissionInput,
   MissionSummary,
+  LatestContentRevision,
   PageData,
   ReservationPayment,
   ReservationSearchResult,
+  ResubmitContentRevisionResult,
   SessionInput,
   SessionChangeRequestResult,
   SessionReservations,
@@ -183,16 +185,29 @@ export function submitContent(contentId: string) {
 export function createContentRevision(contentId: string, input: ContentInput) {
   return apiRequest<ContentRevisionResult>(
     `/api/v1/operator/contents/${encodeURIComponent(contentId)}/revisions`,
+
     {
       method: "POST",
+
       body: jsonBody(input),
     },
+  )
+}
+
+export function getLatestContentRevision(
+  contentId: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<LatestContentRevision>(
+    `/api/v1/operator/contents/${encodeURIComponent(contentId)}/revisions/latest`,
+    { signal },
   )
 }
 
 export function updateContentRevision(revisionId: string, input: ContentInput) {
   return apiRequest<ContentRevisionResult>(
     `/api/v1/operator/content-revisions/${encodeURIComponent(revisionId)}`,
+
     { method: "PUT", body: jsonBody(input) },
   )
 }
@@ -200,7 +215,15 @@ export function updateContentRevision(revisionId: string, input: ContentInput) {
 export function withdrawContentRevision(revisionId: string, reason: string) {
   return apiRequest<WithdrawContentRevisionResult>(
     `/api/v1/operator/content-revisions/${encodeURIComponent(revisionId)}/withdraw`,
+
     { method: "POST", body: jsonBody({ reason }) },
+  )
+}
+
+export function resubmitContentRevision(revisionId: string) {
+  return apiRequest<ResubmitContentRevisionResult>(
+    `/api/v1/operator/content-revisions/${encodeURIComponent(revisionId)}/resubmit`,
+    { method: "POST" },
   )
 }
 
@@ -439,6 +462,7 @@ export function createStampbook(input: StampbookInput) {
 export function listStampbooks(signal?: AbortSignal) {
   return apiRequest<{ stampbooks: OperatorStampbookSummary[] }>(
     "/api/v1/operator/stampbooks",
+
     { signal },
   )
 }
@@ -446,6 +470,7 @@ export function listStampbooks(signal?: AbortSignal) {
 export function getStampbook(id: string, signal?: AbortSignal) {
   return apiRequest<OperatorStampbookDetail>(
     `/api/v1/operator/stampbooks/${encodeURIComponent(id)}`,
+
     { signal },
   )
 }

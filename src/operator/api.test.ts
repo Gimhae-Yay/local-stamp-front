@@ -5,9 +5,11 @@ import {
   checkInManually,
   isLocalFakeImageStorageUrl,
   getStampbook,
+  getLatestContentRevision,
   listStampbooks,
   listOperatorContentSessions,
   requestContentWithdrawal,
+  resubmitContentRevision,
   updateContentRevision,
   withdrawContentRevision,
 } from "./api"
@@ -136,32 +138,49 @@ describe("운영자 콘텐츠 수정본 명령", () => {
       (_: RequestInfo | URL, _init?: RequestInit) =>
         success({ revisionId: "501" }),
     )
+
     vi.stubGlobal("fetch", fetchMock)
+
     const input = {
       title: "수정 제목",
+
       description: "수정 소개",
+
       locationText: "김해",
+
       operatingHoursText: "주말",
+
       contactText: "055-000-0000",
+
       precautions: "주의",
+
       ageRequirement: "전체",
+
       materials: "없음",
+
       cancellationPolicyText: "취소 가능",
+
       reservationPrice: 10000,
+
       publishAt: null,
     }
 
     await updateContentRevision("501", input)
+
     await withdrawContentRevision("501", "일정 변경")
 
     expect(String(fetchMock.mock.calls[0]![0])).toContain(
       "/api/v1/operator/content-revisions/501",
     )
+
     expect(fetchMock.mock.calls[0]![1]?.method).toBe("PUT")
+
     expect(JSON.parse(String(fetchMock.mock.calls[0]![1]?.body))).toEqual(input)
+
     expect(String(fetchMock.mock.calls[1]![0])).toContain(
       "/api/v1/operator/content-revisions/501/withdraw",
     )
+
     expect(JSON.parse(String(fetchMock.mock.calls[1]![1]?.body))).toEqual({
       reason: "일정 변경",
     })
@@ -196,6 +215,25 @@ describe("운영자 콘텐츠 회차·철회 계약", () => {
       expect(JSON.parse(String(init?.body))).toEqual({ reason: "운영 종료" })
     }
   })
+
+  it("최신 수정본 조회와 반려 수정본 재제출 URL을 사용한다", async () => {
+    const fetchMock = vi.fn(() =>
+      success({ revisionId: "502", contentId: "101" }),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await getLatestContentRevision("101")
+    await resubmitContentRevision("501")
+
+    expect(String(fetchMock.mock.calls[0]![0])).toContain(
+      "/api/v1/operator/contents/101/revisions/latest",
+    )
+    expect(fetchMock.mock.calls[0]![1]?.method).toBeUndefined()
+    expect(String(fetchMock.mock.calls[1]![0])).toContain(
+      "/api/v1/operator/content-revisions/501/resubmit",
+    )
+    expect(fetchMock.mock.calls[1]![1]?.method).toBe("POST")
+  })
 })
 
 describe("운영자 스탬프북 조회", () => {
@@ -204,18 +242,23 @@ describe("운영자 스탬프북 조회", () => {
       (_: RequestInfo | URL, _init?: RequestInit) =>
         success({ stampbooks: [] }),
     )
+
     vi.stubGlobal("fetch", fetchMock)
 
     await listStampbooks()
+
     await getStampbook("801")
 
     expect(String(fetchMock.mock.calls[0]![0])).toContain(
       "/api/v1/operator/stampbooks",
     )
+
     expect(String(fetchMock.mock.calls[1]![0])).toContain(
       "/api/v1/operator/stampbooks/801",
     )
+
     expect(fetchMock.mock.calls[0]![1]?.method).toBeUndefined()
+
     expect(fetchMock.mock.calls[1]![1]?.method).toBeUndefined()
   })
 })

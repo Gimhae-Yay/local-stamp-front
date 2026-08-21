@@ -52,6 +52,10 @@ export default function OperatorApp() {
               path="content-revisions/:revisionId"
               element={<ContentRevisionPage />}
             />
+            <Route
+              path="contents/:contentId/revisions/latest"
+              element={<ContentRevisionPage />}
+            />
             <Route path="reservations" element={<ReservationPage />} />
             <Route path="check-in" element={<CheckInPage />} />
             <Route path="coupon-policies" element={<CouponListPage />} />

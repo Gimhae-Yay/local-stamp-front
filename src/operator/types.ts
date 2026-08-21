@@ -118,17 +118,58 @@ export interface SessionChangeRequestResult {
 
 export interface ContentRevisionResult {
   revisionId: string
+
+  contentId: string
+
+  status: string
+
+  submittedAt?: string
+
+  updatedAt?: string
+}
+
+export interface LatestContentRevision {
+  revisionId: string
+  contentId: string
+  revisionNo: number
+  baseContentVersion: number
+  status: string
+  title: string
+  description: string
+  representativeImageUrl: string | null
+  representativeImageUrlExpiresAt: string | null
+  locationText: string
+  operatingHoursText: string
+  contactText: string
+  precautions: string
+  ageRequirement: string
+  materials: string
+  cancellationPolicyText: string
+  reservationPrice: number
+  publishAt: string | null
+  reviewReason: string | null
+  submittedAt: string
+  reviewedAt: string | null
+}
+
+export interface ResubmitContentRevisionResult {
+  revisionId: string
+  sourceRevisionId: string
   contentId: string
   status: string
-  submittedAt?: string
-  updatedAt?: string
+  baseContentVersion: number
+  submittedAt: string
 }
 
 export interface WithdrawContentRevisionResult {
   revisionId: string
+
   contentId: string
+
   status: string
+
   withdrawalReason: string
+
   withdrawnAt: string
 }
 
@@ -469,15 +510,21 @@ export interface OperatorStampbookDetail {
 
   targetContents: Array<{
     contentId: string
+
     regionId: string
+
     title: string
+
     status: string
   }>
 
   rewardCouponPolicy: {
     couponPolicyId: string
+
     regionId: string
+
     issuanceType: string
+
     status: string
   }
 
