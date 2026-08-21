@@ -1,4 +1,4 @@
-import { defineConfig, type HtmlTagDescriptor, type Plugin } from "vite";
+import { defineConfig, loadEnv, type HtmlTagDescriptor, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
@@ -13,6 +13,8 @@ const siteConfiguration = {
 export default defineConfig(({ mode }) => {
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
   const emitSourcemaps = mode === "development";
+  const env = loadEnv(mode, import.meta.dirname, "VITE_");
+  const imageUploadProxyTarget = env.VITE_IMAGE_UPLOAD_PROXY_TARGET;
 
   return {
     base: process.env.FIGMA_PUBLIC_URL ? `${process.env.FIGMA_PUBLIC_URL}/` : "/",
@@ -40,9 +42,18 @@ export default defineConfig(({ mode }) => {
       watch: { ignored: ["**/.figma/**"] },
       proxy: {
         "/api": {
-          target: process.env.VITE_API_PROXY_TARGET || "http://localhost:8080",
+          target: env.VITE_API_PROXY_TARGET || "http://localhost:8080",
           changeOrigin: true,
         },
+        ...(imageUploadProxyTarget
+          ? {
+              "/image-upload": {
+                target: imageUploadProxyTarget,
+                changeOrigin: true,
+                rewrite: (requestPath: string) => requestPath.replace(/^\/image-upload/, ""),
+              },
+            }
+          : {}),
       },
     },
     preview: {

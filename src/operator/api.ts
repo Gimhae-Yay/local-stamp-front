@@ -104,6 +104,23 @@ export function isLocalFakeImageStorageUrl(uploadUrl: string) {
   }
 }
 
+export function resolveImageUploadUrl(
+  uploadUrl: string,
+  proxyTarget = import.meta.env.VITE_IMAGE_UPLOAD_PROXY_TARGET as string | undefined,
+  dev = import.meta.env.DEV,
+) {
+  if (!dev || !proxyTarget) return uploadUrl;
+
+  try {
+    const url = new URL(uploadUrl);
+    if (url.origin !== new URL(proxyTarget).origin) return uploadUrl;
+
+    return `/image-upload${url.pathname}${url.search}`;
+  } catch {
+    return uploadUrl;
+  }
+}
+
 export async function uploadRepresentativeImage(file: File) {
   const presigned = await apiRequest<{
     imageObjectId: string;
@@ -137,7 +154,7 @@ export async function uploadRepresentativeImage(file: File) {
 
   uploadHeaders.delete("Content-Length");
 
-  const response = await fetch(presigned.uploadUrl, {
+  const response = await fetch(resolveImageUploadUrl(presigned.uploadUrl), {
     method: "PUT",
 
     headers: uploadHeaders,

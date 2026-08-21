@@ -364,12 +364,6 @@ export function ContentListPage() {
         <RouteState empty="등록한 콘텐츠가 없습니다. 새 콘텐츠를 등록해 주세요." />
       ) : (
         <>
-          <div className="op-info-banner">
-            <div>
-              <strong>총 {items.length}개 콘텐츠</strong>
-              <span>Backend 제공 순서 · 검색/필터/페이지 없음</span>
-            </div>
-          </div>
           <div className="op-table-wrap">
             <table>
               <thead>

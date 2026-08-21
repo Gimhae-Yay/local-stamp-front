@@ -6,11 +6,11 @@
   --op-muted: var(--text-sub);
   --op-line: var(--border);
   --op-line-strong: var(--border-2);
-  --op-lime: #96f67b;
+  --op-lime: var(--color-secondary);
   --op-lime-soft: var(--green-light);
-  --op-green: var(--green-dark);
-  --op-orange: var(--green);
-  --op-orange-soft: var(--green-light);
+  --op-green: var(--color-sage);
+  --op-orange: var(--color-secondary);
+  --op-orange-soft: #f4e5dc;
   --op-danger: #a95049;
   --op-danger-soft: #fff0ee;
   --op-warning: #9a6817;
@@ -60,7 +60,7 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--op-line);
-  background: rgba(247, 248, 245, 0.94);
+  background: rgba(251, 242, 222, 0.94);
   padding: 0 32px;
   backdrop-filter: blur(12px);
 }
@@ -80,9 +80,9 @@
   width: 38px;
   height: 38px;
   place-items: center;
-  border: 1px solid var(--green);
+  border: 1px solid var(--color-primary);
   border-radius: 11px;
-  background: var(--green);
+  background: var(--color-primary);
   color: #fff;
   font-size: 20px;
   font-weight: 850;
@@ -184,7 +184,7 @@
   border-right: 1px solid var(--op-line);
   background:
     radial-gradient(circle at 12% 0%, rgba(102, 190, 111, 0.08), transparent 210px),
-    linear-gradient(180deg, #fbfcfa 0%, #f7f9f6 100%);
+    linear-gradient(180deg, #fffdf8 0%, #fbf2de 100%);
   padding: 26px 14px;
 }
 .op-nav-group {
@@ -203,7 +203,7 @@
 .op-nav-group > p::before {
   width: 16px;
   height: 1px;
-  background: #cfd8cf;
+  background: #d9c6ad;
   content: "";
 }
 .op-nav-group > a {
@@ -226,7 +226,7 @@
     transform 160ms ease;
 }
 .op-nav-group > a:hover {
-  border-color: #e1e7e0;
+  border-color: #eadbc5;
   background: rgba(255, 255, 255, 0.82);
   color: #263d2d;
   transform: translateX(2px);
@@ -249,7 +249,7 @@
   height: 32px;
   flex: 0 0 32px;
   place-items: center;
-  border: 1px solid #e1e7df;
+  border: 1px solid #eadbc5;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.86);
   color: #718078;
@@ -265,8 +265,8 @@
   white-space: nowrap;
 }
 .op-nav-group > a.active {
-  border-color: #a8d9aa;
-  background: linear-gradient(110deg, #e9f8e9 0%, #f2fbf1 100%);
+  border-color: #aab9a4;
+  background: linear-gradient(110deg, #edf1eb 0%, #f7eadf 100%);
   box-shadow: 0 7px 18px rgba(58, 129, 66, 0.1);
   color: var(--op-green);
 }
@@ -275,15 +275,15 @@
   transform: translateX(0);
 }
 .op-nav-group > a.active .op-nav-icon {
-  border-color: #b6dfb8;
-  background: #d9f1db;
+  border-color: #cbd5c7;
+  background: #edf1eb;
   color: #347d3c;
 }
 .op-sidebar-note {
   margin: 30px 3px 0;
-  border: 1px solid #dce6da;
+  border: 1px solid #eadbc5;
   border-radius: 14px;
-  background: linear-gradient(145deg, #fff 0%, #f4f8f3 100%);
+  background: linear-gradient(145deg, #fff 0%, #f9f1e4 100%);
   box-shadow: 0 8px 22px rgba(38, 63, 45, 0.05);
   padding: 15px;
   color: var(--op-muted);
@@ -362,14 +362,14 @@
   font-size: 12px;
 }
 .op-button-primary {
-  border-color: #91c66e;
+  border-color: #8d5238;
   background: var(--op-lime);
-  color: #173820;
+  color: #fff;
 }
 .op-button-admin {
-  border-color: #62c75e;
+  border-color: #8d5238;
   background: var(--op-lime);
-  color: #173820;
+  color: #fff;
 }
 .op-button-danger {
   border-color: var(--op-danger);
@@ -543,7 +543,7 @@ textarea.op-control {
   color: var(--op-warning);
 }
 .op-badge-success {
-  border-color: #a8d89b;
+  border-color: #aab9a4;
   background: var(--op-lime-soft);
   color: var(--op-green);
 }
@@ -832,7 +832,7 @@ textarea.op-control {
   display: grid;
   min-height: 470px;
   place-items: center;
-  border: 1px solid #91c66e;
+  border: 1px solid #8d5238;
   border-radius: 16px;
   background: var(--op-lime-soft);
   padding: 28px;
@@ -876,7 +876,7 @@ textarea.op-control {
 }
 .op-result-card {
   margin-top: 16px;
-  border: 1px solid #a8d89b;
+  border: 1px solid #aab9a4;
   border-radius: 14px;
   background: var(--op-lime-soft);
   padding: 18px;
@@ -948,7 +948,7 @@ textarea.op-control {
   font-size: 12px;
 }
 .op-alert-success {
-  border-color: #a8d89b;
+  border-color: #aab9a4;
   background: var(--op-lime-soft);
   color: var(--op-green);
 }
@@ -1020,8 +1020,8 @@ textarea.op-control {
   justify-content: space-between;
   padding: 52px 7vw 70px;
   background:
-    radial-gradient(circle at 20% 20%, #c8edcc, transparent 42%),
-    linear-gradient(145deg, #f7f8f5, #eaf7ed);
+    radial-gradient(circle at 20% 20%, #cbd5c7, transparent 42%),
+    linear-gradient(145deg, #f7f8f5, #edf1eb);
 }
 .op-login-brand h1 {
   max-width: 600px;
