@@ -1,101 +1,107 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { ConsoleNavIcon, type ConsoleNavIconName } from "../components/ConsoleNavIcon";
 import { useAdminAuth } from "./AdminAuth";
 
 const navigation = [
   {
-    group: "공통",
+    group: "운영 관리",
     label: "운영 홈",
-    icon: "⌂",
+    icon: "home" as ConsoleNavIconName,
     path: "/region-admin",
     end: true,
   },
   {
-    group: "P0 운영",
+    group: "운영 관리",
     label: "운영자 신청",
-    icon: "◉",
+    icon: "users" as ConsoleNavIconName,
     path: "/region-admin/operator-requests",
   },
   {
-    group: "P0 운영",
+    group: "운영 관리",
     label: "콘텐츠 관리",
-    icon: "▤",
+    icon: "content" as ConsoleNavIconName,
     path: "/region-admin/contents/review",
   },
   {
-    group: "P0 운영",
+    group: "운영 관리",
     label: "회차 관리",
-    icon: "◫",
+    icon: "calendar" as ConsoleNavIconName,
     path: "/region-admin/sessions",
   },
   {
-    group: "P0 운영",
+    group: "운영 관리",
     label: "QR 예외",
-    icon: "⌗",
+    icon: "checkin" as ConsoleNavIconName,
     path: "/region-admin/qr-exceptions",
   },
   {
-    group: "P1 혜택",
+    group: "혜택 심사",
     label: "혜택 심사",
-    icon: "◇",
+    icon: "stampbook" as ConsoleNavIconName,
     path: "/region-admin/stampbooks",
   },
 ];
 
 const accountNavigation = [
-  { group: "공통", label: "운영 홈", icon: "⌂", path: "/region-admin" },
+  {
+    group: "공통",
+    label: "운영 홈",
+    icon: "home" as ConsoleNavIconName,
+    path: "/region-admin",
+  },
   {
     group: "심사 운영",
     label: "운영자 신청 심사",
-    icon: "◉",
+    icon: "users" as ConsoleNavIconName,
     path: "/region-admin/operator-requests",
   },
   {
     group: "심사 운영",
     label: "콘텐츠 최초 심사",
-    icon: "▤",
+    icon: "content" as ConsoleNavIconName,
     path: "/region-admin/contents/review",
   },
   {
     group: "심사 운영",
     label: "콘텐츠 수정본 심사",
-    icon: "≠",
+    icon: "revision" as ConsoleNavIconName,
     path: "/region-admin/content-revisions",
   },
   {
     group: "심사 운영",
     label: "콘텐츠 철회 심사",
-    icon: "↺",
+    icon: "withdrawal" as ConsoleNavIconName,
     path: "/region-admin/withdrawal-requests",
   },
   {
     group: "심사 운영",
     label: "추가 회차 심사",
-    icon: "◫",
+    icon: "calendar" as ConsoleNavIconName,
     path: "/region-admin/sessions",
   },
   {
     group: "심사 운영",
     label: "회차 수정 심사",
-    icon: "⇄",
+    icon: "revision" as ConsoleNavIconName,
     path: "/region-admin/session-revisions",
   },
   {
     group: "현장·혜택",
     label: "예약번호 조회·QR 예외",
-    icon: "⌗",
+    icon: "checkin" as ConsoleNavIconName,
     path: "/region-admin/qr-exceptions",
   },
   {
     group: "현장·혜택",
     label: "스탬프북 심사",
-    icon: "◇",
+    icon: "stampbook" as ConsoleNavIconName,
     path: "/region-admin/stampbooks",
   },
   {
     group: "현장·혜택",
     label: "미션 심사",
-    icon: "◎",
+    icon: "mission" as ConsoleNavIconName,
     path: "/region-admin/missions",
   },
 ];
@@ -202,7 +208,9 @@ export default function AdminLayout() {
                             end={item.path === "/region-admin"}
                             onClick={() => setAccountMenuOpen(false)}
                           >
-                            <span aria-hidden="true">{item.icon}</span>
+                            <span className="ra-account-nav-icon">
+                              <ConsoleNavIcon name={item.icon} />
+                            </span>
                             {item.label}
                           </NavLink>
                         ))}
@@ -217,8 +225,8 @@ export default function AdminLayout() {
           </div>
         </div>
       </header>
-      <aside className="ra-sidebar">
-        {["공통", "P0 운영", "P1 혜택"].map((group) => (
+      <aside className="ra-sidebar" aria-label="지역 관리자 메뉴">
+        {["운영 관리", "혜택 심사"].map((group) => (
           <section className="ra-nav-section" key={group}>
             <p>{group}</p>
             {navigation
@@ -233,8 +241,10 @@ export default function AdminLayout() {
                     className={active ? "active" : ""}
                     aria-current={active ? "page" : undefined}
                   >
-                    <span aria-hidden="true">{item.icon}</span>
-                    {item.label}
+                    <span className="ra-nav-icon">
+                      <ConsoleNavIcon name={item.icon} />
+                    </span>
+                    <span className="ra-nav-label">{item.label}</span>
                   </NavLink>
                 );
               })}

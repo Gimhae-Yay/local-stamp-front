@@ -139,7 +139,12 @@ describe("전체 관리자 콘솔 통합", () => {
       ),
     ).toBe(false);
     await user.click(await screen.findByRole("button", { name: /사용자 910001/ }));
-    await user.click(screen.getByRole("link", { name: /^▣전체 관리자 계정/ }));
+    await user.click(
+      within(screen.getByRole("complementary", { name: "전체 관리자 계정 메뉴" })).getByRole(
+        "link",
+        { name: /전체 관리자 계정/ },
+      ),
+    );
 
     expect(await screen.findByText(/superadmin@test.local/)).toBeInTheDocument();
     expect(screen.getByText(/inactiveadmin@test.local/)).toBeInTheDocument();
@@ -184,7 +189,12 @@ describe("전체 관리자 콘솔 통합", () => {
     await user.type(screen.getByLabelText("비밀번호"), "LocalTest1!");
     await user.click(screen.getByRole("button", { name: "로그인" }));
     await user.click(await screen.findByRole("button", { name: /사용자 910001/ }));
-    await user.click(screen.getByRole("link", { name: /수동 전액 환불/ }));
+    await user.click(
+      within(screen.getByRole("complementary", { name: "전체 관리자 계정 메뉴" })).getByRole(
+        "link",
+        { name: /수동 전액 환불/ },
+      ),
+    );
 
     await user.type(await screen.findByLabelText("결제 ID *"), "910201");
     await user.type(screen.getByLabelText(/증빙 참조/), "local-e2e://refund");

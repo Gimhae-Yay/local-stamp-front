@@ -1,43 +1,44 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { ConsoleNavIcon, type ConsoleNavIconName } from "../components/ConsoleNavIcon";
 import { useOperatorAuth } from "./OperatorAuth";
 
 const navigation = [
   {
-    group: "P0 운영",
+    group: "운영 관리",
     label: "내 콘텐츠",
-    icon: "▤",
+    icon: "content" as ConsoleNavIconName,
     path: "/operator",
     end: true,
   },
   {
-    group: "P0 운영",
+    group: "운영 관리",
     label: "회차·예약 관리",
-    icon: "◫",
+    icon: "calendar" as ConsoleNavIconName,
     path: "/operator/reservations",
   },
   {
-    group: "P0 운영",
+    group: "운영 관리",
     label: "현장 체크인",
-    icon: "⌗",
+    icon: "checkin" as ConsoleNavIconName,
     path: "/operator/check-in",
   },
   {
-    group: "P1 혜택",
+    group: "혜택 도구",
     label: "쿠폰 정책",
-    icon: "◇",
+    icon: "coupon" as ConsoleNavIconName,
     path: "/operator/coupon-policies",
   },
   {
-    group: "P1 혜택",
+    group: "혜택 도구",
     label: "지역 미션",
-    icon: "◎",
+    icon: "mission" as ConsoleNavIconName,
     path: "/operator/missions",
   },
   {
-    group: "P1 혜택",
+    group: "혜택 도구",
     label: "스탬프북 만들기",
-    icon: "▣",
+    icon: "stampbook" as ConsoleNavIconName,
     path: "/operator/stampbooks",
   },
 ];
@@ -119,8 +120,8 @@ export default function OperatorLayout() {
           </div>
         </div>
       </header>
-      <aside className="op-sidebar">
-        {["P0 운영", "P1 혜택"].map((group) => (
+      <aside className="op-sidebar" aria-label="운영자 메뉴">
+        {["운영 관리", "혜택 도구"].map((group) => (
           <section className="op-nav-group" key={group}>
             <p>{group}</p>
             {navigation
@@ -132,8 +133,10 @@ export default function OperatorLayout() {
                   end={item.end}
                   className={active(item.path) ? "active" : ""}
                 >
-                  <span>{item.icon}</span>
-                  {item.label}
+                  <span className="op-nav-icon">
+                    <ConsoleNavIcon name={item.icon} />
+                  </span>
+                  <span className="op-nav-label">{item.label}</span>
                 </NavLink>
               ))}
           </section>
