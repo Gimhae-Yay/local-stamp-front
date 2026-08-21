@@ -14,8 +14,10 @@ function HowToCard() {
         background: "var(--surface-2)",
         border: "1px solid var(--border)",
         borderRadius: "var(--radius-lg)",
-        padding: "28px 32px",
-        flex: "1 1 340px",
+        padding: "24px 26px",
+        flex: "0 1 320px",
+        width: "100%",
+        maxWidth: 320,
         minWidth: 0,
       }}
     >
@@ -90,7 +92,7 @@ export default function Hero({ region, loggedIn, filter, setFilter, onOpenRegion
       {/* Top row */}
       <div style={{ display: "flex", gap: 40, alignItems: "flex-start", flexWrap: "wrap" }}>
         {/* Left */}
-        <div style={{ flex: 1, minWidth: 280 }}>
+        <div style={{ flex: "1 1 440px", minWidth: 0 }}>
           <button
             onClick={onOpenRegion}
             style={{
@@ -143,9 +145,10 @@ export default function Hero({ region, loggedIn, filter, setFilter, onOpenRegion
               marginBottom: 14,
             }}
           >
-            {region}에서 할 일을
-            <br />
-            찾아보세요.
+            <span className="visitor-hero-title-line">
+              {region}에서 할 일을
+            </span>
+            <span style={{ display: "block" }}>찾아보세요.</span>
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-sub)", lineHeight: 1.7, marginBottom: 28 }}>
             지역 행사·체험을 둘러보고,
