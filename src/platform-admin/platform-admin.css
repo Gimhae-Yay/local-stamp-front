@@ -8,15 +8,15 @@
 .pa-shell,
 .pa-login,
 .pa-modal-backdrop {
-  --pa-page: #fffff8;
-  --pa-surface: #fffef9;
-  --pa-ink: #203028;
-  --pa-muted: #778078;
-  --pa-line: #d9dfd6;
-  --pa-line-strong: #bcc9be;
-  --pa-orange: #f08808;
-  --pa-orange-deep: #bc6000;
-  --pa-orange-soft: #fff6e8;
+  --pa-page: var(--bg);
+  --pa-surface: var(--surface);
+  --pa-ink: var(--text);
+  --pa-muted: var(--text-sub);
+  --pa-line: var(--border);
+  --pa-line-strong: var(--border-2);
+  --pa-orange: var(--green);
+  --pa-orange-deep: var(--green-dark);
+  --pa-orange-soft: var(--green-light);
   --pa-green: #29994a;
   --pa-green-soft: #effded;
   --pa-yellow: #a86b00;
@@ -27,7 +27,7 @@
   --pa-blue-soft: #edf6ff;
   --pa-gray-soft: #f1f3ef;
   color: var(--pa-ink);
-  font-family: "Platform Sans", "Noto Sans KR", sans-serif;
+  font-family: Inter, "Platform Sans", "Noto Sans KR", sans-serif;
 }
 
 .pa-shell {
@@ -64,7 +64,7 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--pa-line);
-  background: rgba(255, 255, 248, 0.97);
+  background: rgba(247, 248, 245, 0.94);
   backdrop-filter: blur(12px);
 }
 .pa-header-brand,
@@ -87,10 +87,11 @@
   place-items: center;
   border: 1.5px solid var(--pa-orange);
   border-radius: 10px;
-  color: var(--pa-orange);
+  background: var(--pa-orange);
+  color: #fff;
   font:
-    italic 800 18px Georgia,
-    serif;
+    800 18px Outfit,
+    sans-serif;
 }
 .pa-console-pill,
 .pa-grade-pill {
@@ -266,10 +267,10 @@
   cursor: not-allowed;
 }
 .pa-button-primary {
-  border-color: var(--pa-orange);
-  background: var(--pa-orange);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(240, 136, 8, 0.17);
+  border-color: #62c75e;
+  background: #96f67b;
+  color: #15351e;
+  box-shadow: 0 4px 12px rgba(75, 184, 106, 0.17);
 }
 .pa-button-outline {
   border-color: var(--pa-orange);
@@ -613,9 +614,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #fffff8;
-  color: #778078;
-  font-family: "Platform Sans", sans-serif;
+  background: var(--bg);
+  color: var(--text-sub);
+  font-family: Inter, sans-serif;
 }
 
 .pa-modal-backdrop {
@@ -642,7 +643,7 @@
   display: flex;
   justify-content: space-between;
   border-bottom: 1px solid var(--pa-line);
-  background: rgba(255, 255, 248, 0.97);
+  background: rgba(247, 248, 245, 0.97);
 }
 .pa-drawer h2 {
   margin: 0 0 5px;
@@ -696,7 +697,7 @@
 .pa-field select:focus,
 .pa-field textarea:focus {
   border-color: var(--pa-orange);
-  box-shadow: 0 0 0 3px rgba(240, 136, 8, 0.1);
+  box-shadow: 0 0 0 3px rgba(75, 184, 106, 0.14);
 }
 .pa-field small {
   color: var(--pa-muted);
@@ -914,8 +915,10 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: linear-gradient(145deg, #fffaf0, #fff3df);
-  border-right: 1px solid #ecd5a2;
+  background:
+    radial-gradient(circle at 20% 20%, #c8edcc, transparent 42%),
+    linear-gradient(145deg, #f7f8f5, #eaf7ed);
+  border-right: 1px solid var(--pa-line);
 }
 .pa-login-intro h1 {
   margin: 22px 0 12px;
