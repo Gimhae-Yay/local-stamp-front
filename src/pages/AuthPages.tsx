@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { signup } from "../api/auth";
 import { useAppState } from "../components/AppLayout";
 
@@ -23,6 +23,7 @@ function AuthFrame({ mode, children }: { mode: "login" | "signup"; children: Rea
 
 export function LoginPage() {
   const { login } = useAppState();
+  const location = useLocation();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,7 +36,14 @@ export function LoginPage() {
     setError(null);
     try {
       await login(email, password);
-      navigate("/");
+      const requestedPath = (location.state as { from?: unknown } | null)?.from;
+      const returnPath =
+        typeof requestedPath === "string" &&
+        requestedPath.startsWith("/") &&
+        !requestedPath.startsWith("//")
+          ? requestedPath
+          : "/";
+      navigate(returnPath, { replace: true });
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "로그인하지 못했습니다.");
     } finally {

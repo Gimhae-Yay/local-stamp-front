@@ -27,6 +27,7 @@ dist/
 # Local implementation notes
 /docs/지역관리자 수정목록.md
 /docs/지역관리자 수정방향.md
+/docs/방문자 수정방향.md
 
 # OS files
 .DS_Store

@@ -35,6 +35,11 @@ export interface PlatformUser {
 export type PlatformAdminGrade = "SUPER_ADMIN" | "PLATFORM_ADMIN";
 export type PlatformAdminStatus = "ACTIVE" | "INACTIVE";
 
+export interface PlatformAdminMe {
+  userId: string;
+  grade: PlatformAdminGrade;
+}
+
 export interface PlatformAdminAccount {
   userId: string;
 

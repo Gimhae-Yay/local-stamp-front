@@ -176,7 +176,9 @@ describe("운영자 콘텐츠 수정본 명령", () => {
 
 describe("운영자 콘텐츠 회차·철회 계약", () => {
   it("운영자 전용 회차 조회 URL을 사용한다", async () => {
-    const fetchMock = vi.fn(() => success({ contentId: "104", sessions: [] }));
+    const fetchMock = vi.fn((_: RequestInfo | URL, _init?: RequestInit) =>
+      success({ contentId: "104", sessions: [] }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     await listOperatorContentSessions("104");
@@ -185,7 +187,9 @@ describe("운영자 콘텐츠 회차·철회 계약", () => {
   });
 
   it("전체 철회 재시도에 호출자가 지정한 멱등 키를 유지한다", async () => {
-    const fetchMock = vi.fn(() => success({ withdrawalRequestId: "701", status: "PENDING" }));
+    const fetchMock = vi.fn((_: RequestInfo | URL, _init?: RequestInit) =>
+      success({ withdrawalRequestId: "701", status: "PENDING" }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     await requestContentWithdrawal("104", "운영 종료", "withdrawal-key");
@@ -198,7 +202,9 @@ describe("운영자 콘텐츠 회차·철회 계약", () => {
   });
 
   it("최신 수정본 조회와 반려 수정본 재제출 URL을 사용한다", async () => {
-    const fetchMock = vi.fn(() => success({ revisionId: "502", contentId: "101" }));
+    const fetchMock = vi.fn((_: RequestInfo | URL, _init?: RequestInit) =>
+      success({ revisionId: "502", contentId: "101" }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     await getLatestContentRevision("101");

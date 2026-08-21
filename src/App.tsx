@@ -31,11 +31,9 @@ function RequireAuthentication() {
 
   const location = useLocation();
 
-  return loggedIn ? (
-    <Outlet />
-  ) : (
-    <Navigate to="/login" replace state={{ from: location.pathname }} />
-  );
+  const returnPath = `${location.pathname}${location.search}${location.hash}`;
+
+  return loggedIn ? <Outlet /> : <Navigate to="/login" replace state={{ from: returnPath }} />;
 }
 
 export default function App() {

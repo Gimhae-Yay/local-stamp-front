@@ -78,4 +78,50 @@ describe("visitor authentication integration", () => {
       expect.objectContaining({ credentials: "include" }),
     );
   });
+
+  it("returns to the protected page after a successful login", async () => {
+    window.history.replaceState({}, "", "/reservations");
+    const fetchMock = vi.fn().mockImplementation((input: string) => {
+      if (input === "/api/v1/auth/refresh") {
+        return Promise.resolve(response(null, 401, "UNAUTHENTICATED"));
+      }
+      if (input === "/api/v1/regions") {
+        return Promise.resolve(
+          response({
+            regions: [{ regionId: "1", regionCode: "GIMHAE", name: "김해시" }],
+          }),
+        );
+      }
+      if (input === "/api/v1/auth/login") {
+        return Promise.resolve(
+          response({ userId: "7", roles: ["VISITOR"], accessToken: "token-1" }),
+        );
+      }
+      if (input === "/api/v1/me") {
+        return Promise.resolve(
+          response({
+            roleAssignments: [{ role: "VISITOR", regionId: null, regionName: null }],
+          }),
+        );
+      }
+      if (input === "/api/v1/me/reservations") {
+        return Promise.resolve(response({ reservations: [] }));
+      }
+      if (input === "/api/v1/me/refunds") {
+        return Promise.resolve(response({ refunds: [] }));
+      }
+      return Promise.reject(new Error(`unexpected request: ${input}`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.type(await screen.findByLabelText("이메일"), "visitor@example.com");
+    await user.type(screen.getByLabelText("비밀번호"), "Password!1");
+    await user.click(screen.getByRole("button", { name: "로그인" }));
+
+    expect(await screen.findByRole("heading", { name: "내 예약" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/reservations");
+  });
 });

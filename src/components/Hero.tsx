@@ -9,12 +9,14 @@ function HowToCard() {
   ];
   return (
     <div
+      data-testid="visitor-how-to-card"
       style={{
         background: "var(--surface-2)",
         border: "1px solid var(--border)",
         borderRadius: "var(--radius-lg)",
         padding: "28px 32px",
-        flex: "0 0 340px",
+        flex: "1 1 340px",
+        minWidth: 0,
       }}
     >
       <p

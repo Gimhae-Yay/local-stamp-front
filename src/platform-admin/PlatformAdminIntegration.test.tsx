@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { clearLogin } from "../admin/api";
 import { RefundFailureDetailPage } from "./pages/TransactionPages";
+import type { PlatformAdminGrade } from "./types";
 
 function apiResponse(data: unknown, status = 200) {
   return Promise.resolve(
@@ -26,6 +27,19 @@ function loginResponse(userId = "910001") {
     roles: [],
     accessToken: "platform-admin-test-token",
   });
+}
+
+function platformAdminMeResponse(userId = "910001", grade: PlatformAdminGrade = "SUPER_ADMIN") {
+  return apiResponse({ userId, grade });
+}
+
+function apiErrorResponse(message: string, status: number, code: string) {
+  return Promise.resolve(
+    new Response(JSON.stringify({ statusCode: status, code, message, data: null }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
 }
 
 const adminAccounts = [
@@ -71,13 +85,12 @@ describe("전체 관리자 콘솔 통합", () => {
     clearLogin();
   });
 
-  it("PLATFORM_ADMIN에게 최고 관리자 전용 메뉴를 숨긴다", async () => {
+  it("PLATFORM_ADMIN 로그인은 본인 조회만 사용하고 최고 관리자 전용 메뉴를 숨긴다", async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith("/api/v1/auth/login")) return loginResponse("910002");
-      if (url.endsWith("/api/v1/platform-admin/regions")) return apiResponse({ regions: [] });
-      if (url.endsWith("/api/v1/platform-admin/admin-accounts"))
-        return apiResponse({ adminAccounts });
+      if (url.endsWith("/api/v1/platform-admin/me"))
+        return platformAdminMeResponse("910002", "PLATFORM_ADMIN");
       throw new Error(`예상하지 못한 요청: ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -92,13 +105,23 @@ describe("전체 관리자 콘솔 통합", () => {
     await user.click(screen.getByRole("button", { name: /사용자 910002/ }));
     expect(screen.getAllByText("플랫폼 관리자")).not.toHaveLength(0);
     expect(screen.queryByRole("link", { name: /전체 관리자 계정/ })).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.filter(([input]) =>
+        String(input).endsWith("/api/v1/platform-admin/me"),
+      ),
+    ).toHaveLength(1);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/api/v1/platform-admin/admin-accounts"),
+      ),
+    ).toBe(false);
   });
 
-  it("관리자 계정 목록과 검증을 최신 API 응답으로 처리한다", async () => {
+  it("SUPER_ADMIN 로그인 후 계정 화면에서만 전체 관리자 목록을 조회한다", async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith("/api/v1/auth/login")) return loginResponse();
-      if (url.endsWith("/api/v1/platform-admin/regions")) return apiResponse({ regions: [] });
+      if (url.endsWith("/api/v1/platform-admin/me")) return platformAdminMeResponse();
       if (url.endsWith("/api/v1/platform-admin/admin-accounts"))
         return apiResponse({ adminAccounts });
       throw new Error(`예상하지 못한 요청: ${url}`);
@@ -110,6 +133,11 @@ describe("전체 관리자 콘솔 통합", () => {
     await user.type(await screen.findByLabelText("이메일"), "super@test.local");
     await user.type(screen.getByLabelText("비밀번호"), "LocalTest1!");
     await user.click(screen.getByRole("button", { name: "로그인" }));
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/api/v1/platform-admin/admin-accounts"),
+      ),
+    ).toBe(false);
     await user.click(await screen.findByRole("button", { name: /사용자 910001/ }));
     await user.click(screen.getByRole("link", { name: /^▣전체 관리자 계정/ }));
 
@@ -135,9 +163,7 @@ describe("전체 관리자 콘솔 통합", () => {
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("/api/v1/auth/login")) return loginResponse();
-      if (url.endsWith("/api/v1/platform-admin/regions")) return apiResponse({ regions: [] });
-      if (url.endsWith("/api/v1/platform-admin/admin-accounts"))
-        return apiResponse({ adminAccounts });
+      if (url.endsWith("/api/v1/platform-admin/me")) return platformAdminMeResponse();
       if (url.endsWith("/api/v1/platform-admin/payments/910201/refund") && init?.method === "POST")
         return apiResponse(
           {
@@ -190,6 +216,79 @@ describe("전체 관리자 콘솔 통합", () => {
         ),
       ).toHaveLength(1),
     );
+  });
+
+  it.each([
+    ["SUPER_ADMIN", "910001", "최고 관리자"],
+    ["PLATFORM_ADMIN", "910002", "플랫폼 관리자"],
+  ] as const)("%s 세션 복원은 본인 조회만 사용한다", async (grade, userId, gradeLabel) => {
+    window.localStorage.setItem("local-stamp:user-id", userId);
+    window.history.replaceState({}, "", "/admin");
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/platform-admin/me"))
+        return platformAdminMeResponse(userId, grade);
+      throw new Error(`예상하지 못한 요청: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "플랫폼 운영" })).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: new RegExp(userId) }));
+    expect(screen.getAllByText(gradeLabel)).not.toHaveLength(0);
+    expect(
+      fetchMock.mock.calls.filter(([input]) =>
+        String(input).endsWith("/api/v1/platform-admin/me"),
+      ),
+    ).toHaveLength(1);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith("/api/v1/platform-admin/admin-accounts"),
+      ),
+    ).toBe(false);
+  });
+
+  it("로그인 후 본인 조회가 실패하면 저장된 로그인 정보를 제거한다", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/auth/login")) return loginResponse();
+      if (url.endsWith("/api/v1/platform-admin/me"))
+        return apiErrorResponse("접근 권한이 없습니다.", 403, "FORBIDDEN");
+      throw new Error(`예상하지 못한 요청: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("이메일"), "super@test.local");
+    await user.type(screen.getByLabelText("비밀번호"), "LocalTest1!");
+    await user.click(screen.getByRole("button", { name: "로그인" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("접근 권한이 없습니다.");
+    expect(window.localStorage.getItem("local-stamp:user-id")).toBeNull();
+  });
+
+  it("세션 복원 중 본인 조회가 실패하면 로그인 화면으로 이동한다", async () => {
+    window.localStorage.setItem("local-stamp:user-id", "910001");
+    window.history.replaceState({}, "", "/admin");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/platform-admin/me"))
+          return apiErrorResponse("접근 권한이 없습니다.", 403, "FORBIDDEN");
+        throw new Error(`예상하지 못한 요청: ${url}`);
+      }),
+    );
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "전체 관리자 로그인" }),
+    ).toBeInTheDocument();
+    expect(window.localStorage.getItem("local-stamp:user-id")).toBeNull();
   });
 
   it.each([
