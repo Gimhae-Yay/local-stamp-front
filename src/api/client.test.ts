@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getMe, login } from "./auth";
-import { apiRequest, clearAuthentication, saveAuthentication } from "./client";
+import { apiRequest, clearAuthentication, isAbortError, saveAuthentication } from "./client";
 import { confirmFreeReservation, createPayment } from "./reservations";
 
 function envelope<T>(data: T, status = 200) {
@@ -94,5 +94,22 @@ describe("visitor API client", () => {
       "payment-key",
     );
     expect(fetchMock.mock.calls[1]?.[1]?.body).toBe(JSON.stringify({ couponId: "3" }));
+  });
+});
+
+describe("abort error detection", () => {
+  it("accepts DOMException and cross-realm AbortError-shaped values", () => {
+    expect(isAbortError(new DOMException("aborted", "AbortError"))).toBe(true);
+    expect(isAbortError({ name: "AbortError", message: "signal is aborted" })).toBe(true);
+    expect(isAbortError(new Error("network failure"))).toBe(false);
+  });
+
+  it("uses the aborted signal even when the thrown value has another shape", () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    expect(isAbortError(new Error("signal is aborted without reason"), controller.signal)).toBe(
+      true,
+    );
   });
 });

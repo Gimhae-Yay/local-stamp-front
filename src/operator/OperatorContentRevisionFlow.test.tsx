@@ -19,6 +19,46 @@ function success(data: unknown) {
   );
 }
 
+function notFound() {
+  return Promise.resolve(
+    new Response(
+      JSON.stringify({
+        statusCode: 404,
+        code: "NOT_FOUND",
+        message: "수정본이 없습니다.",
+        data: null,
+      }),
+      { status: 404, headers: { "Content-Type": "application/json" } },
+    ),
+  );
+}
+
+function latestRevision(status: string) {
+  return {
+    revisionId: "501",
+    contentId: "104",
+    revisionNo: 1,
+    baseContentVersion: 1,
+    status,
+    title: content.title,
+    description: content.description,
+    representativeImageUrl: null,
+    representativeImageUrlExpiresAt: null,
+    locationText: content.locationText,
+    operatingHoursText: content.operatingHoursText,
+    contactText: content.contactText,
+    precautions: content.precautions,
+    ageRequirement: content.ageRequirement,
+    materials: content.materials,
+    cancellationPolicyText: content.cancellationPolicyText,
+    reservationPrice: 20000,
+    publishAt: null,
+    reviewReason: status === "EDIT_REJECTED" ? "후보 내용을 보완해 주세요." : null,
+    submittedAt: "2026-08-20T12:00:00Z",
+    reviewedAt: status === "EDIT_REJECTED" ? "2026-08-20T12:05:00Z" : null,
+  };
+}
+
 const content = {
   contentId: "104",
   contentType: "EVENT_EXPERIENCE",
@@ -56,6 +96,7 @@ describe("운영자 콘텐츠 수정본 생성·철회 흐름", () => {
   });
 
   it("확인 후 수정본을 생성하고 전용 화면에서 철회한다", async () => {
+    let revisionCreated = false;
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("/api/v1/auth/refresh")) {
@@ -70,7 +111,11 @@ describe("운영자 콘텐츠 수정본 생성·철회 흐름", () => {
       if (url.endsWith("/api/v1/operator/contents/104") && !init?.method) {
         return success(content);
       }
+      if (url.endsWith("/api/v1/operator/contents/104/revisions/latest") && !init?.method) {
+        return revisionCreated ? success(latestRevision("EDIT_REQUESTED")) : notFound();
+      }
       if (url.endsWith("/api/v1/operator/contents/104/revisions") && init?.method === "POST") {
+        revisionCreated = true;
         return success({
           revisionId: "501",
           contentId: "104",
@@ -96,15 +141,28 @@ describe("운영자 콘텐츠 수정본 생성·철회 흐름", () => {
 
     render(<App />);
     fireEvent.click(
-      await screen.findByRole("button", {
-        name: "수정본 생성 및 심사 요청",
-      }),
+      await screen.findByRole(
+        "button",
+        {
+          name: "수정본 생성 및 심사 요청",
+        },
+        { timeout: 5_000 },
+      ),
     );
     const submitDialog = screen.getByRole("dialog");
     expect(within(submitDialog).getByText("수정본을 생성해 심사 요청할까요?")).toBeInTheDocument();
     fireEvent.click(within(submitDialog).getByRole("button", { name: "심사 요청" }));
 
     expect(await screen.findByRole("heading", { name: "콘텐츠 수정본 501" })).toBeInTheDocument();
+    const revisionCall = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        String(input).endsWith("/api/v1/operator/contents/104/revisions") &&
+        init?.method === "POST",
+    );
+    expect(revisionCall).toBeDefined();
+    expect(JSON.parse(String(revisionCall?.[1]?.body))).toMatchObject({
+      publishAt: null,
+    });
     expect(screen.getByText("가야 문화를 체험합니다.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "수정본 철회" }));
     const withdrawDialog = screen.getByRole("dialog");
@@ -148,6 +206,9 @@ describe("운영자 콘텐츠 수정본 생성·철회 흐름", () => {
           roleAssignments: [{ role: "OPERATOR", regionId: "11", regionName: "김해시" }],
         });
       }
+      if (url.endsWith("/api/v1/operator/contents/104/revisions/latest") && !init?.method) {
+        return success(latestRevision("EDIT_REJECTED"));
+      }
       if (url.endsWith("/api/v1/operator/content-revisions/501") && init?.method === "PUT") {
         return success({
           revisionId: "501",
@@ -156,12 +217,27 @@ describe("운영자 콘텐츠 수정본 생성·철회 흐름", () => {
           updatedAt: "2026-08-20T12:20:00Z",
         });
       }
+      if (
+        url.endsWith("/api/v1/operator/content-revisions/501/resubmit") &&
+        init?.method === "POST"
+      ) {
+        return success({
+          revisionId: "502",
+          sourceRevisionId: "501",
+          contentId: "104",
+          status: "EDIT_REQUESTED",
+          baseContentVersion: 1,
+          submittedAt: "2026-08-20T12:30:00Z",
+        });
+      }
       throw new Error(`예상하지 못한 요청: ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
-    const title = await screen.findByLabelText("콘텐츠 제목");
+    expect(await screen.findByText("후보 내용을 보완해 주세요.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "반려 수정본 편집" }));
+    const title = screen.getByLabelText("콘텐츠 제목");
     fireEvent.change(title, { target: { value: "수정된 가야문화 체험" } });
     fireEvent.click(screen.getByRole("button", { name: "수정본 저장" }));
 
@@ -171,5 +247,19 @@ describe("운영자 콘텐츠 수정본 생성·철회 흐름", () => {
       expect.stringContaining("/api/v1/operator/content-revisions/501"),
       expect.objectContaining({ method: "PUT" }),
     );
+    fireEvent.click(screen.getByRole("button", { name: "새 수정본으로 재심사 요청" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "재심사 요청",
+      }),
+    );
+    expect(await screen.findByText("새 수정본으로 재심사 요청되었습니다.")).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) =>
+          String(input).endsWith("/api/v1/operator/content-revisions/501/resubmit") &&
+          init?.method === "POST",
+      ),
+    ).toBe(true);
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -9,10 +9,12 @@ import {
   createContent,
   createContentRevision,
   createContentSession,
+  getLatestContentRevision,
   getMyContent,
   listMyContents,
-  listPublicContentSessions,
+  listOperatorContentSessions,
   requestContentWithdrawal,
+  resubmitContentRevision,
   requestSessionChange,
   submitContent,
   updateContentRevision,
@@ -20,6 +22,7 @@ import {
   uploadRepresentativeImage,
   withdrawContentRevision,
 } from "../api";
+
 import {
   ActionModal,
   apiErrorMessage,
@@ -31,18 +34,21 @@ import {
   StatusBadge,
   statusLabel,
 } from "../OperatorComponents";
+
 import { useOperatorAuth } from "../OperatorAuth";
+
 import {
-  mergeContentSessionSnapshots,
   isContentRevisionReviewFresh,
   readContentRevisionSnapshot,
   readContentSessionSnapshots,
   readLatestContentRevisionSnapshot,
+  toContentRevisionSnapshot,
   writeContentRevisionSnapshot,
   writeContentSessionSnapshots,
   type ContentRevisionSnapshot,
   type ContentSessionSnapshot,
 } from "../operatorContentSnapshots";
+
 import { readOperatorCompatValue, writeOperatorCompatValue } from "../operatorCompatStorage";
 
 import type {
@@ -137,6 +143,8 @@ interface DisplayContentSession extends ContentSessionSummary {
   changeRequestId?: string;
 
   changeRequestStatus?: string;
+
+  cancellationReason?: string | null;
 }
 
 interface ContentDetailNavigationState {
@@ -179,16 +187,31 @@ export function sessionMutationErrorMessage(
   );
 }
 
-export function contentMutationErrorMessage(caught: unknown, action: "submit" | "revision") {
+export function contentMutationErrorMessage(
+  caught: unknown,
+
+  action: "submit" | "revision",
+) {
   if (caught instanceof ApiError && caught.code === "CONTENT_STATE_CONFLICT") {
     return action === "submit"
       ? "이미 심사 요청되었거나 현재 제출할 수 없는 콘텐츠입니다. 최신 상태를 확인해 주세요."
       : "이미 심사 중인 수정본이 있거나 현재 수정본을 만들 수 없는 콘텐츠입니다. 최신 상태를 확인해 주세요.";
   }
+
   return apiErrorMessage(
     caught,
+
     action === "submit" ? "심사를 요청하지 못했습니다." : "수정본을 생성하지 못했습니다.",
   );
+}
+
+async function getLatestContentRevisionOrNull(contentId: string, signal?: AbortSignal) {
+  try {
+    return await getLatestContentRevision(contentId, signal);
+  } catch (caught) {
+    if (caught instanceof ApiError && caught.status === 404) return null;
+    throw caught;
+  }
 }
 
 const requiredContentFields: Array<{
@@ -411,10 +434,14 @@ export function ContentDetailPage() {
   const navigate = useNavigate();
 
   const location = useLocation();
+
   const { session } = useOperatorAuth();
+
   const [content, setContent] = useState<ContentDetail | null>(null);
 
   const [sessions, setSessions] = useState<DisplayContentSession[]>([]);
+
+  const [latestRevision, setLatestRevision] = useState<ContentRevisionSnapshot | null>(null);
 
   const [loading, setLoading] = useState(true);
 
@@ -426,6 +453,8 @@ export function ContentDetailPage() {
 
   const [modal, setModal] = useState<DetailModal>(null);
 
+  const withdrawalIdempotencyKey = useRef(`operator-content-withdrawal-${crypto.randomUUID()}`);
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -433,9 +462,18 @@ export function ContentDetailPage() {
 
     setError("");
 
-    getMyContent(contentId, controller.signal)
-      .then(async (detail) => {
+    Promise.all([
+      getMyContent(contentId, controller.signal),
+      listOperatorContentSessions(contentId, controller.signal),
+      getLatestContentRevisionOrNull(contentId, controller.signal),
+    ])
+
+      .then(([detail, result, revision]) => {
         setContent(detail);
+
+        const loadedRevision = revision ? toContentRevisionSnapshot(revision) : null;
+        setLatestRevision(loadedRevision);
+        if (session && loadedRevision) writeContentRevisionSnapshot(session.userId, loadedRevision);
 
         const navigationState = location.state as ContentDetailNavigationState | null;
 
@@ -444,31 +482,18 @@ export function ContentDetailPage() {
             ? navigationState.createdSession
             : null;
 
-        let publicSessions: ContentSessionSummary[] = [];
-        if (detail.status === "PUBLISHED") {
-          const result = await listPublicContentSessions(contentId, controller.signal);
-          publicSessions = result.sessions;
-        }
-        const storedSessions = session
-          ? readContentSessionSnapshots(session.userId, contentId)
-          : [];
-        const loadedSessions: DisplayContentSession[] = mergeContentSessionSnapshots(
-          publicSessions,
-          storedSessions,
-        );
+        const loadedSessions: DisplayContentSession[] = result.sessions.map((item) => ({
+          ...item,
+          contentId,
+          changeRequestId: item.pendingChangeRequest?.revisionId,
+          changeRequestStatus: item.pendingChangeRequest?.status,
+        }));
         if (
           createdSession &&
           !loadedSessions.some((session) => session.sessionId === createdSession.sessionId)
         ) {
           loadedSessions.unshift(createdSession);
         }
-
-        if (session)
-          writeContentSessionSnapshots(
-            session.userId,
-            contentId,
-            loadedSessions as ContentSessionSnapshot[],
-          );
 
         setSessions(loadedSessions);
 
@@ -498,13 +523,11 @@ export function ContentDetailPage() {
       />
     );
 
-  const latestRevision = session
-    ? readLatestContentRevisionSnapshot(session.userId, contentId)
-    : null;
-  const revisionPending = isContentRevisionReviewFresh(latestRevision);
-  const revisionStateUnknown = latestRevision?.status === "EDIT_REQUESTED" && !revisionPending;
+  const revisionPending = latestRevision?.status === "EDIT_REQUESTED";
   const revisionCreatable = ["APPROVED", "PUBLISHED"].includes(content.status) && !revisionPending;
+
   const editable = content.status === "REJECTED" || revisionCreatable;
+
   const sessionCreatable = ["APPROVED", "PUBLISHED"].includes(content.status);
 
   return (
@@ -608,9 +631,7 @@ export function ContentDetailPage() {
             </header>
             <div className="op-panel-body">
               <div className="op-notice">
-                공개 예정 회차와 이 화면에서 방금 접수한 심사·취소 상태를 표시합니다. 운영자용 전체
-                회차 조회 API가 제공되기 전까지 다른 기기에서 접수한 상태는 표시되지 않을 수
-                있습니다.
+                운영자용 전체 회차 조회 결과와 현재 변경 요청 상태를 표시합니다.
               </div>
               {sessions.length === 0 ? (
                 <p className="op-muted">조회 가능한 공개 예정 회차가 없습니다.</p>
@@ -620,6 +641,7 @@ export function ContentDetailPage() {
                     const manageable = canManageSession(session);
 
                     const changePending = session.changeRequestStatus === "PENDING";
+
                     const changeUnknown = session.changeRequestStatus === "UNKNOWN";
 
                     return (
@@ -635,6 +657,9 @@ export function ContentDetailPage() {
                           )}
                           {changeUnknown && (
                             <small>변경 요청 {session.changeRequestId} · 결과 미확인</small>
+                          )}
+                          {session.status === "CANCELLED" && session.cancellationReason && (
+                            <small>취소 사유: {session.cancellationReason}</small>
                           )}
                         </div>
                         <StatusBadge value={session.status} />
@@ -676,18 +701,9 @@ export function ContentDetailPage() {
           <h2>가능한 처리</h2>
           <p>현재 상태와 Backend 소유권 검증을 기준으로 처리됩니다.</p>
           {latestRevision && (
-            <Link
-              className="op-button"
-              to={`/operator/content-revisions/${latestRevision.revisionId}`}
-            >
+            <Link className="op-button" to={`/operator/contents/${contentId}/revisions/latest`}>
               수정본 {latestRevision.revisionId} · {statusLabel(latestRevision.status)}
             </Link>
-          )}
-          {revisionStateUnknown && (
-            <div className="op-notice">
-              마지막 수정본 요청 후 1시간이 지나 서버 상태를 확인할 수 없습니다. 다시 요청하면
-              Backend가 중복 여부를 최종 검증합니다.
-            </div>
           )}
           {editable && (
             <Link
@@ -729,7 +745,7 @@ export function ContentDetailPage() {
           tone="danger"
           onClose={() => setModal(null)}
           onConfirm={async (reason) => {
-            await requestContentWithdrawal(contentId, reason);
+            await requestContentWithdrawal(contentId, reason, withdrawalIdempotencyKey.current);
 
             setModal(null);
 
@@ -759,14 +775,19 @@ export function ContentDetailPage() {
                     ? { ...session, status: result.status }
                     : session,
                 );
+
                 if (session)
                   writeContentSessionSnapshots(
                     session.userId,
+
                     contentId,
+
                     next as ContentSessionSnapshot[],
                   );
+
                 return next;
               });
+
               setModal(null);
 
               setNotice("회차가 취소 상태로 변경되었습니다.");
@@ -786,21 +807,30 @@ export function ContentDetailPage() {
                 session.sessionId === modal.session.sessionId
                   ? {
                       ...session,
+
                       changeRequestId: result.revisionId,
+
                       changeRequestStatus: result.status,
+
                       changeCandidate: candidate,
+
                       changeRequestedAt: new Date().toISOString(),
                     }
                   : session,
               );
+
               if (session)
                 writeContentSessionSnapshots(
                   session.userId,
+
                   contentId,
+
                   next as ContentSessionSnapshot[],
                 );
+
               return next;
             });
+
             setModal(null);
 
             setNotice("회차 변경 요청이 심사 대기로 접수되었습니다.");
@@ -822,7 +852,11 @@ function SessionChangeModal({
 
   onClose: () => void;
 
-  onSuccess: (result: SessionChangeRequestResult, candidate: SessionInput) => void;
+  onSuccess: (
+    result: SessionChangeRequestResult,
+
+    candidate: SessionInput,
+  ) => void;
 }) {
   const [draft, setDraft] = useState({
     ...emptySession,
@@ -856,7 +890,9 @@ function SessionChangeModal({
 
     try {
       const candidate = sessionPayload(draft);
+
       const result = await requestSessionChange(session.sessionId, candidate);
+
       onSuccess(result, candidate);
     } catch (caught) {
       setError(sessionMutationErrorMessage(caught, "change"));
@@ -943,8 +979,11 @@ export function ContentFormPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [savedRejected, setSavedRejected] = useState(false);
+
   const [restoredPrice, setRestoredPrice] = useState(false);
+
   const [error, setError] = useState("");
+
   const [confirmation, setConfirmation] = useState<"save" | "resubmit" | null>(null);
 
   useEffect(() => {
@@ -952,8 +991,12 @@ export function ContentFormPage() {
 
     const controller = new AbortController();
 
-    getMyContent(contentId, controller.signal)
-      .then((detail) => {
+    Promise.all([
+      getMyContent(contentId, controller.signal),
+      getLatestContentRevisionOrNull(contentId, controller.signal),
+    ])
+
+      .then(([detail, remoteRevision]) => {
         const storedPrice = session
           ? readOperatorCompatValue<number>(
               session.userId,
@@ -964,17 +1007,22 @@ export function ContentFormPage() {
             )
           : null;
 
-        const latestRevision = session
+        const storedRevision = session
           ? readLatestContentRevisionSnapshot(session.userId, contentId)
           : null;
+        const latestRevision = remoteRevision
+          ? toContentRevisionSnapshot(remoteRevision)
+          : storedRevision;
         const revisionPrice =
           latestRevision && !["EDIT_WITHDRAWN", "EDIT_INVALIDATED"].includes(latestRevision.status)
             ? latestRevision.candidate.reservationPrice
             : undefined;
-        const restoredPriceValue =
-          typeof storedPrice?.value === "number" && Number.isFinite(storedPrice.value)
+
+        const restoredPriceValue = Number.isFinite(revisionPrice)
+          ? revisionPrice
+          : typeof storedPrice?.value === "number" && Number.isFinite(storedPrice.value)
             ? storedPrice.value
-            : revisionPrice;
+            : undefined;
         const canRestorePrice = Number.isFinite(restoredPriceValue);
 
         setSource(detail);
@@ -1057,6 +1105,7 @@ export function ContentFormPage() {
 
   const requestSubmit = (event: FormEvent) => {
     event.preventDefault();
+
     const validationError = validateContentDraft(
       draft,
 
@@ -1069,15 +1118,20 @@ export function ContentFormPage() {
 
     if (validationError) {
       setError(validationError);
+
       return;
     }
+
     setError("");
+
     setConfirmation("save");
   };
 
   const save = async () => {
     setSubmitting(true);
+
     setError("");
+
     try {
       const input = await payload();
 
@@ -1113,6 +1167,7 @@ export function ContentFormPage() {
         setSavedRejected(true);
       } else {
         const result = await createContentRevision(contentId, input);
+
         if (session)
           writeOperatorCompatValue(
             session.userId,
@@ -1123,19 +1178,27 @@ export function ContentFormPage() {
 
             input.reservationPrice,
           );
+
         if (session)
           writeContentRevisionSnapshot(session.userId, {
             revisionId: result.revisionId,
+
             contentId: result.contentId,
+
             status: result.status,
+
             candidate: input,
+
             submittedAt: result.submittedAt,
           });
-        navigate(`/operator/content-revisions/${result.revisionId}`, {
+
+        navigate(`/operator/contents/${result.contentId}/revisions/latest`, {
           replace: true,
+
           state: { notice: "수정본이 생성되어 심사 요청되었습니다." },
         });
       }
+
       setConfirmation(null);
     } catch (caught) {
       setError(
@@ -1145,6 +1208,7 @@ export function ContentFormPage() {
             ? contentMutationErrorMessage(caught, "revision")
             : apiErrorMessage(caught, "콘텐츠를 저장하지 못했습니다."),
       );
+
       setConfirmation(null);
     } finally {
       setSubmitting(false);
@@ -1160,10 +1224,13 @@ export function ContentFormPage() {
 
     try {
       await submitContent(contentId);
+
       navigate(`/operator/contents/${contentId}`, { replace: true });
     } catch (caught) {
       setError(contentMutationErrorMessage(caught, "submit"));
+
       setConfirmation(null);
+
       setSubmitting(false);
     }
   };
@@ -1412,41 +1479,96 @@ export function ContentFormPage() {
 function revisionDraft(snapshot: ContentRevisionSnapshot) {
   return {
     title: snapshot.candidate.title,
+
     description: snapshot.candidate.description,
+
     locationText: snapshot.candidate.locationText,
+
     operatingHoursText: snapshot.candidate.operatingHoursText,
+
     contactText: snapshot.candidate.contactText,
+
     precautions: snapshot.candidate.precautions,
+
     ageRequirement: snapshot.candidate.ageRequirement,
+
     materials: snapshot.candidate.materials,
+
     cancellationPolicyText: snapshot.candidate.cancellationPolicyText,
+
     reservationPrice: String(snapshot.candidate.reservationPrice),
+
     publishAt: toDateTimeInput(snapshot.candidate.publishAt),
   };
 }
 
 export function ContentRevisionPage() {
-  const { revisionId = "" } = useParams();
+  const { revisionId = "", contentId = "" } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = useOperatorAuth();
-  const initialSnapshot = session ? readContentRevisionSnapshot(session.userId, revisionId) : null;
+  const initialSnapshot =
+    session && revisionId ? readContentRevisionSnapshot(session.userId, revisionId) : null;
+  const requestedContentId = contentId || initialSnapshot?.contentId || "";
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [draft, setDraft] = useState(initialSnapshot ? revisionDraft(initialSnapshot) : emptyDraft);
+
   const [file, setFile] = useState<File | null>(null);
-  const [editing, setEditing] = useState(initialSnapshot?.status === "EDIT_REJECTED");
+
+  const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
   const [error, setError] = useState("");
+
   const [notice, setNotice] = useState(
     (location.state as { notice?: string } | null)?.notice ?? "",
   );
+
   const [modal, setModal] = useState<"withdraw" | "resubmit" | null>(null);
+  const [loading, setLoading] = useState(Boolean(requestedContentId));
+  const [serverStateLoaded, setServerStateLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!session || !requestedContentId) return;
+
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    getLatestContentRevision(requestedContentId, controller.signal)
+      .then((revision) => {
+        const loaded = toContentRevisionSnapshot(revision);
+        writeContentRevisionSnapshot(session.userId, loaded);
+        setSnapshot(loaded);
+        setDraft(revisionDraft(loaded));
+        setEditing(false);
+        setServerStateLoaded(true);
+      })
+      .catch((caught) => {
+        if (!isAbortError(caught, controller.signal))
+          setError(apiErrorMessage(caught, "최신 수정본을 불러오지 못했습니다."));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [requestedContentId, session]);
+
   const revisionStateUnknown =
-    snapshot?.status === "EDIT_REQUESTED" && !isContentRevisionReviewFresh(snapshot);
+    !serverStateLoaded &&
+    snapshot?.status === "EDIT_REQUESTED" &&
+    !isContentRevisionReviewFresh(snapshot);
+
+  if (loading) return <RouteState loading />;
 
   if (!session || !snapshot) {
     return (
-      <RouteState error="이 브라우저에 저장된 수정본 정보가 없습니다. 수정본을 생성한 계정과 브라우저에서 다시 확인해 주세요." />
+      <RouteState
+        error={
+          error ||
+          "수정본의 콘텐츠를 확인할 수 없습니다. 콘텐츠 상세에서 최신 수정본을 다시 열어 주세요."
+        }
+      />
     );
   }
 
@@ -1455,18 +1577,30 @@ export function ContentRevisionPage() {
 
   const candidatePayload = async (): Promise<ContentInput> => {
     const imageObjectId = file ? await uploadRepresentativeImage(file) : undefined;
+
     return {
       title: draft.title.trim(),
+
       description: draft.description.trim(),
+
       locationText: draft.locationText.trim(),
+
       operatingHoursText: draft.operatingHoursText.trim(),
+
       contactText: draft.contactText.trim(),
+
       precautions: draft.precautions.trim(),
+
       ageRequirement: draft.ageRequirement.trim(),
+
       materials: draft.materials.trim(),
+
       cancellationPolicyText: draft.cancellationPolicyText.trim(),
+
       reservationPrice: Number(draft.reservationPrice),
+
       publishAt: snapshot.candidate.publishAt === null ? null : toSeoulOffset(draft.publishAt),
+
       ...(imageObjectId
         ? { representativeImageObjectId: imageObjectId }
         : snapshot.candidate.representativeImageObjectId
@@ -1479,25 +1613,39 @@ export function ContentRevisionPage() {
 
   const saveRevision = async (event: FormEvent) => {
     event.preventDefault();
+
     const validationError = validateContentDraft(draft, [], false, true);
+
     if (validationError) {
       setError(validationError);
+
       return;
     }
+
     setSubmitting(true);
+
     setError("");
+
     try {
       const candidate = await candidatePayload();
-      const result = await updateContentRevision(revisionId, candidate);
+
+      const result = await updateContentRevision(snapshot.revisionId, candidate);
       const next: ContentRevisionSnapshot = {
         ...snapshot,
+
         status: result.status,
+
         candidate,
+
         updatedAt: result.updatedAt,
       };
+
       writeContentRevisionSnapshot(session.userId, next);
+
       setSnapshot(next);
+
       setEditing(false);
+
       setNotice("수정본 데이터가 저장되었습니다.");
     } catch (caught) {
       setError(
@@ -1512,24 +1660,33 @@ export function ContentRevisionPage() {
 
   const resubmitRevision = async () => {
     setSubmitting(true);
+
     setError("");
+
     try {
-      const result = await createContentRevision(snapshot.contentId, snapshot.candidate);
+      const result = await resubmitContentRevision(snapshot.revisionId);
       const next: ContentRevisionSnapshot = {
         revisionId: result.revisionId,
         contentId: result.contentId,
         status: result.status,
         candidate: snapshot.candidate,
         submittedAt: result.submittedAt,
+        representativeImageUrl: snapshot.representativeImageUrl,
+        representativeImageUrlExpiresAt: snapshot.representativeImageUrlExpiresAt,
       };
       writeContentRevisionSnapshot(session.userId, next);
-      navigate(`/operator/content-revisions/${result.revisionId}`, {
+      setSnapshot(next);
+      setEditing(false);
+      setModal(null);
+      setNotice("새 수정본으로 재심사 요청되었습니다.");
+      navigate(`/operator/contents/${result.contentId}/revisions/latest`, {
         replace: true,
-        state: { notice: "새 수정본으로 재심사 요청되었습니다." },
       });
     } catch (caught) {
       setError(apiErrorMessage(caught, "수정본 재심사를 요청하지 못했습니다."));
+
       setModal(null);
+
       setSubmitting(false);
     }
   };
@@ -1703,6 +1860,9 @@ export function ContentRevisionPage() {
                 {snapshot.withdrawalReason && (
                   <RevisionValue label="철회 사유" value={snapshot.withdrawalReason} full />
                 )}
+                {snapshot.reviewReason && (
+                  <RevisionValue label="심사 사유" value={snapshot.reviewReason} full />
+                )}
               </dl>
             </div>
           </article>
@@ -1753,24 +1913,31 @@ export function ContentRevisionPage() {
           tone="danger"
           onClose={() => setModal(null)}
           onConfirm={async (reason) => {
-            const result = await withdrawContentRevision(revisionId, reason);
+            const result = await withdrawContentRevision(snapshot.revisionId, reason);
             const next: ContentRevisionSnapshot = {
               ...snapshot,
+
               status: result.status,
+
               withdrawalReason: result.withdrawalReason,
+
               withdrawnAt: result.withdrawnAt,
             };
+
             writeContentRevisionSnapshot(session.userId, next);
+
             setSnapshot(next);
+
             setModal(null);
+
             setNotice("수정본이 철회되었습니다.");
           }}
         />
       )}
       {modal === "resubmit" && (
         <ConfirmModal
-          title="새 수정본으로 재심사 요청할까요?"
-          description="저장한 후보 데이터로 새 수정본을 생성하여 심사를 요청합니다."
+          title="수정본을 재심사 요청할까요?"
+          description="저장한 반려 수정본을 기준으로 새 심사 요청을 생성합니다."
           confirmLabel="재심사 요청"
           tone="primary"
           onClose={() => setModal(null)}
@@ -1781,7 +1948,19 @@ export function ContentRevisionPage() {
   );
 }
 
-function RevisionValue({ label, value, full }: { label: string; value: string; full?: boolean }) {
+function RevisionValue({
+  label,
+
+  value,
+
+  full,
+}: {
+  label: string;
+
+  value: string;
+
+  full?: boolean;
+}) {
   return (
     <div className={`op-kv${full ? " op-full" : ""}`}>
       <dt>{label}</dt>
@@ -1794,7 +1973,9 @@ export function ContentSessionFormPage() {
   const { contentId = "" } = useParams();
 
   const navigate = useNavigate();
+
   const { session } = useOperatorAuth();
+
   const [content, setContent] = useState<ContentDetail | null>(null);
 
   const [draft, setDraft] = useState({ ...emptySession });
@@ -1837,14 +2018,19 @@ export function ContentSessionFormPage() {
 
     try {
       const payload = sessionPayload(draft);
+
       const result = await createContentSession(contentId, payload);
+
       if (session) {
         const stored = readContentSessionSnapshots(session.userId, contentId);
+
         writeContentSessionSnapshots(session.userId, contentId, [
           result,
+
           ...stored.filter((item) => item.sessionId !== result.sessionId),
         ]);
       }
+
       navigate(`/operator/contents/${contentId}`, {
         replace: true,
 

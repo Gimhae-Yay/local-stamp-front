@@ -39,6 +39,7 @@ export default function OperatorApp() {
             <Route path="contents/:contentId/edit" element={<ContentFormPage />} />
             <Route path="contents/:contentId/sessions/new" element={<ContentSessionFormPage />} />
             <Route path="content-revisions/:revisionId" element={<ContentRevisionPage />} />
+            <Route path="contents/:contentId/revisions/latest" element={<ContentRevisionPage />} />
             <Route path="reservations" element={<ReservationPage />} />
             <Route path="check-in" element={<CheckInPage />} />
             <Route path="coupon-policies" element={<CouponListPage />} />

@@ -6,6 +6,7 @@ import type {
   ContentInput,
   ContentRevisionResult,
   CreatedContentSession,
+  OperatorContentSession,
   ContentSessionSummary,
   ContentSummary,
   CouponPolicyDetail,
@@ -15,9 +16,11 @@ import type {
   MissionDetail,
   MissionInput,
   MissionSummary,
+  LatestContentRevision,
   PageData,
   ReservationPayment,
   ReservationSearchResult,
+  ResubmitContentRevisionResult,
   SessionInput,
   SessionChangeRequestResult,
   SessionReservations,
@@ -58,6 +61,20 @@ export function listPublicContentSessions(
 
     { auth: "none", signal },
   );
+}
+
+export function listOperatorContentSessions(
+  contentId: string,
+
+  signal?: AbortSignal,
+) {
+  return apiRequest<{
+    contentId: string;
+
+    sessions: OperatorContentSession[];
+  }>(`/api/v1/operator/contents/${encodeURIComponent(contentId)}/sessions`, {
+    signal,
+  });
 }
 
 async function sha256Base64(file: File) {
@@ -166,16 +183,26 @@ export function submitContent(contentId: string) {
 export function createContentRevision(contentId: string, input: ContentInput) {
   return apiRequest<ContentRevisionResult>(
     `/api/v1/operator/contents/${encodeURIComponent(contentId)}/revisions`,
+
     {
       method: "POST",
+
       body: jsonBody(input),
     },
+  );
+}
+
+export function getLatestContentRevision(contentId: string, signal?: AbortSignal) {
+  return apiRequest<LatestContentRevision>(
+    `/api/v1/operator/contents/${encodeURIComponent(contentId)}/revisions/latest`,
+    { signal },
   );
 }
 
 export function updateContentRevision(revisionId: string, input: ContentInput) {
   return apiRequest<ContentRevisionResult>(
     `/api/v1/operator/content-revisions/${encodeURIComponent(revisionId)}`,
+
     { method: "PUT", body: jsonBody(input) },
   );
 }
@@ -183,7 +210,15 @@ export function updateContentRevision(revisionId: string, input: ContentInput) {
 export function withdrawContentRevision(revisionId: string, reason: string) {
   return apiRequest<WithdrawContentRevisionResult>(
     `/api/v1/operator/content-revisions/${encodeURIComponent(revisionId)}/withdraw`,
+
     { method: "POST", body: jsonBody({ reason }) },
+  );
+}
+
+export function resubmitContentRevision(revisionId: string) {
+  return apiRequest<ResubmitContentRevisionResult>(
+    `/api/v1/operator/content-revisions/${encodeURIComponent(revisionId)}/resubmit`,
+    { method: "POST" },
   );
 }
 
@@ -215,11 +250,21 @@ export function cancelSession(sessionId: string, cancellationReason: string) {
   );
 }
 
-export function requestContentWithdrawal(contentId: string, reason: string) {
+export function requestContentWithdrawal(
+  contentId: string,
+
+  reason: string,
+
+  idempotencyKey: string,
+) {
   return apiRequest<{ withdrawalRequestId: string; status: string }>(
     `/api/v1/operator/contents/${encodeURIComponent(contentId)}/withdrawal-requests`,
 
-    { method: "POST", body: jsonBody({ reason }) },
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: jsonBody({ reason }),
+    },
   );
 }
 
@@ -410,14 +455,17 @@ export function createStampbook(input: StampbookInput) {
 }
 
 export function listStampbooks(signal?: AbortSignal) {
-  return apiRequest<{ stampbooks: OperatorStampbookSummary[] }>("/api/v1/operator/stampbooks", {
-    signal,
-  });
+  return apiRequest<{ stampbooks: OperatorStampbookSummary[] }>(
+    "/api/v1/operator/stampbooks",
+
+    { signal },
+  );
 }
 
 export function getStampbook(id: string, signal?: AbortSignal) {
   return apiRequest<OperatorStampbookDetail>(
     `/api/v1/operator/stampbooks/${encodeURIComponent(id)}`,
+
     { signal },
   );
 }

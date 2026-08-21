@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { reapplyForOperator, type CreateOperatorResponse } from "../api/operator";
+import { reapplyForOperator, type CreateOperatorResponse } from "../api/operatorRequest";
 import { useAppState } from "../components/AppLayout";
 import { Breadcrumbs, Notice, PageHeader, StatusPill } from "../components/PageElements";
 

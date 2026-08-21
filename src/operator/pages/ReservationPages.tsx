@@ -6,7 +6,7 @@ import {
   checkInManually,
   getReservationPayment,
   listMyContents,
-  listPublicContentSessions,
+  listOperatorContentSessions,
   listSessionReservations,
   searchReservation,
 } from "../api";
@@ -69,15 +69,16 @@ export function ReservationPage() {
     setData(null);
     setPayment(null);
     setError("");
-    listPublicContentSessions(selectedContent, controller.signal)
+    listOperatorContentSessions(selectedContent, controller.signal)
       .then(({ sessions: items }) => {
-        setSessions(items);
-        if (!items.some((item) => item.sessionId === selectedSession))
-          setSelectedSession(items[0]?.sessionId ?? "");
+        const scheduled = items.filter((item) => item.status === "SCHEDULED");
+        setSessions(scheduled);
+        if (!scheduled.some((item) => item.sessionId === selectedSession))
+          setSelectedSession(scheduled[0]?.sessionId ?? "");
       })
       .catch((caught) => {
         if (!isAbortError(caught, controller.signal))
-          setError(apiErrorMessage(caught, "공개 회차를 불러오지 못했습니다."));
+          setError(apiErrorMessage(caught, "운영 회차를 불러오지 못했습니다."));
       });
     return () => controller.abort();
   }, [selectedContent]);
@@ -196,6 +197,19 @@ export function ReservationPage() {
               </dd>
             </div>
             <div className="op-kv">
+              <dt>결제 불일치</dt>
+              <dd>
+                {payment.payment?.discrepancy ? (
+                  <>
+                    <StatusBadge value={payment.payment.discrepancy.status} />
+                    {` #${payment.payment.discrepancy.discrepancyId}`}
+                  </>
+                ) : (
+                  "없음"
+                )}
+              </dd>
+            </div>
+            <div className="op-kv">
               <dt>환불 금액</dt>
               <dd>{payment.refund ? formatMoney(payment.refund.amount) : "—"}</dd>
             </div>
@@ -248,7 +262,7 @@ export function ReservationPage() {
               value={selectedSession}
               onChange={(event) => setSelectedSession(event.target.value)}
             >
-              <option value="">공개 회차 선택</option>
+              <option value="">운영 회차 선택</option>
               {sessions.map((item) => (
                 <option key={item.sessionId} value={item.sessionId}>
                   {formatDate(item.startsAt)} ({item.sessionId})
@@ -275,7 +289,7 @@ export function ReservationPage() {
       {loading ? (
         <RouteState loading />
       ) : !selectedSession ? (
-        <RouteState empty="공개 예정 회차를 선택해 주세요. 승인 전 회차는 운영자 조회 API가 제공되지 않습니다." />
+        <RouteState empty="예약자를 조회할 운영 회차를 선택해 주세요." />
       ) : (
         data && (
           <>

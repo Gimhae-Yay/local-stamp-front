@@ -73,6 +73,27 @@ describe("운영자 콘솔 실제 라우팅", () => {
     expect(await screen.findByRole("heading", { name: "내 콘텐츠" })).toBeInTheDocument();
     expect(await screen.findByText("김해 가야문화 체험")).toBeInTheDocument();
     expect(screen.getAllByText("경상남도 김해시").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /내 콘텐츠/ })).toHaveAttribute("href", "/operator");
+    expect(screen.getByRole("link", { name: /회차·예약 관리/ })).toHaveAttribute(
+      "href",
+      "/operator/reservations",
+    );
+    expect(screen.getByRole("link", { name: /현장 체크인/ })).toHaveAttribute(
+      "href",
+      "/operator/check-in",
+    );
+    expect(screen.getByRole("link", { name: /쿠폰 정책/ })).toHaveAttribute(
+      "href",
+      "/operator/coupon-policies",
+    );
+    expect(screen.getByRole("link", { name: /지역 미션/ })).toHaveAttribute(
+      "href",
+      "/operator/missions",
+    );
+    expect(screen.getByRole("link", { name: /스탬프북 만들기/ })).toHaveAttribute(
+      "href",
+      "/operator/stampbooks",
+    );
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   });
 });

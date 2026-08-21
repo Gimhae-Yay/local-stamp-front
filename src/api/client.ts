@@ -26,7 +26,10 @@ export class ApiError extends Error {
 }
 
 export function isAbortError(error: unknown, signal?: AbortSignal) {
-  return signal?.aborted === true || (error instanceof DOMException && error.name === "AbortError");
+  return (
+    signal?.aborted === true ||
+    (typeof error === "object" && error !== null && "name" in error && error.name === "AbortError")
+  );
 }
 
 export function hasAccessToken() {
