@@ -8,7 +8,7 @@ import {
   logout as logoutRequest,
   storedUserId,
 } from "../admin/api";
-import type { PlatformAdminAccount, PlatformAdminGrade } from "./types";
+import type { PlatformAdminGrade, PlatformAdminMe } from "./types";
 
 interface PlatformSession {
   userId: string;
@@ -31,16 +31,10 @@ export function usePlatformAuth() {
 }
 
 async function verifyPlatformAccess(userId: string): Promise<PlatformAdminGrade> {
-  await apiRequest<{ regions: unknown[] }>("/api/v1/platform-admin/regions");
-  const result = await apiRequest<{ adminAccounts: PlatformAdminAccount[] }>(
-    "/api/v1/platform-admin/admin-accounts",
-  );
-  const currentAccount = result.adminAccounts.find(
-    (account) => account.userId === userId && account.status === "ACTIVE",
-  );
-  if (!currentAccount)
+  const currentAccount = await apiRequest<PlatformAdminMe>("/api/v1/platform-admin/me");
+  if (currentAccount.userId !== userId)
     throw new ApiError(
-      "활성 전체 관리자 계정을 확인할 수 없습니다.",
+      "로그인한 전체 관리자 정보를 확인할 수 없습니다.",
       403,
       "PLATFORM_ADMIN_REQUIRED",
     );
