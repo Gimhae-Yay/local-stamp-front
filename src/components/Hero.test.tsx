@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import Hero from "./Hero";
 
 describe("Hero", () => {
-  it("allows the visitor how-to card to shrink on a 320px viewport", () => {
+  it("keeps the how-to card compact and the hero title in two intentional lines", () => {
     render(
       <MemoryRouter>
         <Hero
@@ -18,8 +18,12 @@ describe("Hero", () => {
     );
 
     expect(screen.getByTestId("visitor-how-to-card")).toHaveStyle({
-      flex: "1 1 340px",
+      flex: "0 1 320px",
+      maxWidth: "320px",
       minWidth: "0",
     });
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "테스트 지역에서 할 일을찾아보세요.",
+    );
   });
 });

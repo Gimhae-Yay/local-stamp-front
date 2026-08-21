@@ -69,6 +69,14 @@ button {
   min-height: 100vh;
   background: var(--bg);
 }
+.visitor-hero-title-line {
+  display: block;
+}
+@media (min-width: 860px) {
+  .visitor-hero-title-line {
+    white-space: nowrap;
+  }
+}
 .brand {
   display: flex;
   align-items: center;
