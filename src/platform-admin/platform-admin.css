@@ -742,6 +742,13 @@
   background: var(--pa-gray-soft);
   font-size: 22px;
 }
+.pa-not-found-code {
+  color: var(--pa-orange);
+  font-size: 52px;
+  font-weight: 850;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
 .pa-state-error strong {
   color: var(--pa-red);
 }
