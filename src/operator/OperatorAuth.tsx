@@ -6,121 +6,110 @@ import {
   useState,
   type FormEvent,
   type ReactNode,
-} from "react"
-import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom"
+} from "react";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   getAuthenticatedUser,
   login as loginRequest,
   logout as logoutRequest,
   restoreAuthentication,
-} from "../api/auth"
-import { ApiError, clearAuthentication, storedUserId } from "../api/client"
-import type { OperatorAssignment, OperatorSession } from "./types"
+} from "../api/auth";
+import { ApiError, clearAuthentication, storedUserId } from "../api/client";
+import type { OperatorAssignment, OperatorSession } from "./types";
 
 interface OperatorAuthValue {
-  session: OperatorSession | null
-  restoring: boolean
-  login: (email: string, password: string) => Promise<void>
-  logout: () => Promise<void>
+  session: OperatorSession | null;
+  restoring: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
-const OperatorAuthContext = createContext<OperatorAuthValue | null>(null)
+const OperatorAuthContext = createContext<OperatorAuthValue | null>(null);
 
 function operatorSession(
   userId: string | null,
   assignments: Array<{
-    role: string
-    regionId: string | null
-    regionName: string | null
+    role: string;
+    regionId: string | null;
+    regionName: string | null;
   }>,
 ): OperatorSession {
-  const assignment = assignments.find(
-    (item) => item.role === "OPERATOR" && item.regionId,
-  )
+  const assignment = assignments.find((item) => item.role === "OPERATOR" && item.regionId);
   if (!userId || !assignment?.regionId) {
-    throw new ApiError(
-      "활성 운영자 권한을 확인할 수 없습니다.",
-      403,
-      "OPERATOR_REQUIRED",
-    )
+    throw new ApiError("활성 운영자 권한을 확인할 수 없습니다.", 403, "OPERATOR_REQUIRED");
   }
   return {
     userId,
     assignment: assignment as OperatorAssignment,
-  }
+  };
 }
 
 export function useOperatorAuth() {
-  const value = useContext(OperatorAuthContext)
-  if (!value)
-    throw new Error("useOperatorAuth must be used in OperatorAuthProvider")
-  return value
+  const value = useContext(OperatorAuthContext);
+  if (!value) throw new Error("useOperatorAuth must be used in OperatorAuthProvider");
+  return value;
 }
 
 export function OperatorAuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<OperatorSession | null>(null)
-  const [restoring, setRestoring] = useState(Boolean(storedUserId()))
+  const [session, setSession] = useState<OperatorSession | null>(null);
+  const [restoring, setRestoring] = useState(Boolean(storedUserId()));
 
   useEffect(() => {
     if (!storedUserId()) {
-      setRestoring(false)
-      return
+      setRestoring(false);
+      return;
     }
-    let active = true
+    let active = true;
     restoreAuthentication()
       .then((user) => {
         if (active && user) {
-          setSession(operatorSession(user.userId, user.roleAssignments))
+          setSession(operatorSession(user.userId, user.roleAssignments));
         }
       })
       .catch(() => clearAuthentication())
       .finally(() => {
-        if (active) setRestoring(false)
-      })
+        if (active) setRestoring(false);
+      });
     return () => {
-      active = false
-    }
-  }, [])
+      active = false;
+    };
+  }, []);
 
   const value = useMemo<OperatorAuthValue>(
     () => ({
       session,
       restoring,
       login: async (email, password) => {
-        await loginRequest(email, password)
+        await loginRequest(email, password);
         try {
-          const user = await getAuthenticatedUser()
-          setSession(operatorSession(user.userId, user.roleAssignments))
+          const user = await getAuthenticatedUser();
+          setSession(operatorSession(user.userId, user.roleAssignments));
         } catch (error) {
-          clearAuthentication()
-          throw error
+          clearAuthentication();
+          throw error;
         }
       },
       logout: async () => {
-        await logoutRequest().catch(() => clearAuthentication())
-        setSession(null)
+        await logoutRequest().catch(() => clearAuthentication());
+        setSession(null);
       },
     }),
     [restoring, session],
-  )
+  );
 
-  return (
-    <OperatorAuthContext.Provider value={value}>
-      {children}
-    </OperatorAuthContext.Provider>
-  )
+  return <OperatorAuthContext.Provider value={value}>{children}</OperatorAuthContext.Provider>;
 }
 
 export function OperatorGuard() {
-  const { session, restoring } = useOperatorAuth()
-  const location = useLocation()
+  const { session, restoring } = useOperatorAuth();
+  const location = useLocation();
   if (restoring) {
     return (
       <div className="op-route-state">
         <span className="op-spinner" />
         <p>운영자 권한을 확인하고 있습니다.</p>
       </div>
-    )
+    );
   }
   if (!session) {
     return (
@@ -129,42 +118,40 @@ export function OperatorGuard() {
         replace
         state={{ from: `${location.pathname}${location.search}` }}
       />
-    )
+    );
   }
-  return <Outlet />
+  return <Outlet />;
 }
 
 export function OperatorLoginPage() {
-  const { session, login } = useOperatorAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState("")
+  const { session, login } = useOperatorAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  if (session) return <Navigate to="/operator" replace />
+  if (session) return <Navigate to="/operator" replace />;
 
   const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    setSubmitting(true)
-    setError("")
+    event.preventDefault();
+    setSubmitting(true);
+    setError("");
     try {
-      await login(email, password)
-      const from = (location.state as { from?: string } | null)?.from
+      await login(email, password);
+      const from = (location.state as { from?: string } | null)?.from;
       navigate(from?.startsWith("/operator") ? from : "/operator", {
         replace: true,
-      })
+      });
     } catch (caught) {
       setError(
-        caught instanceof ApiError
-          ? caught.message
-          : "운영자 로그인을 완료하지 못했습니다.",
-      )
+        caught instanceof ApiError ? caught.message : "운영자 로그인을 완료하지 못했습니다.",
+      );
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <main className="op-login-page">
@@ -220,5 +207,5 @@ export function OperatorLoginPage() {
         </form>
       </section>
     </main>
-  )
+  );
 }

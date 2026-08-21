@@ -1,11 +1,5 @@
-import { useState } from "react"
-import {
-  Link,
-  NavLink,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom"
+import { useState } from "react";
+import { Link, NavLink, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ActionModal,
   AsyncContent,
@@ -17,8 +11,8 @@ import {
   formatDate,
   useApiData,
   type ActionConfig,
-} from "../AdminComponents"
-import { withQuery } from "../api"
+} from "../AdminComponents";
+import { withQuery } from "../api";
 import type {
   MissionDetail,
   MissionHistory,
@@ -26,22 +20,22 @@ import type {
   PageData,
   StampbookDetail,
   StampbookSummary,
-} from "../types"
+} from "../types";
 
 const couponIssuanceTypeLabels: Record<string, string> = {
   STAMPBOOK_COMPLETION: "스탬프북 완료",
-}
+};
 
 const missionConditionTypeLabels: Record<string, string> = {
   CONTENT_SET: "콘텐츠 묶음",
-}
+};
 
 const missionStatusLabels: Record<string, string> = {
   DRAFT: "초안",
   PENDING_REVIEW: "심사 대기",
   PUBLISHED: "공개",
   ENDED: "종료",
-}
+};
 
 const missionHistoryActionLabels: Record<string, string> = {
   CREATED: "생성",
@@ -49,7 +43,7 @@ const missionHistoryActionLabels: Record<string, string> = {
   SUBMITTED: "심사 요청",
   APPROVED: "승인",
   REJECTED: "반려",
-}
+};
 
 const missionHistoryReasonLabels: Record<string, string> = {
   MISSION_CREATED: "미션 생성",
@@ -62,51 +56,42 @@ const missionHistoryReasonLabels: Record<string, string> = {
   MISSION_TARGET_CONTENT_INVALID: "대상 콘텐츠가 올바르지 않음",
   MISSION_REWARD_POLICY_INVALID: "보상 정책이 올바르지 않음",
   MISSION_SCHEDULE_INVALID: "미션 일정이 올바르지 않음",
-}
+};
 
 const operationResultLabels: Record<string, string> = {
   SUCCESS: "성공",
   FAILURE: "실패",
-}
+};
 
 const auditActorKindLabels: Record<string, string> = {
   USER: "사용자",
-}
+};
 
 function displayLabel(labels: Record<string, string>, value: string | null) {
-  if (!value) return "없음"
-  return labels[value] ?? value
+  if (!value) return "없음";
+  return labels[value] ?? value;
 }
 
 function BenefitTabs({ active }: { active: "stampbook" | "mission" }) {
   return (
     <nav aria-label="혜택 심사" className="ra-tabs">
-      <NavLink
-        className={active === "stampbook" ? "active" : ""}
-        to="/region-admin/stampbooks"
-      >
+      <NavLink className={active === "stampbook" ? "active" : ""} to="/region-admin/stampbooks">
         스탬프북
       </NavLink>
-      <NavLink
-        className={active === "mission" ? "active" : ""}
-        to="/region-admin/missions"
-      >
+      <NavLink className={active === "mission" ? "active" : ""} to="/region-admin/missions">
         미션
       </NavLink>
     </nav>
-  )
+  );
 }
 
 export function StampbookListPage() {
   const state = useApiData<{ stampbooks: StampbookSummary[] }>(
     "/api/v1/region-admin/stampbooks?status=PENDING_REVIEW",
-  )
+  );
   return (
     <>
-      <PageHeader
-        title="혜택 심사"
-        description="공개 심사 대기 스탬프북을 확인합니다."
-      />
+      <PageHeader title="혜택 심사" description="공개 심사 대기 스탬프북을 확인합니다." />
       <BenefitTabs active="stampbook" />
       <div className="ra-filter-bar">
         <div>
@@ -141,15 +126,10 @@ export function StampbookListPage() {
                       <StatusBadge value={stampbook.status} />
                     </td>
                     <td>{stampbook.targetCount}개</td>
-                    <td className="ra-mono">
-                      {stampbook.rewardCouponPolicyId}
-                    </td>
+                    <td className="ra-mono">{stampbook.rewardCouponPolicyId}</td>
                     <td>{formatDate(stampbook.requestedAt)}</td>
                     <td className="ra-right">
-                      <Link
-                        className="ra-button ra-button-small"
-                        to={`${stampbook.stampbookId}`}
-                      >
+                      <Link className="ra-button ra-button-small" to={`${stampbook.stampbookId}`}>
                         상세
                       </Link>
                     </td>
@@ -161,16 +141,14 @@ export function StampbookListPage() {
         )}
       </AsyncContent>
     </>
-  )
+  );
 }
 
 export function StampbookDetailPage() {
-  const { stampbookId = "" } = useParams()
-  const navigate = useNavigate()
-  const state = useApiData<StampbookDetail>(
-    `/api/v1/region-admin/stampbooks/${stampbookId}`,
-  )
-  const [action, setAction] = useState<ActionConfig | null>(null)
+  const { stampbookId = "" } = useParams();
+  const navigate = useNavigate();
+  const state = useApiData<StampbookDetail>(`/api/v1/region-admin/stampbooks/${stampbookId}`);
+  const [action, setAction] = useState<ActionConfig | null>(null);
   const configs: Record<string, ActionConfig> = {
     approve: {
       title: "스탬프북 공개 승인",
@@ -202,7 +180,7 @@ export function StampbookDetailPage() {
         maxLength: 500,
       },
     },
-  }
+  };
   return (
     <>
       <PageHeader
@@ -218,10 +196,7 @@ export function StampbookDetailPage() {
         {(detail) => (
           <div className="ra-detail-layout">
             <div className="ra-detail-main">
-              <Panel
-                title="스탬프북 정보"
-                action={<StatusBadge value={detail.status} />}
-              >
+              <Panel title="스탬프북 정보" action={<StatusBadge value={detail.status} />}>
                 <KeyValueGrid
                   items={[
                     ["스탬프북 ID", detail.stampbookId],
@@ -234,10 +209,7 @@ export function StampbookDetailPage() {
               <Panel title={`대상 콘텐츠 ${detail.targetContents.length}개`}>
                 <div className="ra-list-cards">
                   {detail.targetContents.map((content, index) => (
-                    <article
-                      className="ra-target-content-card"
-                      key={content.contentId}
-                    >
+                    <article className="ra-target-content-card" key={content.contentId}>
                       <span>{index + 1}</span>
                       <div>
                         <strong>{content.title}</strong>
@@ -262,10 +234,7 @@ export function StampbookDetailPage() {
                         detail.rewardCouponPolicy.issuanceType,
                       ),
                     ],
-                    [
-                      "정책 상태",
-                      <StatusBadge value={detail.rewardCouponPolicy.status} />,
-                    ],
+                    ["정책 상태", <StatusBadge value={detail.rewardCouponPolicy.status} />],
                   ]}
                 />
               </Panel>
@@ -273,9 +242,7 @@ export function StampbookDetailPage() {
             <aside className="ra-detail-aside">
               <section className="ra-action-card">
                 <h2>공개 심사</h2>
-                <p>
-                  모든 대상이 같은 담당 지역의 공개 콘텐츠인지 확인해 주세요.
-                </p>
+                <p>모든 대상이 같은 담당 지역의 공개 콘텐츠인지 확인해 주세요.</p>
                 <button
                   className="ra-button ra-button-admin"
                   onClick={() => setAction(configs.approve)}
@@ -305,30 +272,25 @@ export function StampbookDetailPage() {
         />
       )}
     </>
-  )
+  );
 }
 
 export function MissionListPage() {
-  const [search, setSearch] = useSearchParams()
-  const { status, page, size } = readMissionListFilters(search)
+  const [search, setSearch] = useSearchParams();
+  const { status, page, size } = readMissionListFilters(search);
   const state = useApiData<PageData<MissionSummary>>(
     withQuery("/api/v1/region-admin/missions", { status, page, size }),
-  )
+  );
   const update = (values: Record<string, string | number>) =>
     setSearch({
       status,
       page: String(page),
       size: String(size),
-      ...Object.fromEntries(
-        Object.entries(values).map(([key, value]) => [key, String(value)]),
-      ),
-    })
+      ...Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value)])),
+    });
   return (
     <>
-      <PageHeader
-        title="혜택 심사"
-        description="담당 지역 미션을 상태별로 확인합니다."
-      />
+      <PageHeader title="혜택 심사" description="담당 지역 미션을 상태별로 확인합니다." />
       <BenefitTabs active="mission" />
       <div className="ra-filter-bar">
         <div className="ra-filter-row">
@@ -337,9 +299,7 @@ export function MissionListPage() {
             <select
               className="ra-control"
               value={status}
-              onChange={(event) =>
-                update({ status: event.target.value, page: 0 })
-              }
+              onChange={(event) => update({ status: event.target.value, page: 0 })}
             >
               <option value="">전체</option>
               <option value="DRAFT">초안</option>
@@ -353,9 +313,7 @@ export function MissionListPage() {
             <select
               className="ra-control"
               value={size}
-              onChange={(event) =>
-                update({ size: event.target.value, page: 0 })
-              }
+              onChange={(event) => update({ size: event.target.value, page: 0 })}
             >
               <option value="20">20개</option>
               <option value="50">50개</option>
@@ -389,18 +347,13 @@ export function MissionListPage() {
                         <strong className="ra-cell-title">
                           {mission.title ?? `미션 #${mission.missionId}`}
                         </strong>
-                        <span className="ra-cell-sub">
-                          미션 {mission.missionId}
-                        </span>
+                        <span className="ra-cell-sub">미션 {mission.missionId}</span>
                       </td>
                       <td>
                         <StatusBadge value={mission.status} />
                       </td>
                       <td className="ra-right">
-                        <Link
-                          className="ra-button ra-button-small"
-                          to={`${mission.missionId}`}
-                        >
+                        <Link className="ra-button ra-button-small" to={`${mission.missionId}`}>
                           상세
                         </Link>
                       </td>
@@ -432,31 +385,24 @@ export function MissionListPage() {
         )}
       </AsyncContent>
     </>
-  )
+  );
 }
 
-const missionListStatuses = new Set([
-  "",
-  "DRAFT",
-  "PENDING_REVIEW",
-  "PUBLISHED",
-  "ENDED",
-])
+const missionListStatuses = new Set(["", "DRAFT", "PENDING_REVIEW", "PUBLISHED", "ENDED"]);
 
 export function readMissionListFilters(search: URLSearchParams) {
-  const requestedStatus = search.get("status")
+  const requestedStatus = search.get("status");
   const status =
     requestedStatus === null
       ? "PENDING_REVIEW"
       : missionListStatuses.has(requestedStatus)
         ? requestedStatus
-        : "PENDING_REVIEW"
-  const requestedPage = Number(search.get("page") ?? 0)
-  const page =
-    Number.isInteger(requestedPage) && requestedPage >= 0 ? requestedPage : 0
-  const requestedSize = Number(search.get("size") ?? 20)
-  const size = [20, 50, 100].includes(requestedSize) ? requestedSize : 20
-  return { status, page, size }
+        : "PENDING_REVIEW";
+  const requestedPage = Number(search.get("page") ?? 0);
+  const page = Number.isInteger(requestedPage) && requestedPage >= 0 ? requestedPage : 0;
+  const requestedSize = Number(search.get("size") ?? 20);
+  const size = [20, 50, 100].includes(requestedSize) ? requestedSize : 20;
+  return { status, page, size };
 }
 
 const missionRejectionReasons = [
@@ -465,18 +411,16 @@ const missionRejectionReasons = [
   ["MISSION_TARGET_CONTENT_INVALID", "대상 콘텐츠가 올바르지 않음"],
   ["MISSION_REWARD_POLICY_INVALID", "보상 정책이 올바르지 않음"],
   ["MISSION_SCHEDULE_INVALID", "미션 일정이 올바르지 않음"],
-].map(([value, label]) => ({ value, label }))
+].map(([value, label]) => ({ value, label }));
 
 export function MissionDetailPage() {
-  const { missionId = "" } = useParams()
-  const navigate = useNavigate()
-  const detailState = useApiData<MissionDetail>(
-    `/api/v1/region-admin/missions/${missionId}`,
-  )
+  const { missionId = "" } = useParams();
+  const navigate = useNavigate();
+  const detailState = useApiData<MissionDetail>(`/api/v1/region-admin/missions/${missionId}`);
   const historyState = useApiData<MissionHistory>(
     `/api/v1/region-admin/missions/${missionId}/history`,
-  )
-  const [action, setAction] = useState<ActionConfig | null>(null)
+  );
+  const [action, setAction] = useState<ActionConfig | null>(null);
   const configs: Record<string, ActionConfig> = {
     approve: {
       title: "미션 승인",
@@ -508,7 +452,7 @@ export function MissionDetailPage() {
         options: missionRejectionReasons,
       },
     },
-  }
+  };
   return (
     <>
       <PageHeader
@@ -532,13 +476,7 @@ export function MissionDetailPage() {
                   items={[
                     ["미션 ID", detail.missionId],
                     ["지역 ID", detail.regionId],
-                    [
-                      "조건 유형",
-                      displayLabel(
-                        missionConditionTypeLabels,
-                        detail.conditionType,
-                      ),
-                    ],
+                    ["조건 유형", displayLabel(missionConditionTypeLabels, detail.conditionType)],
                     ["필요 방문 수", detail.requiredVisitCount ?? "대상 전체"],
                     ["보상 쿠폰 정책", detail.rewardCouponPolicyId],
                     ["종료 시각", formatDate(detail.endsAt)],
@@ -562,10 +500,7 @@ export function MissionDetailPage() {
                 {historyState.loading && !historyState.data ? (
                   <p className="ra-muted">이력을 불러오는 중입니다.</p>
                 ) : historyState.error && !historyState.data ? (
-                  <ErrorState
-                    error={historyState.error}
-                    onRetry={historyState.reload}
-                  />
+                  <ErrorState error={historyState.error} onRetry={historyState.reload} />
                 ) : (
                   <>
                     {historyState.error && (
@@ -576,47 +511,22 @@ export function MissionDetailPage() {
                     {historyState.data?.histories.length ? (
                       <div className="ra-timeline">
                         {historyState.data.histories.map((history) => (
-                          <div
-                            className="ra-timeline-item"
-                            key={history.auditEventId}
-                          >
+                          <div className="ra-timeline-item" key={history.auditEventId}>
                             <span />
                             <div>
                               <strong>
-                                {displayLabel(
-                                  missionHistoryActionLabels,
-                                  history.action,
-                                )}{" "}
-                                ·{" "}
-                                {displayLabel(
-                                  missionStatusLabels,
-                                  history.previousStatus,
-                                )}{" "}
-                                →{" "}
-                                {displayLabel(
-                                  missionStatusLabels,
-                                  history.nextStatus,
-                                )}
+                                {displayLabel(missionHistoryActionLabels, history.action)} ·{" "}
+                                {displayLabel(missionStatusLabels, history.previousStatus)} →{" "}
+                                {displayLabel(missionStatusLabels, history.nextStatus)}
                               </strong>
                               <p>
                                 이벤트 {history.auditEventId} · 결과{" "}
-                                {displayLabel(
-                                  operationResultLabels,
-                                  history.result,
-                                )}{" "}
-                                ·{" "}
-                                {displayLabel(
-                                  missionHistoryReasonLabels,
-                                  history.reasonCode,
-                                )}
+                                {displayLabel(operationResultLabels, history.result)} ·{" "}
+                                {displayLabel(missionHistoryReasonLabels, history.reasonCode)}
                               </p>
                               <small>
-                                {displayLabel(
-                                  auditActorKindLabels,
-                                  history.actorKind,
-                                )}{" "}
-                                {history.actorUserId ?? ""} ·{" "}
-                                {formatDate(history.recordedAt)}
+                                {displayLabel(auditActorKindLabels, history.actorKind)}{" "}
+                                {history.actorUserId ?? ""} · {formatDate(history.recordedAt)}
                               </small>
                             </div>
                           </div>
@@ -632,10 +542,7 @@ export function MissionDetailPage() {
             <aside className="ra-detail-aside">
               <section className="ra-action-card">
                 <h2>미션 심사</h2>
-                <p>
-                  대상 콘텐츠 전체 공개, 보상 정책 공개, 미래 종료 일정 조건을
-                  확인해 주세요.
-                </p>
+                <p>대상 콘텐츠 전체 공개, 보상 정책 공개, 미래 종료 일정 조건을 확인해 주세요.</p>
                 {detail.status === "PENDING_REVIEW" ? (
                   <>
                     <button
@@ -673,5 +580,5 @@ export function MissionDetailPage() {
         />
       )}
     </>
-  )
+  );
 }

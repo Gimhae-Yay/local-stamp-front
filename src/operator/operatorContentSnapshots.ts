@@ -4,34 +4,31 @@ import type {
   ContentSessionSummary,
   CreatedContentSession,
   SessionInput,
-} from "./types"
+} from "./types";
 
-import {
-  readOperatorCompatValue,
-  writeOperatorCompatValue,
-} from "./operatorCompatStorage"
+import { readOperatorCompatValue, writeOperatorCompatValue } from "./operatorCompatStorage";
 
 export interface ContentRevisionSnapshot {
-  revisionId: string
+  revisionId: string;
 
-  contentId: string
+  contentId: string;
 
-  status: string
+  status: string;
 
-  candidate: ContentInput
+  candidate: ContentInput;
 
-  submittedAt?: string
+  submittedAt?: string;
 
-  updatedAt?: string
+  updatedAt?: string;
 
-  withdrawalReason?: string
+  withdrawalReason?: string;
 
-  withdrawnAt?: string
-  reviewReason?: string
-  reviewedAt?: string
-  representativeImageUrl?: string
-  representativeImageUrlExpiresAt?: string
-  locallySavedAt?: string
+  withdrawnAt?: string;
+  reviewReason?: string;
+  reviewedAt?: string;
+  representativeImageUrl?: string;
+  representativeImageUrlExpiresAt?: string;
+  locallySavedAt?: string;
 }
 
 export function toContentRevisionSnapshot(
@@ -58,35 +55,34 @@ export function toContentRevisionSnapshot(
     reviewReason: revision.reviewReason ?? undefined,
     reviewedAt: revision.reviewedAt ?? undefined,
     representativeImageUrl: revision.representativeImageUrl ?? undefined,
-    representativeImageUrlExpiresAt:
-      revision.representativeImageUrlExpiresAt ?? undefined,
-  }
+    representativeImageUrlExpiresAt: revision.representativeImageUrlExpiresAt ?? undefined,
+  };
 }
 
 export interface ContentSessionSnapshot extends CreatedContentSession {
-  changeRequestId?: string
+  changeRequestId?: string;
 
-  changeRequestStatus?: string
+  changeRequestStatus?: string;
 
-  changeCandidate?: SessionInput
+  changeCandidate?: SessionInput;
 
-  changeRequestedAt?: string
+  changeRequestedAt?: string;
 
-  localStatusRecordedAt?: string
+  localStatusRecordedAt?: string;
 }
 
-export const LOCAL_REVIEW_GUARD_MS = 60 * 60 * 1000
+export const LOCAL_REVIEW_GUARD_MS = 60 * 60 * 1000;
 
 function isFresh(timestamp: string | undefined, now: number) {
-  if (!timestamp) return false
+  if (!timestamp) return false;
 
-  const recordedAt = Date.parse(timestamp)
+  const recordedAt = Date.parse(timestamp);
 
-  if (Number.isNaN(recordedAt)) return false
+  if (Number.isNaN(recordedAt)) return false;
 
-  const age = now - recordedAt
+  const age = now - recordedAt;
 
-  return age >= -5 * 60 * 1000 && age <= LOCAL_REVIEW_GUARD_MS
+  return age >= -5 * 60 * 1000 && age <= LOCAL_REVIEW_GUARD_MS;
 }
 
 export function isContentRevisionReviewFresh(
@@ -101,7 +97,7 @@ export function isContentRevisionReviewFresh(
 
       now,
     )
-  )
+  );
 }
 
 export function readContentRevisionSnapshot(
@@ -115,7 +111,7 @@ export function readContentRevisionSnapshot(
     "content-revision",
 
     revisionId,
-  )?.value
+  )?.value;
 }
 
 export function readLatestContentRevisionSnapshot(
@@ -129,7 +125,7 @@ export function readLatestContentRevisionSnapshot(
     "content-revision-latest",
 
     contentId,
-  )?.value
+  )?.value;
 }
 
 export function writeContentRevisionSnapshot(
@@ -141,7 +137,7 @@ export function writeContentRevisionSnapshot(
     ...snapshot,
 
     locallySavedAt: snapshot.locallySavedAt ?? new Date().toISOString(),
-  }
+  };
 
   writeOperatorCompatValue(
     userId,
@@ -151,7 +147,7 @@ export function writeContentRevisionSnapshot(
     snapshot.revisionId,
 
     storedSnapshot,
-  )
+  );
 
   writeOperatorCompatValue(
     userId,
@@ -161,7 +157,7 @@ export function writeContentRevisionSnapshot(
     snapshot.contentId,
 
     storedSnapshot,
-  )
+  );
 }
 
 export function readContentSessionSnapshots(userId: string, contentId: string) {
@@ -173,7 +169,7 @@ export function readContentSessionSnapshots(userId: string, contentId: string) {
 
       contentId,
     )?.value ?? []
-  )
+  );
 }
 
 export function writeContentSessionSnapshots(
@@ -183,7 +179,7 @@ export function writeContentSessionSnapshots(
 
   sessions: ContentSessionSnapshot[],
 ) {
-  const recordedAt = new Date().toISOString()
+  const recordedAt = new Date().toISOString();
 
   writeOperatorCompatValue(
     userId,
@@ -197,11 +193,11 @@ export function writeContentSessionSnapshots(
 
       localStatusRecordedAt: session.localStatusRecordedAt ?? recordedAt,
     })),
-  )
+  );
 }
 
 function sameInstant(left: string, right: string) {
-  return Date.parse(left) === Date.parse(right)
+  return Date.parse(left) === Date.parse(right);
 }
 
 function approvedChangeIsPublic(
@@ -213,7 +209,7 @@ function approvedChangeIsPublic(
     candidate !== undefined &&
     sameInstant(session.startsAt, candidate.startsAt) &&
     sameInstant(session.endsAt, candidate.endsAt)
-  )
+  );
 }
 
 export function mergeContentSessionSnapshots(
@@ -223,14 +219,12 @@ export function mergeContentSessionSnapshots(
 
   now = Date.now(),
 ) {
-  const storedById = new Map(
-    storedSessions.map((session) => [session.sessionId, session]),
-  )
+  const storedById = new Map(storedSessions.map((session) => [session.sessionId, session]));
 
   const merged = publicSessions.map<ContentSessionSnapshot>((session) => {
-    const stored = storedById.get(session.sessionId)
+    const stored = storedById.get(session.sessionId);
 
-    storedById.delete(session.sessionId)
+    storedById.delete(session.sessionId);
 
     if (!stored) {
       return {
@@ -245,10 +239,10 @@ export function mergeContentSessionSnapshots(
         checkinCloseAt: "",
 
         capacity: 0,
-      }
+      };
     }
 
-    if (stored.status === "CANCELLED") return stored
+    if (stored.status === "CANCELLED") return stored;
 
     if (approvedChangeIsPublic(session, stored.changeCandidate)) {
       return {
@@ -265,7 +259,7 @@ export function mergeContentSessionSnapshots(
         changeCandidate: undefined,
 
         changeRequestedAt: undefined,
-      }
+      };
     }
 
     const changeRequestStatus =
@@ -276,7 +270,7 @@ export function mergeContentSessionSnapshots(
         now,
       )
         ? "UNKNOWN"
-        : stored.changeRequestStatus
+        : stored.changeRequestStatus;
 
     return {
       ...stored,
@@ -286,19 +280,16 @@ export function mergeContentSessionSnapshots(
       status: "SCHEDULED",
 
       changeRequestStatus,
-    }
-  })
+    };
+  });
 
   const remaining = [...storedById.values()].map((session) => {
-    if (
-      session.status === "PENDING" &&
-      !isFresh(session.localStatusRecordedAt, now)
-    ) {
-      return { ...session, status: "REVIEW_UNKNOWN" }
+    if (session.status === "PENDING" && !isFresh(session.localStatusRecordedAt, now)) {
+      return { ...session, status: "REVIEW_UNKNOWN" };
     }
 
-    return session
-  })
+    return session;
+  });
 
-  return [...merged, ...remaining]
+  return [...merged, ...remaining];
 }

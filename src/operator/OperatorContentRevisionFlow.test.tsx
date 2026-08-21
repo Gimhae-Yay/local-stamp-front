@@ -1,15 +1,9 @@
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  within,
-} from "@testing-library/react"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import App from "../App"
-import { clearAuthentication, saveAuthentication } from "../api/client"
-import { writeOperatorCompatValue } from "./operatorCompatStorage"
-import { writeContentRevisionSnapshot } from "./operatorContentSnapshots"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import App from "../App";
+import { clearAuthentication, saveAuthentication } from "../api/client";
+import { writeOperatorCompatValue } from "./operatorCompatStorage";
+import { writeContentRevisionSnapshot } from "./operatorContentSnapshots";
 
 function success(data: unknown) {
   return Promise.resolve(
@@ -22,7 +16,7 @@ function success(data: unknown) {
       }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     ),
-  )
+  );
 }
 
 function notFound() {
@@ -36,7 +30,7 @@ function notFound() {
       }),
       { status: 404, headers: { "Content-Type": "application/json" } },
     ),
-  )
+  );
 }
 
 function latestRevision(status: string) {
@@ -59,11 +53,10 @@ function latestRevision(status: string) {
     cancellationPolicyText: content.cancellationPolicyText,
     reservationPrice: 20000,
     publishAt: null,
-    reviewReason:
-      status === "EDIT_REJECTED" ? "후보 내용을 보완해 주세요." : null,
+    reviewReason: status === "EDIT_REJECTED" ? "후보 내용을 보완해 주세요." : null,
     submittedAt: "2026-08-20T12:00:00Z",
     reviewedAt: status === "EDIT_REJECTED" ? "2026-08-20T12:05:00Z" : null,
-  }
+  };
 }
 
 const content = {
@@ -85,60 +78,50 @@ const content = {
   rejectionReason: null,
   createdAt: "2026-08-12T01:20:00Z",
   updatedAt: "2026-08-12T01:20:00Z",
-}
+};
 
 describe("운영자 콘텐츠 수정본 생성·철회 흐름", () => {
   beforeEach(() => {
-    clearAuthentication()
-    window.localStorage.clear()
-    window.history.replaceState({}, "", "/operator/contents/104/edit")
-    saveAuthentication("stale-test-token", "44")
-    writeOperatorCompatValue("44", "content-price", "104", 20000)
-  })
+    clearAuthentication();
+    window.localStorage.clear();
+    window.history.replaceState({}, "", "/operator/contents/104/edit");
+    saveAuthentication("stale-test-token", "44");
+    writeOperatorCompatValue("44", "content-price", "104", 20000);
+  });
 
   afterEach(() => {
-    cleanup()
-    vi.unstubAllGlobals()
-    clearAuthentication()
-  })
+    cleanup();
+    vi.unstubAllGlobals();
+    clearAuthentication();
+  });
 
   it("확인 후 수정본을 생성하고 전용 화면에서 철회한다", async () => {
-    let revisionCreated = false
+    let revisionCreated = false;
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
+      const url = String(input);
       if (url.endsWith("/api/v1/auth/refresh")) {
-        return success({ accessToken: "test-token" })
+        return success({ accessToken: "test-token" });
       }
       if (url.endsWith("/api/v1/me")) {
         return success({
           userId: "44",
-          roleAssignments: [
-            { role: "OPERATOR", regionId: "11", regionName: "김해시" },
-          ],
-        })
+          roleAssignments: [{ role: "OPERATOR", regionId: "11", regionName: "김해시" }],
+        });
       }
       if (url.endsWith("/api/v1/operator/contents/104") && !init?.method) {
-        return success(content)
+        return success(content);
       }
-      if (
-        url.endsWith("/api/v1/operator/contents/104/revisions/latest") &&
-        !init?.method
-      ) {
-        return revisionCreated
-          ? success(latestRevision("EDIT_REQUESTED"))
-          : notFound()
+      if (url.endsWith("/api/v1/operator/contents/104/revisions/latest") && !init?.method) {
+        return revisionCreated ? success(latestRevision("EDIT_REQUESTED")) : notFound();
       }
-      if (
-        url.endsWith("/api/v1/operator/contents/104/revisions") &&
-        init?.method === "POST"
-      ) {
-        revisionCreated = true
+      if (url.endsWith("/api/v1/operator/contents/104/revisions") && init?.method === "POST") {
+        revisionCreated = true;
         return success({
           revisionId: "501",
           contentId: "104",
           status: "EDIT_REQUESTED",
           submittedAt: "2026-08-20T12:00:00Z",
-        })
+        });
       }
       if (
         url.endsWith("/api/v1/operator/content-revisions/501/withdraw") &&
@@ -150,13 +133,13 @@ describe("운영자 콘텐츠 수정본 생성·철회 흐름", () => {
           status: "EDIT_WITHDRAWN",
           withdrawalReason: "일정 변경",
           withdrawnAt: "2026-08-20T12:10:00Z",
-        })
+        });
       }
-      throw new Error(`예상하지 못한 요청: ${url}`)
-    })
-    vi.stubGlobal("fetch", fetchMock)
+      throw new Error(`예상하지 못한 요청: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
-    render(<App />)
+    render(<App />);
     fireEvent.click(
       await screen.findByRole(
         "button",
@@ -165,45 +148,35 @@ describe("운영자 콘텐츠 수정본 생성·철회 흐름", () => {
         },
         { timeout: 5_000 },
       ),
-    )
-    const submitDialog = screen.getByRole("dialog")
-    expect(
-      within(submitDialog).getByText("수정본을 생성해 심사 요청할까요?"),
-    ).toBeInTheDocument()
-    fireEvent.click(
-      within(submitDialog).getByRole("button", { name: "심사 요청" }),
-    )
+    );
+    const submitDialog = screen.getByRole("dialog");
+    expect(within(submitDialog).getByText("수정본을 생성해 심사 요청할까요?")).toBeInTheDocument();
+    fireEvent.click(within(submitDialog).getByRole("button", { name: "심사 요청" }));
 
-    expect(
-      await screen.findByRole("heading", { name: "콘텐츠 수정본 501" }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "콘텐츠 수정본 501" })).toBeInTheDocument();
     const revisionCall = fetchMock.mock.calls.find(
       ([input, init]) =>
         String(input).endsWith("/api/v1/operator/contents/104/revisions") &&
         init?.method === "POST",
-    )
-    expect(revisionCall).toBeDefined()
+    );
+    expect(revisionCall).toBeDefined();
     expect(JSON.parse(String(revisionCall?.[1]?.body))).toMatchObject({
       publishAt: null,
-    })
-    expect(screen.getByText("가야 문화를 체험합니다.")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "수정본 철회" }))
-    const withdrawDialog = screen.getByRole("dialog")
+    });
+    expect(screen.getByText("가야 문화를 체험합니다.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "수정본 철회" }));
+    const withdrawDialog = screen.getByRole("dialog");
     fireEvent.change(within(withdrawDialog).getByRole("textbox"), {
       target: { value: "일정 변경" },
-    })
-    fireEvent.click(
-      within(withdrawDialog).getByRole("button", { name: "수정본 철회" }),
-    )
+    });
+    fireEvent.click(within(withdrawDialog).getByRole("button", { name: "수정본 철회" }));
 
-    expect(
-      await screen.findByText("수정본이 철회되었습니다."),
-    ).toBeInTheDocument()
-    expect(screen.getByText("이미 철회된 수정본입니다.")).toBeInTheDocument()
-  })
+    expect(await screen.findByText("수정본이 철회되었습니다.")).toBeInTheDocument();
+    expect(screen.getByText("이미 철회된 수정본입니다.")).toBeInTheDocument();
+  });
 
   it("반려 수정본 데이터를 표시하고 PUT 저장 결과를 반영한다", async () => {
-    window.history.replaceState({}, "", "/operator/content-revisions/501")
+    window.history.replaceState({}, "", "/operator/content-revisions/501");
     writeContentRevisionSnapshot("44", {
       revisionId: "501",
       contentId: "104",
@@ -221,36 +194,28 @@ describe("운영자 콘텐츠 수정본 생성·철회 흐름", () => {
         reservationPrice: 20000,
         publishAt: null,
       },
-    })
+    });
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
+      const url = String(input);
       if (url.endsWith("/api/v1/auth/refresh")) {
-        return success({ accessToken: "test-token" })
+        return success({ accessToken: "test-token" });
       }
       if (url.endsWith("/api/v1/me")) {
         return success({
           userId: "44",
-          roleAssignments: [
-            { role: "OPERATOR", regionId: "11", regionName: "김해시" },
-          ],
-        })
+          roleAssignments: [{ role: "OPERATOR", regionId: "11", regionName: "김해시" }],
+        });
       }
-      if (
-        url.endsWith("/api/v1/operator/contents/104/revisions/latest") &&
-        !init?.method
-      ) {
-        return success(latestRevision("EDIT_REJECTED"))
+      if (url.endsWith("/api/v1/operator/contents/104/revisions/latest") && !init?.method) {
+        return success(latestRevision("EDIT_REJECTED"));
       }
-      if (
-        url.endsWith("/api/v1/operator/content-revisions/501") &&
-        init?.method === "PUT"
-      ) {
+      if (url.endsWith("/api/v1/operator/content-revisions/501") && init?.method === "PUT") {
         return success({
           revisionId: "501",
           contentId: "104",
           status: "EDIT_REJECTED",
           updatedAt: "2026-08-20T12:20:00Z",
-        })
+        });
       }
       if (
         url.endsWith("/api/v1/operator/content-revisions/501/resubmit") &&
@@ -263,47 +228,38 @@ describe("운영자 콘텐츠 수정본 생성·철회 흐름", () => {
           status: "EDIT_REQUESTED",
           baseContentVersion: 1,
           submittedAt: "2026-08-20T12:30:00Z",
-        })
+        });
       }
-      throw new Error(`예상하지 못한 요청: ${url}`)
-    })
-    vi.stubGlobal("fetch", fetchMock)
+      throw new Error(`예상하지 못한 요청: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
-    render(<App />)
-    expect(
-      await screen.findByText("후보 내용을 보완해 주세요."),
-    ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "반려 수정본 편집" }))
-    const title = screen.getByLabelText("콘텐츠 제목")
-    fireEvent.change(title, { target: { value: "수정된 가야문화 체험" } })
-    fireEvent.click(screen.getByRole("button", { name: "수정본 저장" }))
+    render(<App />);
+    expect(await screen.findByText("후보 내용을 보완해 주세요.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "반려 수정본 편집" }));
+    const title = screen.getByLabelText("콘텐츠 제목");
+    fireEvent.change(title, { target: { value: "수정된 가야문화 체험" } });
+    fireEvent.click(screen.getByRole("button", { name: "수정본 저장" }));
 
-    expect(
-      await screen.findByText("수정본 데이터가 저장되었습니다."),
-    ).toBeInTheDocument()
-    expect(screen.getByText("수정된 가야문화 체험")).toBeInTheDocument()
+    expect(await screen.findByText("수정본 데이터가 저장되었습니다.")).toBeInTheDocument();
+    expect(screen.getByText("수정된 가야문화 체험")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/operator/content-revisions/501"),
       expect.objectContaining({ method: "PUT" }),
-    )
-    fireEvent.click(
-      screen.getByRole("button", { name: "새 수정본으로 재심사 요청" }),
-    )
+    );
+    fireEvent.click(screen.getByRole("button", { name: "새 수정본으로 재심사 요청" }));
     fireEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", {
         name: "재심사 요청",
       }),
-    )
-    expect(
-      await screen.findByText("새 수정본으로 재심사 요청되었습니다."),
-    ).toBeInTheDocument()
+    );
+    expect(await screen.findByText("새 수정본으로 재심사 요청되었습니다.")).toBeInTheDocument();
     expect(
       fetchMock.mock.calls.some(
         ([input, init]) =>
-          String(input).endsWith(
-            "/api/v1/operator/content-revisions/501/resubmit",
-          ) && init?.method === "POST",
+          String(input).endsWith("/api/v1/operator/content-revisions/501/resubmit") &&
+          init?.method === "POST",
       ),
-    ).toBe(true)
-  })
-})
+    ).toBe(true);
+  });
+});

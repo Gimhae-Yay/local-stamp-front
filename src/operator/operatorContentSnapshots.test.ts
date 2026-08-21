@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   isContentRevisionReviewFresh,
   mergeContentSessionSnapshots,
@@ -7,10 +7,10 @@ import {
   readLatestContentRevisionSnapshot,
   writeContentRevisionSnapshot,
   writeContentSessionSnapshots,
-} from "./operatorContentSnapshots"
+} from "./operatorContentSnapshots";
 
 describe("운영자 콘텐츠 화면 상태 복원", () => {
-  beforeEach(() => window.localStorage.clear())
+  beforeEach(() => window.localStorage.clear());
 
   it("수정본을 ID와 원본 콘텐츠 양쪽에서 다시 찾을 수 있게 저장한다", () => {
     const snapshot = {
@@ -30,17 +30,15 @@ describe("운영자 콘텐츠 화면 상태 복원", () => {
         reservationPrice: 10000,
         publishAt: null,
       },
-    }
+    };
 
-    writeContentRevisionSnapshot("44", snapshot)
+    writeContentRevisionSnapshot("44", snapshot);
 
-    expect(readContentRevisionSnapshot("44", "501")).toEqual(
-      expect.objectContaining(snapshot),
-    )
+    expect(readContentRevisionSnapshot("44", "501")).toEqual(expect.objectContaining(snapshot));
     expect(readLatestContentRevisionSnapshot("44", "101")).toEqual(
       expect.objectContaining(snapshot),
-    )
-  })
+    );
+  });
 
   it("공개 회차와 로컬 심사·취소 상태를 합쳐 새로고침 뒤에도 표시한다", () => {
     writeContentSessionSnapshots("44", "101", [
@@ -64,7 +62,7 @@ describe("운영자 콘텐츠 화면 상태 복원", () => {
         checkinCloseAt: "2099-08-26T02:00:00Z",
         capacity: 20,
       },
-    ])
+    ]);
 
     const merged = mergeContentSessionSnapshots(
       [
@@ -75,15 +73,15 @@ describe("운영자 콘텐츠 화면 상태 복원", () => {
         },
       ],
       readContentSessionSnapshots("44", "101"),
-    )
+    );
 
     expect(merged).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ sessionId: "201", status: "SCHEDULED" }),
         expect.objectContaining({ sessionId: "202", status: "CANCELLED" }),
       ]),
-    )
-  })
+    );
+  });
 
   it("오래된 수정본 요청은 화면 잠금에 사용하지 않는다", () => {
     const snapshot = {
@@ -104,21 +102,11 @@ describe("운영자 콘텐츠 화면 상태 복원", () => {
         reservationPrice: 10000,
         publishAt: null,
       },
-    }
+    };
 
-    expect(
-      isContentRevisionReviewFresh(
-        snapshot,
-        Date.parse("2026-08-20T00:30:00Z"),
-      ),
-    ).toBe(true)
-    expect(
-      isContentRevisionReviewFresh(
-        snapshot,
-        Date.parse("2026-08-20T02:00:00Z"),
-      ),
-    ).toBe(false)
-  })
+    expect(isContentRevisionReviewFresh(snapshot, Date.parse("2026-08-20T00:30:00Z"))).toBe(true);
+    expect(isContentRevisionReviewFresh(snapshot, Date.parse("2026-08-20T02:00:00Z"))).toBe(false);
+  });
 
   it("공개 일정이 후보와 같으면 승인으로 추론하고 오래된 요청은 결과 미확인으로 푼다", () => {
     const stored = {
@@ -140,7 +128,7 @@ describe("운영자 콘텐츠 화면 상태 복원", () => {
         checkinCloseAt: "2026-08-21T02:00:00Z",
         capacity: 30,
       },
-    }
+    };
 
     const approved = mergeContentSessionSnapshots(
       [
@@ -152,8 +140,8 @@ describe("운영자 콘텐츠 화면 상태 복원", () => {
       ],
       [stored],
       Date.parse("2026-08-20T02:00:00Z"),
-    )[0]
-    expect(approved.changeRequestStatus).toBeUndefined()
+    )[0];
+    expect(approved.changeRequestStatus).toBeUndefined();
 
     const unknown = mergeContentSessionSnapshots(
       [
@@ -165,7 +153,7 @@ describe("운영자 콘텐츠 화면 상태 복원", () => {
       ],
       [stored],
       Date.parse("2026-08-20T02:00:00Z"),
-    )[0]
-    expect(unknown.changeRequestStatus).toBe("UNKNOWN")
-  })
-})
+    )[0];
+    expect(unknown.changeRequestStatus).toBe("UNKNOWN");
+  });
+});

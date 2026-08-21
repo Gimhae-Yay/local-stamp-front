@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react"
-import { Link, useParams, useSearchParams } from "react-router-dom"
+import { useState, type FormEvent } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   AsyncContent,
   EmptyState,
@@ -9,19 +9,15 @@ import {
   StatusBadge,
   formatDate,
   useApiData,
-} from "../AdminComponents"
-import { ApiError, apiRequest, withQuery } from "../api"
-import type {
-  QrExceptionDetail,
-  QrExceptionSummary,
-  ReservationSearchResult,
-} from "../types"
+} from "../AdminComponents";
+import { ApiError, apiRequest, withQuery } from "../api";
+import type { QrExceptionDetail, QrExceptionSummary, ReservationSearchResult } from "../types";
 
 const exceptionTypeLabels: Record<string, string> = {
   QR_CHECK_IN_FAILURE: "QR 체크인 실패",
   MANUAL_CHECK_IN: "수동 체크인",
   RESERVATION_NUMBER_LOOKUP: "예약번호 조회",
-}
+};
 
 const reasonCodeLabels: Record<string, string> = {
   QR_CHECK_IN_MALFORMED: "QR 형식 오류",
@@ -35,7 +31,7 @@ const reasonCodeLabels: Record<string, string> = {
   QR_CHECK_IN_RESERVATION_ALREADY_CHECKED_IN: "이미 체크인한 예약",
   MANUAL_CHECK_IN_QR_SCAN_FAILED_SUCCESS: "QR 스캔 실패 후 수동 체크인 성공",
   QR_VERIFICATION_FAILED: "QR 검증 실패",
-}
+};
 
 const checkInResultLabels: Record<string, string> = {
   SUCCESS: "체크인 성공",
@@ -53,105 +49,90 @@ const checkInResultLabels: Record<string, string> = {
   VISIT_INCONSISTENT: "방문 기록 불일치",
   STATE_TRANSITION_CONFLICT: "상태 전이 충돌",
   RELATION_INCONSISTENT: "예약 관계 정보 불일치",
-}
+};
 
 function labelFor(labels: Record<string, string>, value: string) {
-  return labels[value] ?? value
+  return labels[value] ?? value;
 }
 
 export function formatQrReason(value: string) {
-  const exact = reasonCodeLabels[value]
-  if (exact) return exact
+  const exact = reasonCodeLabels[value];
+  if (exact) return exact;
 
   const manualReason = value.startsWith("MANUAL_CHECK_IN_QR_NOT_AVAILABLE_")
     ? "QR 사용 불가"
     : value.startsWith("MANUAL_CHECK_IN_QR_SCAN_FAILED_")
       ? "QR 스캔 실패"
-      : null
+      : null;
   if (manualReason) {
-    const suffix = value.replace(
-      /^MANUAL_CHECK_IN_QR_(?:NOT_AVAILABLE|SCAN_FAILED)_/,
-      "",
-    )
-    return `${manualReason} · ${checkInResultLabels[suffix] ?? suffix}`
+    const suffix = value.replace(/^MANUAL_CHECK_IN_QR_(?:NOT_AVAILABLE|SCAN_FAILED)_/, "");
+    return `${manualReason} · ${checkInResultLabels[suffix] ?? suffix}`;
   }
 
   if (value.startsWith("QR_CHECK_IN_")) {
-    const suffix = value.slice("QR_CHECK_IN_".length)
-    return checkInResultLabels[suffix] ?? value
+    const suffix = value.slice("QR_CHECK_IN_".length);
+    return checkInResultLabels[suffix] ?? value;
   }
-  return value
+  return value;
 }
 
 export function readCursorHistory(value: string | null) {
-  if (!value) return []
+  if (!value) return [];
   try {
-    const parsed = JSON.parse(value)
-    return Array.isArray(parsed) &&
-      parsed.every((item) => typeof item === "string")
-      ? parsed
-      : []
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) && parsed.every((item) => typeof item === "string") ? parsed : [];
   } catch {
-    return []
+    return [];
   }
 }
 
 export function QrExceptionListPage() {
-  const [search, setSearch] = useSearchParams()
-  const [reservationNo, setReservationNo] = useState("")
-  const [reservation, setReservation] =
-    useState<ReservationSearchResult | null>(null)
-  const [reservationError, setReservationError] = useState("")
-  const [reservationLoading, setReservationLoading] = useState(false)
-  const cursor = search.get("cursor")
-  const cursorHistory = readCursorHistory(search.get("cursorHistory"))
+  const [search, setSearch] = useSearchParams();
+  const [reservationNo, setReservationNo] = useState("");
+  const [reservation, setReservation] = useState<ReservationSearchResult | null>(null);
+  const [reservationError, setReservationError] = useState("");
+  const [reservationLoading, setReservationLoading] = useState(false);
+  const cursor = search.get("cursor");
+  const cursorHistory = readCursorHistory(search.get("cursorHistory"));
   const state = useApiData<{
-    exceptions: QrExceptionSummary[]
-    nextCursor: string | null
-    hasNext: boolean
-  }>(withQuery("/api/v1/region-admin/qr-exceptions", { cursor, size: 20 }))
+    exceptions: QrExceptionSummary[];
+    nextCursor: string | null;
+    hasNext: boolean;
+  }>(withQuery("/api/v1/region-admin/qr-exceptions", { cursor, size: 20 }));
 
   const searchReservation = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const normalized = reservationNo.trim()
+    event.preventDefault();
+    const normalized = reservationNo.trim();
     if (!normalized) {
-      setReservation(null)
-      setReservationError("예약번호를 입력해 주세요.")
-      return
+      setReservation(null);
+      setReservationError("예약번호를 입력해 주세요.");
+      return;
     }
-    setReservationLoading(true)
-    setReservationError("")
-    setReservation(null)
+    setReservationLoading(true);
+    setReservationError("");
+    setReservation(null);
     try {
       const result = await apiRequest<ReservationSearchResult>(
         withQuery("/api/v1/region-admin/reservations/search", {
           reservationNo: normalized,
         }),
-      )
-      setReservation(result)
+      );
+      setReservation(result);
     } catch (caught) {
       setReservationError(
-        caught instanceof ApiError
-          ? caught.message
-          : "예약 정보를 조회하지 못했습니다.",
-      )
+        caught instanceof ApiError ? caught.message : "예약 정보를 조회하지 못했습니다.",
+      );
     } finally {
-      setReservationLoading(false)
+      setReservationLoading(false);
     }
-  }
+  };
 
   return (
     <>
-      <PageHeader
-        title="QR 예외"
-        description="최근 QR 실패와 보조 처리 감사 기록을 확인합니다."
-      />
+      <PageHeader title="QR 예외" description="최근 QR 실패와 보조 처리 감사 기록을 확인합니다." />
       <div className="ra-reservation-search">
         <Panel title="예약번호 보조 조회">
-          <form
-            className="ra-reservation-search-form"
-            onSubmit={searchReservation}
-          >
+          <form className="ra-reservation-search-form" onSubmit={searchReservation}>
             <label className="ra-field">
               예약번호
               <input
@@ -187,10 +168,7 @@ export function QrExceptionListPage() {
                   ["예약 ID", reservation.reservationId],
                   ["콘텐츠 ID", reservation.content.contentId],
                   ["회차 ID", reservation.session.sessionId],
-                  [
-                    "회차 상태",
-                    <StatusBadge value={reservation.session.status} />,
-                  ],
+                  ["회차 상태", <StatusBadge value={reservation.session.status} />],
                   ["회차 시작", formatDate(reservation.session.startsAt)],
                   ["예약자", reservation.participant.name],
                   ["연락처", reservation.participant.phone ?? "연락처 없음"],
@@ -246,9 +224,7 @@ export function QrExceptionListPage() {
                       <td>
                         <StatusBadge value={item.result} />
                       </td>
-                      <td title={item.reasonCode}>
-                        {formatQrReason(item.reasonCode)}
-                      </td>
+                      <td title={item.reasonCode}>{formatQrReason(item.reasonCode)}</td>
                       <td>
                         {item.reservationResolved ? (
                           <StatusBadge value="SUCCESS" label="연결됨" />
@@ -257,20 +233,14 @@ export function QrExceptionListPage() {
                         )}
                       </td>
                       <td>
+                        <span className="ra-cell-sub">예약 {item.reservationId ?? "—"}</span>
                         <span className="ra-cell-sub">
-                          예약 {item.reservationId ?? "—"}
-                        </span>
-                        <span className="ra-cell-sub">
-                          콘텐츠 {item.contentId ?? "—"} · 회차{" "}
-                          {item.sessionId ?? "—"}
+                          콘텐츠 {item.contentId ?? "—"} · 회차 {item.sessionId ?? "—"}
                         </span>
                       </td>
                       <td>{formatDate(item.occurredAt)}</td>
                       <td className="ra-right">
-                        <Link
-                          className="ra-button ra-button-small"
-                          to={`${item.exceptionId}`}
-                        >
+                        <Link className="ra-button ra-button-small" to={`${item.exceptionId}`}>
                           상세
                         </Link>
                       </td>
@@ -285,13 +255,12 @@ export function QrExceptionListPage() {
                 disabled={cursorHistory.length === 0}
                 aria-label="이전 페이지"
                 onClick={() => {
-                  const previousCursor = cursorHistory.at(-1) ?? ""
-                  const nextHistory = cursorHistory.slice(0, -1)
-                  const params = new URLSearchParams()
-                  if (previousCursor) params.set("cursor", previousCursor)
-                  if (nextHistory.length)
-                    params.set("cursorHistory", JSON.stringify(nextHistory))
-                  setSearch(params)
+                  const previousCursor = cursorHistory.at(-1) ?? "";
+                  const nextHistory = cursorHistory.slice(0, -1);
+                  const params = new URLSearchParams();
+                  if (previousCursor) params.set("cursor", previousCursor);
+                  if (nextHistory.length) params.set("cursorHistory", JSON.stringify(nextHistory));
+                  setSearch(params);
                 }}
               >
                 ‹
@@ -302,13 +271,10 @@ export function QrExceptionListPage() {
                 disabled={!data.hasNext || !data.nextCursor}
                 aria-label="다음 페이지"
                 onClick={() => {
-                  const params = new URLSearchParams()
-                  params.set("cursor", data.nextCursor!)
-                  params.set(
-                    "cursorHistory",
-                    JSON.stringify([...cursorHistory, cursor ?? ""]),
-                  )
-                  setSearch(params)
+                  const params = new URLSearchParams();
+                  params.set("cursor", data.nextCursor!);
+                  params.set("cursorHistory", JSON.stringify([...cursorHistory, cursor ?? ""]));
+                  setSearch(params);
                 }}
               >
                 ›
@@ -318,14 +284,12 @@ export function QrExceptionListPage() {
         )}
       </AsyncContent>
     </>
-  )
+  );
 }
 
 export function QrExceptionDetailPage() {
-  const { exceptionId = "" } = useParams()
-  const state = useApiData<QrExceptionDetail>(
-    `/api/v1/region-admin/qr-exceptions/${exceptionId}`,
-  )
+  const { exceptionId = "" } = useParams();
+  const state = useApiData<QrExceptionDetail>(`/api/v1/region-admin/qr-exceptions/${exceptionId}`);
   return (
     <>
       <PageHeader
@@ -340,10 +304,7 @@ export function QrExceptionDetailPage() {
       <AsyncContent state={state}>
         {(detail) => (
           <div className="ra-detail-main">
-            <Panel
-              title="예외 정보"
-              action={<StatusBadge value={detail.result} />}
-            >
+            <Panel title="예외 정보" action={<StatusBadge value={detail.result} />}>
               <KeyValueGrid
                 items={[
                   ["예외 ID", detail.exceptionId],
@@ -355,15 +316,10 @@ export function QrExceptionDetailPage() {
                   ],
                   [
                     "사유",
-                    <span title={detail.reasonCode}>
-                      {formatQrReason(detail.reasonCode)}
-                    </span>,
+                    <span title={detail.reasonCode}>{formatQrReason(detail.reasonCode)}</span>,
                   ],
                   ["발생 시각", formatDate(detail.occurredAt)],
-                  [
-                    "예약 연결",
-                    detail.reservationResolved ? "연결됨" : "연결되지 않음",
-                  ],
+                  ["예약 연결", detail.reservationResolved ? "연결됨" : "연결되지 않음"],
                 ]}
               />
             </Panel>
@@ -372,10 +328,7 @@ export function QrExceptionDetailPage() {
                 <KeyValueGrid
                   items={[
                     ["예약 번호", detail.reservation.reservationNo],
-                    [
-                      "예약 상태",
-                      <StatusBadge value={detail.reservation.status} />,
-                    ],
+                    ["예약 상태", <StatusBadge value={detail.reservation.status} />],
                     ["콘텐츠", detail.reservation.contentTitle, true],
                     ["콘텐츠 ID", detail.reservation.contentId],
                     ["회차 ID", detail.reservation.sessionId],
@@ -389,22 +342,14 @@ export function QrExceptionDetailPage() {
                       "참가자",
                       `${detail.reservation.participant.name} · ${detail.reservation.participant.phone ?? "연락처 없음"}`,
                     ],
-                    [
-                      "회원 연결",
-                      detail.reservation.participant.memberLinked
-                        ? "회원"
-                        : "비회원",
-                    ],
+                    ["회원 연결", detail.reservation.participant.memberLinked ? "회원" : "비회원"],
                     [
                       "체크인",
                       detail.reservation.checkIn.checkedIn
                         ? `완료 · ${formatDate(detail.reservation.checkIn.checkedAt)}`
                         : "미완료",
                     ],
-                    [
-                      "지역 관리자 체크인",
-                      detail.reservation.checkIn.canCheckIn ? "가능" : "불가",
-                    ],
+                    ["지역 관리자 체크인", detail.reservation.checkIn.canCheckIn ? "가능" : "불가"],
                   ]}
                 />
               </Panel>
@@ -415,5 +360,5 @@ export function QrExceptionDetailPage() {
         )}
       </AsyncContent>
     </>
-  )
+  );
 }

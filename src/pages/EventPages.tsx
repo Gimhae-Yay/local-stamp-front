@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   getPublicContent,
   getPublicContentReviews,
@@ -7,100 +7,93 @@ import {
   type PublicContent,
   type PublicContentDetail,
   type PublicContentReviewPage,
-} from "../api/public"
-import EventCard from "../components/EventCard"
-import { Breadcrumbs, Notice, PageHeader } from "../components/PageElements"
-import PresignedImage, {
-  usePresignedImageRefresh,
-} from "../components/PresignedImage"
-import { useAppState } from "../components/AppLayout"
+} from "../api/public";
+import EventCard from "../components/EventCard";
+import { Breadcrumbs, Notice, PageHeader } from "../components/PageElements";
+import PresignedImage, { usePresignedImageRefresh } from "../components/PresignedImage";
+import { useAppState } from "../components/AppLayout";
 
-const filters = ["전체", "예약 가능만"] as const
-const pageSize = 6
+const filters = ["전체", "예약 가능만"] as const;
+const pageSize = 6;
 const reviewDateFormatter = new Intl.DateTimeFormat("ko-KR", {
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
   timeZone: "Asia/Seoul",
-})
+});
 
-function isFilter(value: string | null): value is typeof filters[number] {
-  return filters.some((filter) => filter === value)
+function isFilter(value: string | null): value is (typeof filters)[number] {
+  return filters.some((filter) => filter === value);
 }
 
 function toStars(rating: number) {
-  const clampedRating = Math.min(5, Math.max(0, Math.round(rating)))
-  return `${"★".repeat(clampedRating)}${"☆".repeat(5 - clampedRating)}`
+  const clampedRating = Math.min(5, Math.max(0, Math.round(rating)));
+  return `${"★".repeat(clampedRating)}${"☆".repeat(5 - clampedRating)}`;
 }
 
 function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
+  return error instanceof Error ? error.message : fallback;
 }
 
 export function EventsPage() {
-  const { region, regionId, openRegionDialog } = useAppState()
-  const [params, setParams] = useSearchParams()
-  const filterParam = params.get("filter")
-  const filter = isFilter(filterParam) ? filterParam : "전체"
-  const requestedPage = Number(params.get("page") ?? "1")
-  const page =
-    Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1
-  const [contents, setContents] = useState<PublicContent[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [requestVersion, setRequestVersion] = useState(0)
-  const failedImageUrls = useRef(new Set<string>())
+  const { region, regionId, openRegionDialog } = useAppState();
+  const [params, setParams] = useSearchParams();
+  const filterParam = params.get("filter");
+  const filter = isFilter(filterParam) ? filterParam : "전체";
+  const requestedPage = Number(params.get("page") ?? "1");
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const [contents, setContents] = useState<PublicContent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [requestVersion, setRequestVersion] = useState(0);
+  const failedImageUrls = useRef(new Set<string>());
   const refreshImages = useCallback((failedUrl?: string) => {
     if (failedUrl) {
-      if (failedImageUrls.current.has(failedUrl)) return
-      failedImageUrls.current.add(failedUrl)
+      if (failedImageUrls.current.has(failedUrl)) return;
+      failedImageUrls.current.add(failedUrl);
     }
-    setRequestVersion((version) => version + 1)
-  }, [])
+    setRequestVersion((version) => version + 1);
+  }, []);
 
   useEffect(() => {
-    const controller = new AbortController()
-    setIsLoading(true)
-    setLoadError(null)
+    const controller = new AbortController();
+    setIsLoading(true);
+    setLoadError(null);
 
-    getPublicContents(
-      regionId,
-      filter === "예약 가능만" ? true : undefined,
-      controller.signal,
-    )
+    getPublicContents(regionId, filter === "예약 가능만" ? true : undefined, controller.signal)
       .then(({ contents: nextContents }) => setContents(nextContents))
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return
-        setContents([])
-        setLoadError(errorMessage(error, "행사·체험을 불러오지 못했습니다."))
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setContents([]);
+        setLoadError(errorMessage(error, "행사·체험을 불러오지 못했습니다."));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false)
-      })
+        if (!controller.signal.aborted) setIsLoading(false);
+      });
 
-    return () => controller.abort()
-  }, [filter, regionId, requestVersion])
+    return () => controller.abort();
+  }, [filter, regionId, requestVersion]);
 
   usePresignedImageRefresh(
     contents.map((content) => content.representativeImageUrlExpiresAt),
     refreshImages,
-  )
+  );
 
-  const totalPages = Math.max(1, Math.ceil(contents.length / pageSize))
-  const currentPage = Math.min(page, totalPages)
+  const totalPages = Math.max(1, Math.ceil(contents.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
   const pageContents = useMemo(
     () => contents.slice((currentPage - 1) * pageSize, currentPage * pageSize),
     [contents, currentPage],
-  )
-  const changeFilter = (nextFilter: typeof filters[number]) => {
-    setParams(nextFilter === "전체" ? {} : { filter: nextFilter })
-  }
+  );
+  const changeFilter = (nextFilter: (typeof filters)[number]) => {
+    setParams(nextFilter === "전체" ? {} : { filter: nextFilter });
+  };
   const moveToPage = (nextPage: number) => {
     setParams({
       ...(filter === "전체" ? {} : { filter }),
       ...(nextPage === 1 ? {} : { page: String(nextPage) }),
-    })
-  }
+    });
+  };
 
   return (
     <section className="page-container">
@@ -113,9 +106,7 @@ export function EventsPage() {
           </button>
         }
       >
-        <Breadcrumbs
-          items={[{ label: "홈", to: "/" }, { label: `${region} 행사·체험` }]}
-        />
+        <Breadcrumbs items={[{ label: "홈", to: "/" }, { label: `${region} 행사·체험` }]} />
       </PageHeader>
       <div className="filter-row">
         <div className="filter-chips">
@@ -135,17 +126,11 @@ export function EventsPage() {
           </span>
         )}
       </div>
-      {isLoading && (
-        <p className="visitor-page-state">행사·체험을 불러오는 중입니다.</p>
-      )}
+      {isLoading && <p className="visitor-page-state">행사·체험을 불러오는 중입니다.</p>}
       {!isLoading && loadError && (
         <div className="visitor-page-state">
           <p>{loadError}</p>
-          <button
-            className="text-link-button"
-            type="button"
-            onClick={() => refreshImages()}
-          >
+          <button className="text-link-button" type="button" onClick={() => refreshImages()}>
             다시 시도
           </button>
         </div>
@@ -153,11 +138,7 @@ export function EventsPage() {
       {!isLoading && !loadError && pageContents.length > 0 && (
         <div className="event-grid">
           {pageContents.map((content) => (
-            <EventCard
-              key={content.contentId}
-              content={content}
-              onImageRefresh={refreshImages}
-            />
+            <EventCard key={content.contentId} content={content} onImageRefresh={refreshImages} />
           ))}
         </div>
       )}
@@ -166,115 +147,104 @@ export function EventsPage() {
       )}
       {!isLoading && !loadError && totalPages > 1 && (
         <div className="pagination" aria-label="행사 목록 페이지">
-          {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-            (item) => (
-              <button
-                key={item}
-                onClick={() => moveToPage(item)}
-                className={item === currentPage ? "current" : ""}
-              >
-                {item}
-              </button>
-            ),
-          )}
+          {Array.from({ length: totalPages }, (_, index) => index + 1).map((item) => (
+            <button
+              key={item}
+              onClick={() => moveToPage(item)}
+              className={item === currentPage ? "current" : ""}
+            >
+              {item}
+            </button>
+          ))}
         </div>
       )}
     </section>
-  )
+  );
 }
 
 export function EventDetailPage() {
-  const { eventId } = useParams()
-  const { loggedIn } = useAppState()
-  const navigate = useNavigate()
-  const [content, setContent] = useState<PublicContentDetail | null>(null)
-  const [reviews, setReviews] = useState<PublicContentReviewPage | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isReviewsLoading, setIsReviewsLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [reviewsError, setReviewsError] = useState<string | null>(null)
-  const [contentRequestVersion, setContentRequestVersion] = useState(0)
-  const failedImageUrls = useRef(new Set<string>())
+  const { eventId } = useParams();
+  const { loggedIn } = useAppState();
+  const navigate = useNavigate();
+  const [content, setContent] = useState<PublicContentDetail | null>(null);
+  const [reviews, setReviews] = useState<PublicContentReviewPage | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isReviewsLoading, setIsReviewsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [contentRequestVersion, setContentRequestVersion] = useState(0);
+  const failedImageUrls = useRef(new Set<string>());
   const refreshContent = useCallback((failedUrl?: string) => {
     if (failedUrl) {
-      if (failedImageUrls.current.has(failedUrl)) return
-      failedImageUrls.current.add(failedUrl)
+      if (failedImageUrls.current.has(failedUrl)) return;
+      failedImageUrls.current.add(failedUrl);
     }
-    setContentRequestVersion((version) => version + 1)
-  }, [])
+    setContentRequestVersion((version) => version + 1);
+  }, []);
 
   useEffect(() => {
     if (!eventId) {
-      setLoadError("행사·체험 정보를 찾을 수 없습니다.")
-      setIsLoading(false)
-      return
+      setLoadError("행사·체험 정보를 찾을 수 없습니다.");
+      setIsLoading(false);
+      return;
     }
 
-    const controller = new AbortController()
-    setIsLoading(true)
-    setLoadError(null)
+    const controller = new AbortController();
+    setIsLoading(true);
+    setLoadError(null);
     getPublicContent(eventId, controller.signal)
       .then(setContent)
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return
-        setLoadError(
-          errorMessage(error, "행사·체험 정보를 불러오지 못했습니다."),
-        )
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setLoadError(errorMessage(error, "행사·체험 정보를 불러오지 못했습니다."));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false)
-      })
+        if (!controller.signal.aborted) setIsLoading(false);
+      });
 
-    return () => controller.abort()
-  }, [eventId, contentRequestVersion])
+    return () => controller.abort();
+  }, [eventId, contentRequestVersion]);
 
   useEffect(() => {
     if (!eventId) {
-      setIsReviewsLoading(false)
-      return
+      setIsReviewsLoading(false);
+      return;
     }
 
-    const controller = new AbortController()
-    setIsReviewsLoading(true)
-    setReviewsError(null)
+    const controller = new AbortController();
+    setIsReviewsLoading(true);
+    setReviewsError(null);
     getPublicContentReviews(eventId, { size: 2, signal: controller.signal })
       .then(setReviews)
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return
-        setReviewsError(errorMessage(error, "후기를 불러오지 못했습니다."))
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setReviewsError(errorMessage(error, "후기를 불러오지 못했습니다."));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setIsReviewsLoading(false)
-      })
+        if (!controller.signal.aborted) setIsReviewsLoading(false);
+      });
 
-    return () => controller.abort()
-  }, [eventId])
+    return () => controller.abort();
+  }, [eventId]);
 
-  usePresignedImageRefresh(
-    [content?.representativeImageUrlExpiresAt],
-    refreshContent,
-  )
+  usePresignedImageRefresh([content?.representativeImageUrlExpiresAt], refreshContent);
 
   if (isLoading) {
     return (
       <section className="page-container visitor-page-state">
         행사·체험 정보를 불러오는 중입니다.
       </section>
-    )
+    );
   }
   if (loadError || !content) {
     return (
       <section className="page-container visitor-page-state">
         <p>{loadError ?? "행사·체험 정보를 찾을 수 없습니다."}</p>
-        <button
-          className="text-link-button"
-          type="button"
-          onClick={() => refreshContent()}
-        >
+        <button className="text-link-button" type="button" onClick={() => refreshContent()}>
           다시 시도
         </button>
       </section>
-    )
+    );
   }
 
   return (
@@ -350,59 +320,50 @@ export function EventDetailPage() {
       {!isReviewsLoading && !reviewsError && reviews?.content.length === 0 && (
         <p>아직 등록된 후기가 없습니다.</p>
       )}
-      {!isReviewsLoading &&
-        !reviewsError &&
-        reviews &&
-        reviews.content.length > 0 && (
-          <div className="review-preview">
-            {reviews.content.map((review) => (
-              <article key={review.reviewId}>
-                <b>{review.authorDisplayName}</b>
-                <span>{toStars(review.rating)}</span>
-                <p>{review.reviewText}</p>
-              </article>
-            ))}
-          </div>
-        )}
+      {!isReviewsLoading && !reviewsError && reviews && reviews.content.length > 0 && (
+        <div className="review-preview">
+          {reviews.content.map((review) => (
+            <article key={review.reviewId}>
+              <b>{review.authorDisplayName}</b>
+              <span>{toStars(review.rating)}</span>
+              <p>{review.reviewText}</p>
+            </article>
+          ))}
+        </div>
+      )}
       <button
         className="button-primary detail-cta"
-        onClick={() =>
-          navigate(loggedIn ? `/events/${content.contentId}/reserve` : "/login")
-        }
+        onClick={() => navigate(loggedIn ? `/events/${content.contentId}/reserve` : "/login")}
       >
         {loggedIn ? "예약하기" : "로그인하고 예약하기"}
       </button>
     </section>
-  )
+  );
 }
 
 export function ReviewsPage() {
-  const { eventId } = useParams()
-  const { loggedIn } = useAppState()
-  const [params, setParams] = useSearchParams()
-  const requestedPage = Number(params.get("page") ?? "1")
-  const page =
-    Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage - 1 : 0
-  const [content, setContent] = useState<PublicContentDetail | null>(null)
-  const [reviews, setReviews] = useState<PublicContentReviewPage | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [requestVersion, setRequestVersion] = useState(0)
-  const retry = useCallback(
-    () => setRequestVersion((version) => version + 1),
-    [],
-  )
+  const { eventId } = useParams();
+  const { loggedIn } = useAppState();
+  const [params, setParams] = useSearchParams();
+  const requestedPage = Number(params.get("page") ?? "1");
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage - 1 : 0;
+  const [content, setContent] = useState<PublicContentDetail | null>(null);
+  const [reviews, setReviews] = useState<PublicContentReviewPage | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [requestVersion, setRequestVersion] = useState(0);
+  const retry = useCallback(() => setRequestVersion((version) => version + 1), []);
 
   useEffect(() => {
     if (!eventId) {
-      setLoadError("후기를 불러올 행사·체험을 찾을 수 없습니다.")
-      setIsLoading(false)
-      return
+      setLoadError("후기를 불러올 행사·체험을 찾을 수 없습니다.");
+      setIsLoading(false);
+      return;
     }
 
-    const controller = new AbortController()
-    setIsLoading(true)
-    setLoadError(null)
+    const controller = new AbortController();
+    setIsLoading(true);
+    setLoadError(null);
     Promise.all([
       getPublicContent(eventId, controller.signal),
       getPublicContentReviews(eventId, {
@@ -412,26 +373,24 @@ export function ReviewsPage() {
       }),
     ])
       .then(([nextContent, nextReviews]) => {
-        setContent(nextContent)
-        setReviews(nextReviews)
+        setContent(nextContent);
+        setReviews(nextReviews);
       })
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return
-        setLoadError(errorMessage(error, "후기를 불러오지 못했습니다."))
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setLoadError(errorMessage(error, "후기를 불러오지 못했습니다."));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false)
-      })
+        if (!controller.signal.aborted) setIsLoading(false);
+      });
 
-    return () => controller.abort()
-  }, [eventId, page, requestVersion])
+    return () => controller.abort();
+  }, [eventId, page, requestVersion]);
 
   if (isLoading) {
     return (
-      <section className="page-container visitor-page-state">
-        후기를 불러오는 중입니다.
-      </section>
-    )
+      <section className="page-container visitor-page-state">후기를 불러오는 중입니다.</section>
+    );
   }
   if (loadError || !content || !reviews) {
     return (
@@ -441,7 +400,7 @@ export function ReviewsPage() {
           다시 시도
         </button>
       </section>
-    )
+    );
   }
 
   return (
@@ -450,10 +409,7 @@ export function ReviewsPage() {
         title={`${content.title} 후기`}
         description="체험에 참여한 인증 방문자의 후기를 확인하세요."
         action={
-          <Link
-            className="button-outline"
-            to={loggedIn ? "/reservations?tab=past" : "/login"}
-          >
+          <Link className="button-outline" to={loggedIn ? "/reservations?tab=past" : "/login"}>
             후기 작성하기
           </Link>
         }
@@ -482,32 +438,26 @@ export function ReviewsPage() {
                 <span>{toStars(review.rating)}</span>
               </div>
               <p>{review.reviewText}</p>
-              <time>
-                {reviewDateFormatter.format(new Date(review.createdAt))}
-              </time>
+              <time>{reviewDateFormatter.format(new Date(review.createdAt))}</time>
             </article>
           ))}
         </div>
       )}
       {reviews.totalPages > 1 && (
         <div className="pagination" aria-label="후기 목록 페이지">
-          {Array.from({ length: reviews.totalPages }, (_, index) => index).map(
-            (item) => (
-              <button
-                key={item}
-                onClick={() =>
-                  setParams(item === 0 ? {} : { page: String(item + 1) })
-                }
-                className={item === reviews.page ? "current" : ""}
-              >
-                {item + 1}
-              </button>
-            ),
-          )}
+          {Array.from({ length: reviews.totalPages }, (_, index) => index).map((item) => (
+            <button
+              key={item}
+              onClick={() => setParams(item === 0 ? {} : { page: String(item + 1) })}
+              className={item === reviews.page ? "current" : ""}
+            >
+              {item + 1}
+            </button>
+          ))}
         </div>
       )}
     </section>
-  )
+  );
 }
 
 export function NotFoundPage() {
@@ -519,5 +469,5 @@ export function NotFoundPage() {
         홈으로 돌아가기
       </Link>
     </section>
-  )
+  );
 }

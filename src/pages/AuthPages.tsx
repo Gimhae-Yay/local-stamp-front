@@ -1,15 +1,9 @@
-import { useState, type FormEvent, type ReactNode } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { signup } from "../api/auth"
-import { useAppState } from "../components/AppLayout"
+import { useState, type FormEvent, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { signup } from "../api/auth";
+import { useAppState } from "../components/AppLayout";
 
-function AuthFrame({
-  mode,
-  children,
-}: {
-  mode: "login" | "signup"
-  children: ReactNode
-}) {
+function AuthFrame({ mode, children }: { mode: "login" | "signup"; children: ReactNode }) {
   return (
     <section className="auth-page">
       <div className="auth-card">
@@ -24,34 +18,30 @@ function AuthFrame({
         {children}
       </div>
     </section>
-  )
+  );
 }
 
 export function LoginPage() {
-  const { login } = useAppState()
-  const navigate = useNavigate()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const { login } = useAppState();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async (event: FormEvent) => {
-    event.preventDefault()
-    setSubmitting(true)
-    setError(null)
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
     try {
-      await login(email, password)
-      navigate("/")
+      await login(email, password);
+      navigate("/");
     } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "로그인하지 못했습니다.",
-      )
+      setError(requestError instanceof Error ? requestError.message : "로그인하지 못했습니다.");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <AuthFrame mode="login">
@@ -89,43 +79,41 @@ export function LoginPage() {
         </p>
       </form>
     </AuthFrame>
-  )
+  );
 }
 
 export function SignupPage() {
-  const { login } = useAppState()
-  const navigate = useNavigate()
-  const [name, setName] = useState("")
-  const [phone, setPhone] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [passwordConfirm, setPasswordConfirm] = useState("")
-  const [agreed, setAgreed] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const { login } = useAppState();
+  const navigate = useNavigate();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async (event: FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();
     if (password !== passwordConfirm) {
-      setError("비밀번호 확인이 일치하지 않습니다.")
-      return
+      setError("비밀번호 확인이 일치하지 않습니다.");
+      return;
     }
-    setSubmitting(true)
-    setError(null)
+    setSubmitting(true);
+    setError(null);
     try {
-      await signup({ email, password, name, phone })
-      await login(email, password)
-      navigate("/")
+      await signup({ email, password, name, phone });
+      await login(email, password);
+      navigate("/");
     } catch (requestError) {
       setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "회원가입을 완료하지 못했습니다.",
-      )
+        requestError instanceof Error ? requestError.message : "회원가입을 완료하지 못했습니다.",
+      );
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <AuthFrame mode="signup">
@@ -209,10 +197,9 @@ export function SignupPage() {
           {submitting ? "가입 처리 중…" : "회원가입"}
         </button>
         <p className="auth-footer">
-          이전 운영자 신청이 반려됐나요?{" "}
-          <Link to="/operator-request">운영자 재신청 →</Link>
+          이전 운영자 신청이 반려됐나요? <Link to="/operator-request">운영자 재신청 →</Link>
         </p>
       </form>
     </AuthFrame>
-  )
+  );
 }

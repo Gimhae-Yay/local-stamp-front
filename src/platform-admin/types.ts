@@ -1,188 +1,188 @@
 export interface PlatformRegion {
-  regionId: string
+  regionId: string;
 
-  regionCode: string
+  regionCode: string;
 
-  name: string
+  name: string;
 
-  isPublic: boolean
+  isPublic: boolean;
 
-  regionAdminCount: number
+  regionAdminCount: number;
 
-  createdAt: string
+  createdAt: string;
 
-  updatedAt: string
+  updatedAt: string;
 }
 
 export interface PlatformUser {
-  userId: string
+  userId: string;
 
-  loginIdentifier: string
+  loginIdentifier: string;
 
-  name: string
+  name: string;
 
   roleAssignments: Array<{
-    role: string
+    role: string;
 
-    regionId: string | null
+    regionId: string | null;
 
-    regionName: string | null
-  }>
+    regionName: string | null;
+  }>;
 
-  createdAt: string
+  createdAt: string;
 }
 
-export type PlatformAdminGrade = "SUPER_ADMIN" | "PLATFORM_ADMIN"
-export type PlatformAdminStatus = "ACTIVE" | "INACTIVE"
+export type PlatformAdminGrade = "SUPER_ADMIN" | "PLATFORM_ADMIN";
+export type PlatformAdminStatus = "ACTIVE" | "INACTIVE";
 
 export interface PlatformAdminAccount {
-  userId: string
+  userId: string;
 
-  loginIdentifier: string
-  name: string
-  grade: PlatformAdminGrade
-  status: PlatformAdminStatus
-  createdAt: string
+  loginIdentifier: string;
+  name: string;
+  grade: PlatformAdminGrade;
+  status: PlatformAdminStatus;
+  createdAt: string;
 
-  inactivatedAt: string | null
+  inactivatedAt: string | null;
 }
 
 export interface PaymentDiscrepancy {
-  discrepancyId: string
+  discrepancyId: string;
 
-  paymentId: string
+  paymentId: string;
 
-  discrepancyType: string
+  discrepancyType: string;
 
-  status: string
+  status: string;
 
-  finalAmount: number
+  finalAmount: number;
 
-  currency: string
+  currency: string;
 
-  detectedAt: string
+  detectedAt: string;
 }
 
 export interface PaymentDiscrepancyDetail {
   discrepancy: {
-    discrepancyId: string
+    discrepancyId: string;
 
-    discrepancyType: string
+    discrepancyType: string;
 
-    status: string
+    status: string;
 
-    detectedAt: string
-  }
+    detectedAt: string;
+  };
 
   payment: {
-    paymentId: string
+    paymentId: string;
 
-    holdId: string
+    holdId: string;
 
-    orderId: string
+    orderId: string;
 
-    portonePaymentId: string
+    portonePaymentId: string;
 
-    status: string
+    status: string;
 
-    finalAmount: number
+    finalAmount: number;
 
-    currency: string
-  }
+    currency: string;
+  };
 
   verifications: Array<{
-    paymentVerificationId: string
+    paymentVerificationId: string;
 
-    reason: string
+    reason: string;
 
-    externalStatus: string
+    externalStatus: string;
 
-    observedAmount: number
+    observedAmount: number;
 
-    matched: boolean
+    matched: boolean;
 
-    verifiedAt: string
-  }>
+    verifiedAt: string;
+  }>;
 
   actions: Array<{
-    actionId: string
+    actionId: string;
 
-    action: string
+    action: string;
 
-    evidenceReference: string
+    evidenceReference: string;
 
-    reason: string
+    reason: string;
 
-    actedAt: string
-  }>
+    actedAt: string;
+  }>;
 }
 
 export interface RefundFailure {
-  refundId: string
+  refundId: string;
 
-  paymentId: string
+  paymentId: string;
 
-  reservationId: string
+  reservationId: string;
 
-  amount: number
+  amount: number;
 
-  currency: string
+  currency: string;
 
-  status: string
+  status: string;
 
-  attemptCount: number
+  attemptCount: number;
 
-  requestedAt: string
+  requestedAt: string;
 
-  updatedAt: string
+  updatedAt: string;
 }
 
 export interface RefundFailureDetail {
   refund: {
-    refundId: string
+    refundId: string;
 
-    paymentId: string
+    paymentId: string;
 
-    reservationId: string
+    reservationId: string;
 
-    amount: number
+    amount: number;
 
-    currency: string
+    currency: string;
 
-    status: string
+    status: string;
 
-    requestedAt: string
+    requestedAt: string;
 
-    completedAt: string | null
-  }
+    completedAt: string | null;
+  };
 
   payment: {
-    paymentId: string
+    paymentId: string;
 
-    orderId: string
+    orderId: string;
 
-    portonePaymentId: string
+    portonePaymentId: string;
 
-    finalAmount: number
+    finalAmount: number;
 
-    currency: string
-  }
+    currency: string;
+  };
 
   attempts: Array<{
-    refundAttemptId: string
+    refundAttemptId: string;
 
-    attemptNo: number
+    attemptNo: number;
 
-    initiatorKind: string
+    initiatorKind: string;
 
-    portoneCancellationId: string | null
+    portoneCancellationId: string | null;
 
-    outcomeKind: string
+    outcomeKind: string;
 
-    failureReasonCode: string | null
+    failureReasonCode: string | null;
 
-    externalStatus: string | null
+    externalStatus: string | null;
 
-    attemptedAt: string
-  }>
+    attemptedAt: string;
+  }>;
 }
