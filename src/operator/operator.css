@@ -907,6 +907,14 @@ textarea.op-control {
   margin: 0 0 12px;
   color: var(--op-muted);
 }
+.op-not-found-code {
+  display: block;
+  color: var(--op-orange);
+  font-size: 52px;
+  font-weight: 850;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
 .op-route-state {
   display: grid;
   min-height: 100vh;

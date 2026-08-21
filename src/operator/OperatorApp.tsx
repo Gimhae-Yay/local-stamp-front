@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
 import { OperatorAuthProvider, OperatorGuard, OperatorLoginPage } from "./OperatorAuth";
 
@@ -23,6 +23,7 @@ import {
   StampbookFormPage,
   StampbookListPage,
 } from "./pages/BenefitPages";
+import OperatorNotFoundPage from "./pages/OperatorNotFoundPage";
 
 import "./operator.css";
 
@@ -52,7 +53,7 @@ export default function OperatorApp() {
             <Route path="stampbooks/new" element={<StampbookFormPage />} />
             <Route path="stampbooks/:stampbookId" element={<StampbookDetailPage />} />
             <Route path="stampbooks/:stampbookId/edit" element={<StampbookFormPage />} />
-            <Route path="*" element={<Navigate to="/operator" replace />} />
+            <Route path="*" element={<OperatorNotFoundPage />} />
           </Route>
         </Route>
       </Routes>

@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import {
   PlatformAuthProvider,
   PlatformGuard,
@@ -8,6 +8,7 @@ import {
 import PlatformLayout from "./PlatformLayout";
 import AdminAccountPage from "./pages/AdminAccountPage";
 import PlatformHomePage from "./pages/HomePage";
+import PlatformNotFoundPage from "./pages/PlatformNotFoundPage";
 import RegionListPage from "./pages/RegionPages";
 import {
   ManualRefundPage,
@@ -40,7 +41,7 @@ export default function PlatformAdminApp() {
             <Route path="refund-failures" element={<RefundFailureListPage />} />
             <Route path="refund-failures/:refundId" element={<RefundFailureDetailPage />} />
             <Route path="manual-refund" element={<ManualRefundPage />} />
-            <Route path="*" element={<Navigate to="/admin" replace />} />
+            <Route path="*" element={<PlatformNotFoundPage />} />
           </Route>
         </Route>
       </Routes>
