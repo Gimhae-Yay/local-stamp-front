@@ -338,16 +338,16 @@ export function BookingConfirmPage() {
       } else if (result.payment) {
         const checkoutCustomer = customer ?? validatePortOneCustomer(paymentCustomer);
         await requestPortOneCheckout({
-          paymentId: result.payment.paymentId,
+          backendPaymentId: result.payment.paymentId,
           orderId: result.payment.orderId,
           orderName: booking.content.title,
           totalAmount: result.payment.amount.finalAmount,
           currency: result.payment.amount.currency,
           customer: checkoutCustomer,
         });
-        navigate(`/payment/complete?paymentId=${result.payment.paymentId}`, {
-          state: { ...booking, payment: result.payment },
-        });
+        throw new Error(
+          "PortOne 결제 결과 리다이렉트가 시작되지 않았습니다. 브라우저 콘솔의 PortOne 로그를 확인해 주세요.",
+        );
       }
     } catch (requestError) {
       setError(errorMessage(requestError, "예약을 확정하지 못했습니다."));
@@ -906,21 +906,32 @@ export function CancelReservationPage() {
 
 export function PaymentCompletePage() {
   const [params] = useSearchParams();
-  const paymentId = params.get("paymentId");
+  const backendPaymentId = params.get("backendPaymentId");
+  const checkoutErrorCode = params.get("code");
+  const checkoutErrorMessage = params.get("message");
   const [payment, setPayment] = useState<PaymentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    if (!paymentId) {
+    if (checkoutErrorCode) {
+      setError(
+        checkoutErrorMessage
+          ? `결제가 완료되지 않았습니다. (${checkoutErrorCode}: ${checkoutErrorMessage})`
+          : `결제가 완료되지 않았습니다. (${checkoutErrorCode})`,
+      );
+      setLoading(false);
+      return;
+    }
+    if (!backendPaymentId) {
       setError("조회할 결제 식별자가 없습니다.");
       setLoading(false);
       return;
     }
     const controller = new AbortController();
     setLoading(true);
-    getMyPayment(paymentId, controller.signal)
+    getMyPayment(backendPaymentId, controller.signal)
       .then(setPayment)
       .catch((requestError) => {
         if (isAbortError(requestError, controller.signal)) return;
@@ -930,7 +941,7 @@ export function PaymentCompletePage() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [paymentId, version]);
+  }, [backendPaymentId, checkoutErrorCode, checkoutErrorMessage, version]);
 
   if (loading)
     return <section className="visitor-page-state">결제 상태를 확인하는 중입니다.</section>;

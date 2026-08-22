@@ -1,7 +1,7 @@
 import * as PortOne from "@portone/browser-sdk/v2";
 
 export interface PortOneCheckoutRequest {
-  paymentId: string;
+  backendPaymentId: string;
   orderId: string;
   orderName: string;
   totalAmount: number;
@@ -25,10 +25,7 @@ function requiredConfiguration(name: string, value: string | undefined) {
 
 export function validatePortOneCheckoutConfiguration() {
   return {
-    storeId: requiredConfiguration(
-      "VITE_PORTONE_STORE_ID",
-      import.meta.env.VITE_PORTONE_STORE_ID,
-    ),
+    storeId: requiredConfiguration("VITE_PORTONE_STORE_ID", import.meta.env.VITE_PORTONE_STORE_ID),
     channelKey: requiredConfiguration(
       "VITE_PORTONE_CHANNEL_KEY",
       import.meta.env.VITE_PORTONE_CHANNEL_KEY,
@@ -55,7 +52,7 @@ export function validatePortOneCustomer({
 }
 
 export async function requestPortOneCheckout({
-  paymentId,
+  backendPaymentId,
   orderId,
   orderName,
   totalAmount,
@@ -74,20 +71,42 @@ export async function requestPortOneCheckout({
   const customer = validatePortOneCustomer(customerInput);
 
   const redirectUrl = new URL("/payment/complete", window.location.origin);
-  redirectUrl.searchParams.set("paymentId", paymentId);
+  redirectUrl.searchParams.set("backendPaymentId", backendPaymentId);
   redirectUrl.searchParams.set("checkout", "portone");
 
-  const response = await PortOne.requestPayment({
-    storeId,
-    channelKey,
-    paymentId: orderId,
-    orderName,
+  console.info("[PortOne] 결제창 요청 시작", {
+    backendPaymentId,
+    orderId,
     totalAmount,
-    currency: "KRW",
-    payMethod: "CARD",
-    customer,
-    redirectUrl: redirectUrl.toString(),
-    ...(noticeUrl ? { noticeUrls: [noticeUrl] } : {}),
+  });
+
+  let response: Awaited<ReturnType<typeof PortOne.requestPayment>>;
+  try {
+    response = await PortOne.requestPayment({
+      storeId,
+      channelKey,
+      paymentId: orderId,
+      orderName,
+      totalAmount,
+      currency: "KRW",
+      payMethod: "CARD",
+      customer,
+      redirectUrl: redirectUrl.toString(),
+      forceRedirect: true,
+      ...(noticeUrl ? { noticeUrls: [noticeUrl] } : {}),
+    });
+  } catch (error) {
+    console.error("[PortOne] 결제창 요청 실패", error);
+    throw error;
+  }
+
+  console.info("[PortOne] 강제 리다이렉트 흐름에서 SDK가 반환됨", {
+    backendPaymentId,
+    orderId,
+    txId: response?.txId,
+    responsePaymentId: response?.paymentId,
+    code: response?.code,
+    message: response?.message,
   });
 
   if (!response) {

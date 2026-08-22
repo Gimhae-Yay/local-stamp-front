@@ -25,7 +25,7 @@ describe("requestPortOneCheckout", () => {
     });
 
     await requestPortOneCheckout({
-      paymentId: "payment-456",
+      backendPaymentId: "payment-456",
       orderId: "order-123",
       orderName: "지역 축제",
       totalAmount: 12_000,
@@ -52,7 +52,7 @@ describe("requestPortOneCheckout", () => {
     });
 
     await requestPortOneCheckout({
-      paymentId: "payment-456",
+      backendPaymentId: "payment-456",
       orderId: "order-123",
       orderName: "지역 축제",
       totalAmount: 12_000,
@@ -78,7 +78,8 @@ describe("requestPortOneCheckout", () => {
         email: "visitor@example.com",
       },
       redirectUrl:
-        "http://localhost:3000/payment/complete?paymentId=payment-456&checkout=portone",
+        "http://localhost:3000/payment/complete?backendPaymentId=payment-456&checkout=portone",
+      forceRedirect: true,
     });
   });
 
@@ -93,7 +94,7 @@ describe("requestPortOneCheckout", () => {
 
     await expect(
       requestPortOneCheckout({
-        paymentId: "payment-456",
+        backendPaymentId: "payment-456",
         orderId: "order-123",
         orderName: "지역 축제",
         totalAmount: 12_000,
@@ -112,7 +113,7 @@ describe("requestPortOneCheckout", () => {
 
     await expect(
       requestPortOneCheckout({
-        paymentId: "payment-456",
+        backendPaymentId: "payment-456",
         orderId: "order-123",
         orderName: "지역 축제",
         totalAmount: 12_000,
@@ -136,7 +137,7 @@ describe("requestPortOneCheckout", () => {
   it("rejects invalid customer information before opening checkout", async () => {
     await expect(
       requestPortOneCheckout({
-        paymentId: "payment-456",
+        backendPaymentId: "payment-456",
         orderId: "order-123",
         orderName: "지역 축제",
         totalAmount: 12_000,

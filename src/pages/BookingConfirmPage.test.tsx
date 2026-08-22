@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -96,16 +96,15 @@ describe("BookingConfirmPage", () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.clearAllMocks();
   });
 
-  it("결제 생성 후 PortOne 결제창을 요청하고 결제 완료 페이지로 이동한다", async () => {
+  it("PortOne SDK가 반환되더라도 결제 결과 화면으로 임의 이동하지 않는다", async () => {
     const user = userEvent.setup();
 
     render(
-      <MemoryRouter
-        initialEntries={[{ pathname: "/events/10/reserve/confirm", state: booking }]}
-      >
+      <MemoryRouter initialEntries={[{ pathname: "/events/10/reserve/confirm", state: booking }]}>
         <Routes>
           <Route path="/events/:eventId/reserve/confirm" element={<BookingConfirmPage />} />
           <Route path="/payment/complete" element={<p>결제 완료 페이지</p>} />
@@ -121,7 +120,7 @@ describe("BookingConfirmPage", () => {
     await waitFor(() => {
       expect(validatePortOneCheckoutConfigurationMock).toHaveBeenCalledTimes(1);
       expect(requestPortOneCheckoutMock).toHaveBeenCalledWith({
-        paymentId: "6",
+        backendPaymentId: "6",
         orderId: "ORD-20260823-ABC123",
         orderName: "김해 지역 축제",
         totalAmount: 10_000,
@@ -134,7 +133,12 @@ describe("BookingConfirmPage", () => {
       });
     });
 
-    expect(await screen.findByText("결제 완료 페이지")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "PortOne 결제 결과 리다이렉트가 시작되지 않았습니다. 브라우저 콘솔의 PortOne 로그를 확인해 주세요.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("결제 완료 페이지")).not.toBeInTheDocument();
   });
 
   it("쿠폰으로 최종 금액이 0원이면 결제자 정보 없이 예약 완료 화면으로 이동한다", async () => {
@@ -166,9 +170,7 @@ describe("BookingConfirmPage", () => {
     const user = userEvent.setup();
 
     render(
-      <MemoryRouter
-        initialEntries={[{ pathname: "/events/10/reserve/confirm", state: booking }]}
-      >
+      <MemoryRouter initialEntries={[{ pathname: "/events/10/reserve/confirm", state: booking }]}>
         <Routes>
           <Route path="/events/:eventId/reserve/confirm" element={<BookingConfirmPage />} />
           <Route path="/events/:eventId/reserve/complete" element={<p>예약 완료 페이지</p>} />
