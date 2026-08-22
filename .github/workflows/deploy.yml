@@ -22,6 +22,7 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       S3_BUCKET_NAME: ${{ vars.S3_BUCKET_NAME }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
       VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
       VITE_PORTONE_STORE_ID: ${{ vars.VITE_PORTONE_STORE_ID }}
       VITE_PORTONE_CHANNEL_KEY: ${{ vars.VITE_PORTONE_CHANNEL_KEY }}
@@ -47,6 +48,7 @@ jobs:
         run: |
           test -n "$AWS_REGION"
           test -n "$S3_BUCKET_NAME"
+          test -n "$CLOUDFRONT_DISTRIBUTION_ID"
 
       - name: AWS 자격 증명 설정
         uses: aws-actions/configure-aws-credentials@v5
@@ -56,3 +58,6 @@ jobs:
 
       - name: S3에 배포
         run: aws s3 sync dist "s3://$S3_BUCKET_NAME" --delete
+
+      - name: CloudFront 캐시 무효화
+        run: aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
