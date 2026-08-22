@@ -29,6 +29,11 @@ import {
   type ReservationHold,
   type ReservationSummary,
 } from "../api/reservations";
+import {
+  requestPortOneCheckout,
+  validatePortOneCheckoutConfiguration,
+  validatePortOneCustomer,
+} from "../payments/portone";
 import { Breadcrumbs, InfoRow, Notice, PageHeader, StatusPill } from "../components/PageElements";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
@@ -270,6 +275,11 @@ export function BookingConfirmPage() {
   const booking = state as BookingFlowState | null;
   const [coupons, setCoupons] = useState<AvailableCoupon[]>([]);
   const [couponId, setCouponId] = useState<string | null>(null);
+  const [paymentCustomer, setPaymentCustomer] = useState({
+    fullName: "",
+    phoneNumber: "",
+    email: "",
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const idempotencyKey = useRef(createIdempotencyKey());
@@ -312,6 +322,8 @@ export function BookingConfirmPage() {
         return;
       }
 
+      if (finalAmount > 0) validatePortOneCheckoutConfiguration();
+      const customer = finalAmount > 0 ? validatePortOneCustomer(paymentCustomer) : undefined;
       const result = await createPayment(booking.hold.holdId, couponId, idempotencyKey.current);
       if (!result.requiresPayment && result.reservation) {
         navigate(
@@ -324,6 +336,15 @@ export function BookingConfirmPage() {
           },
         );
       } else if (result.payment) {
+        const checkoutCustomer = customer ?? validatePortOneCustomer(paymentCustomer);
+        await requestPortOneCheckout({
+          paymentId: result.payment.paymentId,
+          orderId: result.payment.orderId,
+          orderName: booking.content.title,
+          totalAmount: result.payment.amount.finalAmount,
+          currency: result.payment.amount.currency,
+          customer: checkoutCustomer,
+        });
         navigate(`/payment/complete?paymentId=${result.payment.paymentId}`, {
           state: { ...booking, payment: result.payment },
         });
@@ -378,6 +399,55 @@ export function BookingConfirmPage() {
             </label>
           )}
           <InfoRow label="최종 금액">{currencyFormatter.format(finalAmount)}원</InfoRow>
+          {booking.session.price > 0 && finalAmount > 0 && (
+            <fieldset className="payment-customer-fields">
+              <legend>결제자 정보</legend>
+              <label className="field-label">
+                이름
+                <input
+                  value={paymentCustomer.fullName}
+                  onChange={(event) =>
+                    setPaymentCustomer((customer) => ({
+                      ...customer,
+                      fullName: event.target.value,
+                    }))
+                  }
+                  autoComplete="name"
+                  required
+                />
+              </label>
+              <label className="field-label">
+                연락처
+                <input
+                  value={paymentCustomer.phoneNumber}
+                  onChange={(event) =>
+                    setPaymentCustomer((customer) => ({
+                      ...customer,
+                      phoneNumber: event.target.value,
+                    }))
+                  }
+                  autoComplete="tel"
+                  inputMode="tel"
+                  required
+                />
+              </label>
+              <label className="field-label">
+                이메일
+                <input
+                  type="email"
+                  value={paymentCustomer.email}
+                  onChange={(event) =>
+                    setPaymentCustomer((customer) => ({
+                      ...customer,
+                      email: event.target.value,
+                    }))
+                  }
+                  autoComplete="email"
+                  required
+                />
+              </label>
+            </fieldset>
+          )}
           {error && <p className="form-error">{error}</p>}
           <button className="button-primary" disabled={submitting} onClick={confirm}>
             {submitting

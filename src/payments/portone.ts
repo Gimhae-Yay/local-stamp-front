@@ -1,7 +1,7 @@
 import * as PortOne from "@portone/browser-sdk/v2";
 
 export interface PortOneCheckoutRequest {
-  backendPaymentId: string;
+  paymentId: string;
   orderId: string;
   orderName: string;
   totalAmount: number;
@@ -23,6 +23,19 @@ function requiredConfiguration(name: string, value: string | undefined) {
   return normalized;
 }
 
+export function validatePortOneCheckoutConfiguration() {
+  return {
+    storeId: requiredConfiguration(
+      "VITE_PORTONE_STORE_ID",
+      import.meta.env.VITE_PORTONE_STORE_ID,
+    ),
+    channelKey: requiredConfiguration(
+      "VITE_PORTONE_CHANNEL_KEY",
+      import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+    ),
+  };
+}
+
 export function validatePortOneCustomer({
   fullName,
   phoneNumber,
@@ -42,21 +55,14 @@ export function validatePortOneCustomer({
 }
 
 export async function requestPortOneCheckout({
-  backendPaymentId,
+  paymentId,
   orderId,
   orderName,
   totalAmount,
   currency,
   customer: customerInput,
 }: PortOneCheckoutRequest) {
-  const storeId = requiredConfiguration(
-    "VITE_PORTONE_STORE_ID",
-    import.meta.env.VITE_PORTONE_STORE_ID,
-  );
-  const channelKey = requiredConfiguration(
-    "VITE_PORTONE_CHANNEL_KEY",
-    import.meta.env.VITE_PORTONE_CHANNEL_KEY,
-  );
+  const { storeId, channelKey } = validatePortOneCheckoutConfiguration();
   const noticeUrl = import.meta.env.VITE_PORTONE_NOTICE_URL?.trim();
 
   if (currency !== "KRW") {
@@ -68,7 +74,7 @@ export async function requestPortOneCheckout({
   const customer = validatePortOneCustomer(customerInput);
 
   const redirectUrl = new URL("/payment/complete", window.location.origin);
-  redirectUrl.searchParams.set("backendPaymentId", backendPaymentId);
+  redirectUrl.searchParams.set("paymentId", paymentId);
   redirectUrl.searchParams.set("checkout", "portone");
 
   const response = await PortOne.requestPayment({

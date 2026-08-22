@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as PortOne from "@portone/browser-sdk/v2";
-import { requestPortOneCheckout } from "./portone";
+import { requestPortOneCheckout, validatePortOneCheckoutConfiguration } from "./portone";
 
 vi.mock("@portone/browser-sdk/v2", () => ({
   requestPayment: vi.fn(),
@@ -25,7 +25,7 @@ describe("requestPortOneCheckout", () => {
     });
 
     await requestPortOneCheckout({
-      backendPaymentId: "payment-456",
+      paymentId: "payment-456",
       orderId: "order-123",
       orderName: "지역 축제",
       totalAmount: 12_000,
@@ -52,7 +52,7 @@ describe("requestPortOneCheckout", () => {
     });
 
     await requestPortOneCheckout({
-      backendPaymentId: "payment-456",
+      paymentId: "payment-456",
       orderId: "order-123",
       orderName: "지역 축제",
       totalAmount: 12_000,
@@ -78,7 +78,7 @@ describe("requestPortOneCheckout", () => {
         email: "visitor@example.com",
       },
       redirectUrl:
-        "http://localhost:3000/payment/complete?backendPaymentId=payment-456&checkout=portone",
+        "http://localhost:3000/payment/complete?paymentId=payment-456&checkout=portone",
     });
   });
 
@@ -93,7 +93,7 @@ describe("requestPortOneCheckout", () => {
 
     await expect(
       requestPortOneCheckout({
-        backendPaymentId: "payment-456",
+        paymentId: "payment-456",
         orderId: "order-123",
         orderName: "지역 축제",
         totalAmount: 12_000,
@@ -112,7 +112,7 @@ describe("requestPortOneCheckout", () => {
 
     await expect(
       requestPortOneCheckout({
-        backendPaymentId: "payment-456",
+        paymentId: "payment-456",
         orderId: "order-123",
         orderName: "지역 축제",
         totalAmount: 12_000,
@@ -127,10 +127,16 @@ describe("requestPortOneCheckout", () => {
     expect(requestPayment).not.toHaveBeenCalled();
   });
 
+  it("rejects the checkout configuration when the channel key is missing", () => {
+    vi.stubEnv("VITE_PORTONE_CHANNEL_KEY", "");
+
+    expect(() => validatePortOneCheckoutConfiguration()).toThrow("VITE_PORTONE_CHANNEL_KEY");
+  });
+
   it("rejects invalid customer information before opening checkout", async () => {
     await expect(
       requestPortOneCheckout({
-        backendPaymentId: "payment-456",
+        paymentId: "payment-456",
         orderId: "order-123",
         orderName: "지역 축제",
         totalAmount: 12_000,
