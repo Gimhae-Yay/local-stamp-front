@@ -89,7 +89,7 @@ describe("예약 QR 표시", () => {
     const qr = await screen.findByRole("img", { name: "체크인 QR 코드" });
     expect(toCanvasMock).toHaveBeenCalledWith(qr, "short-lived-qr-token", {
       width: 220,
-      margin: 1,
+      margin: 4,
     });
     expect(qr).not.toHaveAttribute("hidden");
 
