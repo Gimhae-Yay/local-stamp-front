@@ -56,8 +56,53 @@ describe("운영자 결제 조회·체크인 프론트 흐름", () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
     clearAuthentication();
+  });
+
+  it("카메라 화면을 먼저 준비한 뒤 QR 스캔을 시작하고 중지한다", async () => {
+    window.history.replaceState({}, "", "/operator/check-in");
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const auth = authResponse(String(input));
+      if (auth) return auth;
+      throw new Error(`예상하지 못한 요청: ${String(input)}`);
+    });
+    const stopTrack = vi.fn();
+    const getUserMedia = vi.fn().mockResolvedValue({
+      getTracks: () => [{ stop: stopTrack }],
+    });
+    class FakeBarcodeDetector {
+      detect() {
+        return Promise.resolve([]);
+      }
+    }
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
+    vi.stubGlobal("BarcodeDetector", FakeBarcodeDetector);
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      vi.fn(() => 1),
+    );
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+
+    const { container } = render(<App />);
+    const startButton = await screen.findByRole("button", { name: "카메라 QR 스캔 시작" });
+    const video = container.querySelector("video");
+    expect(video).toBeInTheDocument();
+    expect(video).toHaveAttribute("hidden");
+
+    fireEvent.click(startButton);
+
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
+    expect(await screen.findByText("QR 코드를 카메라에 맞춰 주세요")).toBeInTheDocument();
+    expect(video).not.toHaveAttribute("hidden");
+
+    fireEvent.click(screen.getByRole("button", { name: "카메라 중지" }));
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(video).toHaveAttribute("hidden");
   });
 
   it("현재 회차가 비어 있어도 예약번호로 과거 환불 상태를 조회한다", async () => {
