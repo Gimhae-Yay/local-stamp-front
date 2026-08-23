@@ -687,7 +687,7 @@ export function ReservationDetailPage() {
       }
       if (!qrCanvasRef.current)
         throw new Error("QR을 표시할 수 없습니다. 화면을 새로고침해 주세요.");
-      await QRCode.toCanvas(qrCanvasRef.current, qr.qrToken, { width: 220, margin: 1 });
+      await QRCode.toCanvas(qrCanvasRef.current, qr.qrToken, { width: 220, margin: 4 });
       setQrExpiresAt(qr.expiresAt);
       setQrVisible(true);
     } catch (requestError) {
