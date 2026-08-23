@@ -336,7 +336,8 @@ export function BookingConfirmPage() {
   };
 
   const selectedCoupon = coupons.find((coupon) => coupon.couponId === couponId);
-  const finalAmount = selectedCoupon?.discountPreview.payableAmount ?? booking.session.price;
+  const baseAmount = booking.session.price * booking.quantity;
+  const finalAmount = selectedCoupon?.discountPreview.payableAmount ?? baseAmount;
 
   return (
     <section className="page-container narrow-page">
@@ -358,7 +359,7 @@ export function BookingConfirmPage() {
         </section>
         <section>
           <h2>예약 확인</h2>
-          <InfoRow label="예약 금액">{currencyFormatter.format(booking.session.price)}원</InfoRow>
+          <InfoRow label="예약 금액">{currencyFormatter.format(baseAmount)}원</InfoRow>
           {booking.session.price > 0 && (
             <label className="field-label">
               적용 쿠폰
