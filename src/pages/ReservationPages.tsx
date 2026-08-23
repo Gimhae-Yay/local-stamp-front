@@ -30,6 +30,7 @@ import {
   type ReservationSummary,
 } from "../api/reservations";
 import { Breadcrumbs, InfoRow, Notice, PageHeader, StatusPill } from "../components/PageElements";
+import { requestPortOneCheckout, validatePortOneCustomer } from "../payments/portone";
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
   year: "numeric",
@@ -270,6 +271,11 @@ export function BookingConfirmPage() {
   const booking = state as BookingFlowState | null;
   const [coupons, setCoupons] = useState<AvailableCoupon[]>([]);
   const [couponId, setCouponId] = useState<string | null>(null);
+  const [customer, setCustomer] = useState({
+    fullName: "",
+    phoneNumber: "",
+    email: "",
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const idempotencyKey = useRef(createIdempotencyKey());
@@ -312,6 +318,7 @@ export function BookingConfirmPage() {
         return;
       }
 
+      const checkoutCustomer = finalAmount > 0 ? validatePortOneCustomer(customer) : null;
       const result = await createPayment(booking.hold.holdId, couponId, idempotencyKey.current);
       if (!result.requiresPayment && result.reservation) {
         navigate(
@@ -324,9 +331,22 @@ export function BookingConfirmPage() {
           },
         );
       } else if (result.payment) {
-        navigate(`/payment/complete?paymentId=${result.payment.paymentId}`, {
-          state: { ...booking, payment: result.payment },
+        await requestPortOneCheckout({
+          backendPaymentId: result.payment.paymentId,
+          orderId: result.payment.orderId,
+          orderName: booking.content.title,
+          totalAmount: result.payment.amount.finalAmount,
+          currency: result.payment.amount.currency,
+          customer: checkoutCustomer ?? validatePortOneCustomer(customer),
         });
+        navigate(
+          `/payment/complete?backendPaymentId=${encodeURIComponent(result.payment.paymentId)}&checkout=portone`,
+          {
+            state: { ...booking, payment: result.payment },
+          },
+        );
+      } else {
+        throw new Error("결제 생성 응답에 결제 또는 예약 정보가 없습니다.");
       }
     } catch (requestError) {
       setError(errorMessage(requestError, "예약을 확정하지 못했습니다."));
@@ -336,7 +356,8 @@ export function BookingConfirmPage() {
   };
 
   const selectedCoupon = coupons.find((coupon) => coupon.couponId === couponId);
-  const finalAmount = selectedCoupon?.discountPreview.payableAmount ?? booking.session.price;
+  const baseAmount = booking.session.price * booking.quantity;
+  const finalAmount = selectedCoupon?.discountPreview.payableAmount ?? baseAmount;
 
   return (
     <section className="page-container narrow-page">
@@ -358,7 +379,7 @@ export function BookingConfirmPage() {
         </section>
         <section>
           <h2>예약 확인</h2>
-          <InfoRow label="예약 금액">{currencyFormatter.format(booking.session.price)}원</InfoRow>
+          <InfoRow label="예약 금액">{currencyFormatter.format(baseAmount)}원</InfoRow>
           {booking.session.price > 0 && (
             <label className="field-label">
               적용 쿠폰
@@ -378,6 +399,46 @@ export function BookingConfirmPage() {
             </label>
           )}
           <InfoRow label="최종 금액">{currencyFormatter.format(finalAmount)}원</InfoRow>
+          {finalAmount > 0 && (
+            <div className="payment-customer-fields">
+              <h3>결제자 정보</h3>
+              <label className="field-label">
+                이름
+                <input
+                  value={customer.fullName}
+                  onChange={(event) =>
+                    setCustomer((current) => ({ ...current, fullName: event.target.value }))
+                  }
+                  autoComplete="name"
+                  placeholder="홍길동"
+                />
+              </label>
+              <label className="field-label">
+                연락처
+                <input
+                  value={customer.phoneNumber}
+                  onChange={(event) =>
+                    setCustomer((current) => ({ ...current, phoneNumber: event.target.value }))
+                  }
+                  type="tel"
+                  autoComplete="tel"
+                  placeholder="010-1234-5678"
+                />
+              </label>
+              <label className="field-label">
+                이메일
+                <input
+                  value={customer.email}
+                  onChange={(event) =>
+                    setCustomer((current) => ({ ...current, email: event.target.value }))
+                  }
+                  type="email"
+                  autoComplete="email"
+                  placeholder="example@email.com"
+                />
+              </label>
+            </div>
+          )}
           {error && <p className="form-error">{error}</p>}
           <button className="button-primary" disabled={submitting} onClick={confirm}>
             {submitting
@@ -836,7 +897,9 @@ export function CancelReservationPage() {
 
 export function PaymentCompletePage() {
   const [params] = useSearchParams();
-  const paymentId = params.get("paymentId");
+  const paymentId = params.get("backendPaymentId") ?? params.get("paymentId");
+  const returnedFromPortOne = params.get("checkout") === "portone";
+  const portOneMessage = params.get("message");
   const [payment, setPayment] = useState<PaymentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -849,7 +912,7 @@ export function PaymentCompletePage() {
       return;
     }
     const controller = new AbortController();
-    setLoading(true);
+    if (version === 0) setLoading(true);
     getMyPayment(paymentId, controller.signal)
       .then(setPayment)
       .catch((requestError) => {
@@ -862,6 +925,12 @@ export function PaymentCompletePage() {
     return () => controller.abort();
   }, [paymentId, version]);
 
+  useEffect(() => {
+    if (!returnedFromPortOne || payment?.status !== "PENDING" || version >= 20) return;
+    const timer = window.setTimeout(() => setVersion((value) => value + 1), 1_500);
+    return () => window.clearTimeout(timer);
+  }, [payment?.status, returnedFromPortOne, version]);
+
   if (loading)
     return <section className="visitor-page-state">결제 상태를 확인하는 중입니다.</section>;
   if (!payment)
@@ -871,20 +940,27 @@ export function PaymentCompletePage() {
       </section>
     );
   const approved = payment.status === "APPROVED" && payment.reservationId;
+  const failed = ["DECLINED", "CANCELLED", "EXPIRED", "DISCREPANT"].includes(payment.status);
 
   return (
     <section className="payment-result">
       <Breadcrumbs items={[{ label: "홈", to: "/" }, { label: "예약" }, { label: "결제 결과" }]} />
       <div className="payment-success">
-        <span>{approved ? "✓" : "…"}</span>
+        <span>{approved ? "✓" : failed ? "!" : "…"}</span>
         <div>
           <h1>
-            {approved ? "결제가 승인되어 예약이 완료되었어요." : "결제 승인을 기다리고 있어요."}
+            {approved
+              ? "결제가 승인되어 예약이 완료되었어요."
+              : failed
+                ? "결제가 완료되지 않았어요."
+                : "결제 승인을 기다리고 있어요."}
           </h1>
           <p>
             {approved
               ? "결제 승인과 예약 확정이 모두 완료되었습니다."
-              : "현재 서버 결제 상태는 PENDING입니다. 외부 결제 승인 후 상태를 다시 확인해 주세요."}
+              : failed
+                ? `현재 서버 결제 상태는 ${payment.status}입니다.`
+                : "PortOne 결제 결과가 서버 웹훅으로 반영될 때까지 자동으로 확인하고 있습니다."}
           </p>
         </div>
       </div>
@@ -924,7 +1000,7 @@ export function PaymentCompletePage() {
           </InfoRow>
         </section>
       </div>
-      {error && <p className="form-error">{error}</p>}
+      {(error || portOneMessage) && <p className="form-error">{error ?? portOneMessage}</p>}
       <div className="payment-actions">
         <Link className="button-outline" to="/reservations">
           내 예약으로 이동
