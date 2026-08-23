@@ -640,10 +640,12 @@ export function ReservationDetailPage() {
   const { reservationId } = useParams();
   const [params] = useSearchParams();
   const showQr = params.get("showQr") === "true";
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const [detail, setDetail] = useState<ReservationDetail | null>(null);
   const [refund, setRefund] = useState<Refund | null>(null);
-  const [qrImage, setQrImage] = useState<string | null>(null);
+  const [qrVisible, setQrVisible] = useState(false);
   const [qrExpiresAt, setQrExpiresAt] = useState<string | null>(null);
+  const [qrNotice, setQrNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
@@ -675,16 +677,42 @@ export function ReservationDetailPage() {
     if (!reservationId) return;
     setQrLoading(true);
     setError(null);
+    setQrNotice(null);
+    setQrVisible(false);
     try {
       const qr = await getMyReservationQr(reservationId);
-      setQrImage(await QRCode.toDataURL(qr.qrToken, { width: 220, margin: 1 }));
+      const expiresAt = Date.parse(qr.expiresAt);
+      if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+        throw new Error("이미 만료된 QR입니다. 잠시 후 다시 시도해 주세요.");
+      }
+      if (!qrCanvasRef.current)
+        throw new Error("QR을 표시할 수 없습니다. 화면을 새로고침해 주세요.");
+      await QRCode.toCanvas(qrCanvasRef.current, qr.qrToken, { width: 220, margin: 1 });
       setQrExpiresAt(qr.expiresAt);
+      setQrVisible(true);
     } catch (requestError) {
       setError(errorMessage(requestError, "체크인 QR을 불러오지 못했습니다."));
     } finally {
       setQrLoading(false);
     }
   }, [reservationId]);
+
+  useEffect(() => {
+    if (!qrVisible || !qrExpiresAt) return;
+    const expiresAt = Date.parse(qrExpiresAt);
+    const expireQr = () => {
+      if (Date.now() < expiresAt) return;
+      setQrVisible(false);
+      setQrExpiresAt(null);
+      setQrNotice("QR 유효시간이 끝났습니다. 새 QR을 불러와 주세요.");
+    };
+    const timeoutId = window.setTimeout(expireQr, Math.max(0, expiresAt - Date.now()));
+    document.addEventListener("visibilitychange", expireQr);
+    return () => {
+      window.clearTimeout(timeoutId);
+      document.removeEventListener("visibilitychange", expireQr);
+    };
+  }, [qrExpiresAt, qrVisible]);
 
   useEffect(() => {
     if (
@@ -761,9 +789,16 @@ export function ReservationDetailPage() {
         <section id="check-in-qr">
           <h2>체크인 QR</h2>
           <div className="qr-panel">
-            {qrImage ? (
+            <canvas
+              ref={qrCanvasRef}
+              width={220}
+              height={220}
+              hidden={!qrVisible}
+              role="img"
+              aria-label="체크인 QR 코드"
+            />
+            {qrVisible ? (
               <>
-                <img src={qrImage} width={220} height={220} alt="체크인 QR 코드" />
                 {qrExpiresAt && (
                   <small>{dateTimeFormatter.format(new Date(qrExpiresAt))}까지 유효</small>
                 )}
@@ -771,6 +806,7 @@ export function ReservationDetailPage() {
             ) : (
               <>
                 <p>체크인 가능 시간에 현장 담당자에게 제시할 QR을 불러오세요.</p>
+                {qrNotice && <p>{qrNotice}</p>}
                 <button
                   className="button-primary"
                   disabled={qrLoading || detail.reservation.status !== "CONFIRMED"}

@@ -406,6 +406,8 @@ function QrCheckIn() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const frameRef = useRef<number | null>(null);
+  const cameraAttemptRef = useRef(0);
+  const cameraStartingRef = useRef(false);
   const processingRef = useRef(false);
   const attemptRef = useRef<{
     signature: string;
@@ -413,16 +415,21 @@ function QrCheckIn() {
   } | null>(null);
   const [qrToken, setQrToken] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [cameraStarting, setCameraStarting] = useState(false);
   const [result, setResult] = useState<CheckInResult | null>(null);
   const [reservation, setReservation] = useState<ReservationSearchResult | null>(null);
   const [error, setError] = useState("");
   const detectorRef = useRef<BarcodeDetectorLike | null>(null);
 
   const stop = () => {
+    cameraAttemptRef.current += 1;
+    cameraStartingRef.current = false;
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     frameRef.current = null;
+    detectorRef.current = null;
+    setCameraStarting(false);
     setScanning(false);
   };
   useEffect(() => stop, []);
@@ -458,6 +465,7 @@ function QrCheckIn() {
   };
 
   const start = async () => {
+    if (cameraStartingRef.current || scanning) return;
     setError("");
     setResult(null);
     const Detector = (
@@ -471,16 +479,32 @@ function QrCheckIn() {
       );
       return;
     }
+    if (window.isSecureContext === false) {
+      setError("카메라 QR 인식은 HTTPS 환경에서만 사용할 수 있습니다.");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("이 브라우저에서는 카메라를 사용할 수 없습니다. 아래 QR 토큰 입력을 사용해 주세요.");
+      return;
+    }
+    cameraStartingRef.current = true;
+    setCameraStarting(true);
+    const attempt = ++cameraAttemptRef.current;
     try {
+      const detector = new Detector({ formats: ["qr_code"] });
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
       });
+      if (attempt !== cameraAttemptRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       streamRef.current = stream;
-      if (!videoRef.current) return;
+      if (!videoRef.current) throw new Error("카메라 화면을 준비하지 못했습니다.");
       videoRef.current.srcObject = stream;
-      await videoRef.current.play();
-      detectorRef.current = new Detector({ formats: ["qr_code"] });
+      detectorRef.current = detector;
       setScanning(true);
+      await videoRef.current.play();
       const detect = async () => {
         if (!videoRef.current || !detectorRef.current || !streamRef.current) return;
         try {
@@ -488,6 +512,7 @@ function QrCheckIn() {
           const token = codes[0]?.rawValue;
           if (token) {
             setQrToken(token);
+            stop();
             await submitToken(token);
             return;
           }
@@ -500,6 +525,11 @@ function QrCheckIn() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "카메라를 시작하지 못했습니다.");
       stop();
+    } finally {
+      if (attempt === cameraAttemptRef.current) {
+        cameraStartingRef.current = false;
+        setCameraStarting(false);
+      }
     }
   };
 
@@ -507,7 +537,8 @@ function QrCheckIn() {
     <div className="op-scanner">
       <div className="op-scanner-inner">
         <div className="op-scan-frame">
-          {scanning ? <video ref={videoRef} muted playsInline /> : "⌗"}
+          <video ref={videoRef} muted playsInline hidden={!scanning} />
+          {!scanning && <span aria-hidden="true">⌗</span>}
         </div>
         <h2>{scanning ? "QR 코드를 카메라에 맞춰 주세요" : "방문자 QR을 스캔해 주세요"}</h2>
         <p>같은 체크인 시도에는 동일한 멱등성 키를 재사용합니다.</p>
@@ -517,8 +548,8 @@ function QrCheckIn() {
               카메라 중지
             </button>
           ) : (
-            <button className="op-button op-button-admin" onClick={start}>
-              카메라 QR 스캔 시작
+            <button className="op-button op-button-admin" disabled={cameraStarting} onClick={start}>
+              {cameraStarting ? "카메라 준비 중…" : "카메라 QR 스캔 시작"}
             </button>
           )}
         </div>
