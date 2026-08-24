@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { signup } from "../api/auth";
+import { signup, type SignupResponse } from "../api/auth";
 import { useAppState } from "../components/AppLayout";
 
 function AuthFrame({ mode, children }: { mode: "login" | "signup"; children: ReactNode }) {
@@ -91,16 +91,22 @@ export function LoginPage() {
 }
 
 export function SignupPage() {
-  const { login } = useAppState();
+  const { login, regionId, regions } = useAppState();
   const navigate = useNavigate();
+  const [requestedRole, setRequestedRole] = useState<"VISITOR" | "OPERATOR">("VISITOR");
+  const [requestedRegionId, setRequestedRegionId] = useState(regionId);
+  const [businessInformation, setBusinessInformation] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [operatorSignupResult, setOperatorSignupResult] = useState<Extract<
+    SignupResponse,
+    { requestedRole: "OPERATOR" }
+  > | null>(null);
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -108,10 +114,28 @@ export function SignupPage() {
       setError("비밀번호 확인이 일치하지 않습니다.");
       return;
     }
+    if (requestedRole === "OPERATOR" && (!requestedRegionId || !businessInformation.trim())) {
+      setError("신청 지역과 사업자 정보를 입력해 주세요.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
-      await signup({ email, password, name, phone });
+      const commonRequest = { email, password, name, phone };
+      const result = await signup(
+        requestedRole === "VISITOR"
+          ? { ...commonRequest, requestedRole: "VISITOR" }
+          : {
+              ...commonRequest,
+              requestedRole: "OPERATOR",
+              requestedRegionId,
+              businessInformation: businessInformation.trim(),
+            },
+      );
+      if (result.requestedRole === "OPERATOR") {
+        setOperatorSignupResult(result);
+        return;
+      }
       await login(email, password);
       navigate("/");
     } catch (requestError) {
@@ -123,11 +147,66 @@ export function SignupPage() {
     }
   };
 
+  if (operatorSignupResult) {
+    const requestedRegion = regions.find((region) => region.regionId === requestedRegionId);
+    return (
+      <AuthFrame mode="signup">
+        <section className="operator-signup-result">
+          <span className="operator-signup-status">심사 대기</span>
+          <h1>운영자 신청이 접수되었습니다.</h1>
+          <p>
+            {requestedRegion?.name ?? `지역 #${requestedRegionId}`} 담당 관리자가 사업자 정보와 신청
+            내용을 검토합니다.
+          </p>
+          <p>승인 전에는 운영자 콘솔을 사용할 수 없습니다.</p>
+          <Link className="button-primary" to="/login">
+            로그인 화면으로 이동
+          </Link>
+        </section>
+      </AuthFrame>
+    );
+  }
+
   return (
     <AuthFrame mode="signup">
       <form onSubmit={onSubmit}>
         <h1>Local Stamp 시작하기</h1>
-        <p>방문자 계정을 만들고 지역 체험을 예약해 보세요.</p>
+        <p>
+          {requestedRole === "VISITOR"
+            ? "방문자 계정을 만들고 지역 체험을 예약해 보세요."
+            : "운영할 지역과 사업자 정보를 제출하고 운영자 승인을 요청하세요."}
+        </p>
+        <fieldset className="signup-role-picker">
+          <legend>가입 유형</legend>
+          <div className="signup-role-options">
+            <label className={requestedRole === "VISITOR" ? "active" : ""}>
+              <input
+                type="radio"
+                name="requestedRole"
+                value="VISITOR"
+                checked={requestedRole === "VISITOR"}
+                onChange={() => setRequestedRole("VISITOR")}
+              />
+              <span>
+                <strong>방문자 가입</strong>
+                <small>지역 체험 예약과 스탬프 적립</small>
+              </span>
+            </label>
+            <label className={requestedRole === "OPERATOR" ? "active" : ""}>
+              <input
+                type="radio"
+                name="requestedRole"
+                value="OPERATOR"
+                checked={requestedRole === "OPERATOR"}
+                onChange={() => setRequestedRole("OPERATOR")}
+              />
+              <span>
+                <strong>운영자 가입 신청</strong>
+                <small>지역 콘텐츠 운영 권한 심사 신청</small>
+              </span>
+            </label>
+          </div>
+        </fieldset>
         <div className="form-pair">
           <label>
             이름
@@ -191,22 +270,47 @@ export function SignupPage() {
             />
           </label>
         </div>
-        <label className="terms">
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(event) => setAgreed(event.target.checked)}
-            required
-          />
-          서비스 이용을 위해 이용약관 및 개인정보 처리에 동의합니다.
-        </label>
+        {requestedRole === "OPERATOR" && (
+          <div className="operator-signup-fields">
+            <label>
+              신청 지역
+              <select
+                value={requestedRegionId}
+                onChange={(event) => setRequestedRegionId(event.target.value)}
+                required
+              >
+                <option value="" disabled>
+                  지역을 선택하세요
+                </option>
+                {regions.map((region) => (
+                  <option key={region.regionId} value={region.regionId}>
+                    {region.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              사업자 정보
+              <textarea
+                aria-label="사업자 정보"
+                value={businessInformation}
+                onChange={(event) => setBusinessInformation(event.target.value)}
+                placeholder="상호명, 사업자등록번호 등 심사에 필요한 정보를 입력하세요."
+                maxLength={2000}
+                required
+              />
+              <span className="character-count">{businessInformation.length} / 2,000자</span>
+            </label>
+          </div>
+        )}
         {error && <p className="form-error">{error}</p>}
         <button className="button-primary" type="submit" disabled={submitting}>
-          {submitting ? "가입 처리 중…" : "회원가입"}
+          {submitting
+            ? "가입 처리 중…"
+            : requestedRole === "OPERATOR"
+              ? "운영자 가입 신청"
+              : "회원가입"}
         </button>
-        <p className="auth-footer">
-          이전 운영자 신청이 반려됐나요? <Link to="/operator-request">운영자 재신청 →</Link>
-        </p>
       </form>
     </AuthFrame>
   );

@@ -7,22 +7,41 @@ import {
   storedUserId,
 } from "./client";
 
-export interface SignupRequest {
+interface SignupBaseRequest {
   email: string;
   password: string;
   name: string;
   phone: string;
-  requestedRole: "VISITOR";
-  requestedRegionId: null;
-  businessInformation: null;
 }
 
-export interface SignupResponse {
+export type SignupRequest = SignupBaseRequest &
+  (
+    | {
+        requestedRole: "VISITOR";
+        requestedRegionId?: never;
+        businessInformation?: never;
+      }
+    | {
+        requestedRole: "OPERATOR";
+        requestedRegionId: string;
+        businessInformation: string;
+      }
+  );
+
+export type SignupResponse = {
   userId: string;
-  requestedRole: string;
-  assignedRole: string | null;
-  operatorApplicationStatus: string | null;
-}
+} & (
+  | {
+      requestedRole: "VISITOR";
+      assignedRole: "VISITOR";
+      operatorApplicationStatus: null;
+    }
+  | {
+      requestedRole: "OPERATOR";
+      assignedRole: null;
+      operatorApplicationStatus: "PENDING";
+    }
+);
 
 export interface LoginResponse {
   userId: string;
@@ -44,18 +63,11 @@ export interface AuthenticatedUser extends MeResponse {
   userId: string | null;
 }
 
-export function signup(
-  request: Omit<SignupRequest, "requestedRole" | "requestedRegionId" | "businessInformation">,
-) {
+export function signup(request: SignupRequest) {
   return apiRequest<SignupResponse>("/api/v1/auth/signup", {
     auth: "none",
     method: "POST",
-    body: JSON.stringify({
-      ...request,
-      requestedRole: "VISITOR",
-      requestedRegionId: null,
-      businessInformation: null,
-    } satisfies SignupRequest),
+    body: JSON.stringify(request),
   });
 }
 
