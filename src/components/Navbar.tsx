@@ -3,11 +3,14 @@ import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import type { AuthenticatedUser } from "../api/auth";
+import type { OperatorApplication } from "../api/operatorRequest";
 
 interface NavbarProps {
   loggedIn: boolean;
 
   user: AuthenticatedUser | null;
+
+  operatorApplication: OperatorApplication | null;
 
   onLogout: () => Promise<void>;
 
@@ -18,6 +21,8 @@ export default function Navbar({
   loggedIn,
 
   user,
+
+  operatorApplication,
 
   onLogout,
 
@@ -32,6 +37,15 @@ export default function Navbar({
   const visitorRole = user?.roleAssignments.find((assignment) => assignment.role === "VISITOR");
 
   const operatorRole = user?.roleAssignments.find((assignment) => assignment.role === "OPERATOR");
+
+  const operatorApplicant = Boolean(operatorApplication && !operatorRole);
+
+  const applicationStatusLabel =
+    operatorApplication?.status === "PENDING"
+      ? "심사 중"
+      : operatorApplication?.status === "REJECTED"
+        ? "반려 · 재신청 가능"
+        : "승인 완료";
 
   const links = [
     ["홈", "/"],
@@ -171,15 +185,28 @@ export default function Navbar({
               onClick={() => setMenuOpen((value) => !value)}
               aria-expanded={menuOpen}
             >
-              <span>{operatorRole ? "운" : "방"}</span>{" "}
-              {operatorRole ? "콘텐츠 관리 · 내 계정" : "내 예약 · 내 계정"}
+              <span>{operatorRole ? "운" : operatorApplicant ? "신" : "방"}</span>{" "}
+              {operatorRole
+                ? "콘텐츠 관리 · 내 계정"
+                : operatorApplicant
+                  ? "운영자 신청 · 내 계정"
+                  : "내 예약 · 내 계정"}
             </button>
             {menuOpen && (
               <div className="account-menu">
                 <div className="account-menu-user">
-                  <b>{operatorRole ? "운영자 계정" : "방문자 계정"}</b>
+                  <b>
+                    {operatorRole
+                      ? "운영자 계정"
+                      : operatorApplicant
+                        ? "운영자 신청 계정"
+                        : "방문자 계정"}
+                  </b>
                   <small>
                     {operatorRole?.regionName ??
+                      (operatorApplicant
+                        ? `${operatorApplication?.requestedRegionName} · ${applicationStatusLabel}`
+                        : null) ??
                       visitorRole?.regionName ??
                       "Local Stamp 방문자 회원"}
                   </small>
@@ -192,7 +219,7 @@ export default function Navbar({
                       ]
                     : []),
 
-                  ...(visitorRole
+                  ...(visitorRole && !operatorApplicant
                     ? [
                         ["내 예약", "/reservations"],
 
@@ -206,7 +233,7 @@ export default function Navbar({
                       ]
                     : []),
 
-                  ...(!operatorRole ? [["운영자 재신청", "/operator-request"]] : []),
+                  ...(operatorApplicant ? [["운영자 신청 현황", "/operator-application"]] : []),
                 ].map(([label, to]) => (
                   <Link key={label} to={to} onClick={() => setMenuOpen(false)}>
                     {label}

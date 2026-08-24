@@ -58,6 +58,9 @@ describe("visitor authentication integration", () => {
           }),
         );
       }
+      if (input === "/api/v1/me/operator-application") {
+        return Promise.resolve(response({ operatorApplication: null }));
+      }
       return Promise.reject(new Error(`unexpected request: ${input}`));
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -73,6 +76,8 @@ describe("visitor authentication integration", () => {
     await user.click(screen.getByRole("button", { name: "회원가입" }));
 
     expect(await screen.findByRole("button", { name: /내 예약 · 내 계정/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /내 예약 · 내 계정/ }));
+    expect(screen.queryByRole("link", { name: "운영자 신청 현황" })).not.toBeInTheDocument();
     const signupCall = fetchMock.mock.calls.find(([input]) => input === "/api/v1/auth/signup");
     expect(JSON.parse(String(signupCall?.[1]?.body))).toEqual({
       email: "visitor@example.com",
@@ -173,6 +178,9 @@ describe("visitor authentication integration", () => {
             roleAssignments: [{ role: "VISITOR", regionId: null, regionName: null }],
           }),
         );
+      }
+      if (input === "/api/v1/me/operator-application") {
+        return Promise.resolve(response({ operatorApplication: null }));
       }
       if (input === "/api/v1/me/reservations") {
         return Promise.resolve(response({ reservations: [] }));

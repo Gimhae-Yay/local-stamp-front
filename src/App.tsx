@@ -63,7 +63,11 @@ export default function App() {
               <Route path="/reviews/new" element={<ReviewPage />} />
               <Route path="/coupons" element={<CouponsPage />} />
               <Route path="/stampbook" element={<StampbookPage />} />
-              <Route path="/operator-request" element={<OperatorRequestPage />} />
+              <Route path="/operator-application" element={<OperatorRequestPage />} />
+              <Route
+                path="/operator-request"
+                element={<Navigate to="/operator-application" replace />}
+              />
               <Route path="/payment/complete" element={<PaymentCompletePage />} />
             </Route>
             <Route path="/login" element={<LoginPage />} />

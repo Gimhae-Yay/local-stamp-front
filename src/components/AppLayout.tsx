@@ -8,6 +8,7 @@ import {
   restoreAuthentication,
   type AuthenticatedUser,
 } from "../api/auth";
+import { getMyOperatorApplication, type OperatorApplication } from "../api/operatorRequest";
 import { getPublicRegions } from "../api/public";
 import Navbar from "./Navbar";
 import RegionDialog, { type RegionOption } from "./RegionDialog";
@@ -18,10 +19,14 @@ interface AppState {
   authReady: boolean;
   loggedIn: boolean;
   user: AuthenticatedUser | null;
+  operatorApplication: OperatorApplication | null;
+  operatorApplicationLoading: boolean;
+  operatorApplicationError: string | null;
   region: string;
   regionId: string;
   regions: RegionOption[];
   login: (email: string, password: string) => Promise<void>;
+  refreshOperatorApplication: () => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   openRegionDialog: () => void;
@@ -38,6 +43,9 @@ export function useAppState() {
 export default function AppLayout() {
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
+  const [operatorApplication, setOperatorApplication] = useState<OperatorApplication | null>(null);
+  const [operatorApplicationLoading, setOperatorApplicationLoading] = useState(true);
+  const [operatorApplicationError, setOperatorApplicationError] = useState<string | null>(null);
   const [regions, setRegions] = useState<RegionOption[]>([]);
   const [region, setRegion] = useState<RegionOption | null>(null);
   const [regionError, setRegionError] = useState<string | null>(null);
@@ -46,16 +54,46 @@ export default function AppLayout() {
 
   useEffect(() => {
     let active = true;
-    restoreAuthentication()
-      .then((restoredUser) => {
-        if (active) setUser(restoredUser);
-      })
-      .finally(() => {
-        if (active) setAuthReady(true);
-      });
+    void (async () => {
+      const restoredUser = await restoreAuthentication();
+      if (!active) return;
+      setUser(restoredUser);
+      if (restoredUser) {
+        try {
+          const response = await getMyOperatorApplication();
+          if (active) setOperatorApplication(response.operatorApplication);
+        } catch (error) {
+          if (active) {
+            setOperatorApplicationError(
+              error instanceof Error ? error.message : "운영자 신청 현황을 불러오지 못했습니다.",
+            );
+          }
+        }
+      }
+      if (active) {
+        setOperatorApplicationLoading(false);
+        setAuthReady(true);
+      }
+    })();
     return () => {
       active = false;
     };
+  }, []);
+
+  const refreshOperatorApplication = useCallback(async () => {
+    setOperatorApplicationLoading(true);
+    setOperatorApplicationError(null);
+    try {
+      const response = await getMyOperatorApplication();
+      setOperatorApplication(response.operatorApplication);
+    } catch (error) {
+      setOperatorApplicationError(
+        error instanceof Error ? error.message : "운영자 신청 현황을 불러오지 못했습니다.",
+      );
+      throw error;
+    } finally {
+      setOperatorApplicationLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -88,24 +126,46 @@ export default function AppLayout() {
       authReady,
       loggedIn: user !== null,
       user,
+      operatorApplication,
+      operatorApplicationLoading,
+      operatorApplicationError,
       region: region?.name ?? "지역",
       regionId: region?.regionId ?? "",
       regions,
       login: async (email, password) => {
         await loginRequest(email, password);
         setUser(await getAuthenticatedUser());
+        try {
+          await refreshOperatorApplication();
+        } catch {
+          // 신청 현황 조회 실패가 로그인 자체를 막지는 않는다.
+        }
       },
+      refreshOperatorApplication,
       logout: async () => {
         await logoutRequest();
         setUser(null);
+        setOperatorApplication(null);
+        setOperatorApplicationError(null);
       },
       deleteAccount: async () => {
         await deleteAccountRequest();
         setUser(null);
+        setOperatorApplication(null);
+        setOperatorApplicationError(null);
       },
       openRegionDialog: () => setRegionDialogOpen(true),
     }),
-    [authReady, region, regions, user],
+    [
+      authReady,
+      operatorApplication,
+      operatorApplicationError,
+      operatorApplicationLoading,
+      refreshOperatorApplication,
+      region,
+      regions,
+      user,
+    ],
   );
 
   return (
@@ -114,6 +174,7 @@ export default function AppLayout() {
         <Navbar
           loggedIn={state.loggedIn}
           user={user}
+          operatorApplication={operatorApplication}
           onLogout={state.logout}
           onDeleteAccount={state.deleteAccount}
         />

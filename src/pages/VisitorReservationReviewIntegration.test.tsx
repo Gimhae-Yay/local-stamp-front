@@ -121,6 +121,9 @@ describe("visitor reservation review integration", () => {
           }),
         );
       }
+      if (input === "/api/v1/me/operator-application") {
+        return Promise.resolve(response({ operatorApplication: null }));
+      }
       if (input === "/api/v1/regions") {
         return Promise.resolve(
           response({
