@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { ConsoleNavIcon } from "../../components/ConsoleNavIcon";
 import { PageHeader } from "../PlatformComponents";
 import { usePlatformAuth } from "../PlatformAdminAuth";
 
@@ -12,13 +13,17 @@ export default function PlatformHomePage() {
       />
       <section className="pa-nav-cards">
         <Link to="/admin/regions" className="pa-nav-card">
-          <span className="pa-nav-icon">⌖</span>
+          <span className="pa-nav-icon">
+            <ConsoleNavIcon name="region" />
+          </span>
           <h2>지역 관리</h2>
           <p>전체 지역의 공개 상태와 활성 지역 관리자 수를 확인하고 운영 상태를 변경합니다.</p>
           <strong>지역 관리로 이동 →</strong>
         </Link>
         <Link to="/admin/users" className="pa-nav-card">
-          <span className="pa-nav-icon">♙</span>
+          <span className="pa-nav-icon">
+            <ConsoleNavIcon name="users" />
+          </span>
           <h2>계정·권한 관리</h2>
           <p>일반 사용자의 역할과 담당 지역을 확인하고 지역 관리자 역할을 변경합니다.</p>
           <strong>계정·권한 관리로 이동 →</strong>
@@ -27,7 +32,9 @@ export default function PlatformHomePage() {
           )}
         </Link>
         <Link to="/admin/payment-discrepancies" className="pa-nav-card">
-          <span className="pa-nav-icon">↯</span>
+          <span className="pa-nav-icon">
+            <ConsoleNavIcon name="manual-refund" />
+          </span>
           <h2>거래 예외 관리</h2>
           <p>결제 불일치와 환불 실패를 오래된 순서로 확인하고 필요한 조치를 수행합니다.</p>
           <strong>거래 예외 관리로 이동 →</strong>
