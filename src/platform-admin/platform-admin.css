@@ -480,6 +480,10 @@
   color: var(--pa-orange-deep);
   font-size: 22px;
 }
+.pa-nav-icon svg {
+  width: 20px;
+  height: 20px;
+}
 .pa-exclusive-link {
   width: fit-content;
   margin-top: 12px;

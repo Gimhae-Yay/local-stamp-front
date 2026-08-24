@@ -1,14 +1,30 @@
 import { Link } from "react-router-dom";
+import { ConsoleNavIcon, type ConsoleNavIconName } from "../../components/ConsoleNavIcon";
 import { PageHeader, StatusBadge } from "../AdminComponents";
 import { useAdminAuth } from "../AdminAuth";
 
-const tasks = [
-  ["운영자 신청", "사업자 정보와 요청 지역을 확인합니다.", "/region-admin/operator-requests", "◉"],
-  ["콘텐츠 관리", "콘텐츠 심사와 운영 상태를 관리합니다.", "/region-admin/contents/review", "▤"],
-  ["회차 관리", "추가 회차와 변경안을 검토합니다.", "/region-admin/sessions", "◫"],
-  ["QR 예외", "QR 실패와 보조 처리 기록을 조회합니다.", "/region-admin/qr-exceptions", "⌗"],
-  ["스탬프북 심사", "대상 콘텐츠와 보상 정책을 검토합니다.", "/region-admin/stampbooks", "◇"],
-  ["미션 심사", "지역 미션 조건과 이력을 확인합니다.", "/region-admin/missions", "◎"],
+const tasks: Array<[string, string, string, ConsoleNavIconName]> = [
+  [
+    "운영자 신청",
+    "사업자 정보와 요청 지역을 확인합니다.",
+    "/region-admin/operator-requests",
+    "users",
+  ],
+  [
+    "콘텐츠 관리",
+    "콘텐츠 심사와 운영 상태를 관리합니다.",
+    "/region-admin/contents/review",
+    "content",
+  ],
+  ["회차 관리", "추가 회차와 변경안을 검토합니다.", "/region-admin/sessions", "calendar"],
+  ["QR 예외", "QR 실패와 보조 처리 기록을 조회합니다.", "/region-admin/qr-exceptions", "checkin"],
+  [
+    "스탬프북 심사",
+    "대상 콘텐츠와 보상 정책을 검토합니다.",
+    "/region-admin/stampbooks",
+    "stampbook",
+  ],
+  ["미션 심사", "지역 미션 조건과 이력을 확인합니다.", "/region-admin/missions", "mission"],
 ];
 
 export default function AdminHomePage() {
@@ -28,7 +44,9 @@ export default function AdminHomePage() {
       <div className="ra-task-grid">
         {tasks.map(([title, description, path, icon]) => (
           <Link className="ra-task-card" to={path} key={path}>
-            <span className="ra-task-icon">{icon}</span>
+            <span className="ra-task-icon">
+              <ConsoleNavIcon name={icon} />
+            </span>
             <h2>{title}</h2>
             <p>{description}</p>
             <strong>업무로 이동 →</strong>

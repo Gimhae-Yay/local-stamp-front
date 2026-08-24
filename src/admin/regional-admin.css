@@ -505,6 +505,10 @@
   color: var(--ra-green);
   font-weight: 900;
 }
+.ra-task-icon svg {
+  width: 20px;
+  height: 20px;
+}
 .ra-task-card h2 {
   margin: 0;
   font-size: 17px;
