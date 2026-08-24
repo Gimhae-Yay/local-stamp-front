@@ -1892,10 +1892,65 @@ button:disabled {
   margin: 0;
 }
 .operator-request-form {
+  margin-top: 18px;
   padding: 22px;
   border: 1px solid #cbd5c7;
   border-radius: 14px;
   background: #fffdf8;
+}
+.operator-request-form h2 {
+  margin-bottom: 6px;
+  font-size: 19px;
+}
+.operator-application-status-card {
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+  border: 1px solid #cbd5c7;
+  border-radius: 14px;
+  background: #fffdf8;
+}
+.operator-application-status-heading {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+}
+.operator-application-status-heading h2 {
+  font-size: 20px;
+  line-height: 1.45;
+}
+.operator-application-status-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid #e1e5dc;
+  border-left: 1px solid #e1e5dc;
+}
+.operator-application-status-card dl > div {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border-right: 1px solid #e1e5dc;
+  border-bottom: 1px solid #e1e5dc;
+}
+.operator-application-status-card dt {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.operator-application-status-card dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+}
+.operator-application-status-card .notice {
+  margin: 0;
+}
+.operator-application-status-card .notice p {
+  margin: 5px 0 0;
+}
+.operator-application-status-card > .button-primary {
+  justify-self: start;
 }
 .operator-request-form label {
   display: flex;
@@ -2296,6 +2351,9 @@ button:disabled {
   }
   .signup-role-options,
   .form-pair {
+    grid-template-columns: 1fr;
+  }
+  .operator-application-status-card dl {
     grid-template-columns: 1fr;
   }
   .account-trigger {

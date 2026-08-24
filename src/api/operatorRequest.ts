@@ -1,5 +1,21 @@
 import { apiRequest } from "./client";
 
+export type OperatorApplicationStatus = "PENDING" | "REJECTED" | "APPROVED";
+
+export interface OperatorApplication {
+  operatorApplicationId: string;
+  status: OperatorApplicationStatus;
+  requestedRegionId: string;
+  requestedRegionName: string;
+  createdAt: string;
+  reviewedAt: string | null;
+  rejectedReason: string | null;
+}
+
+export interface MyOperatorApplicationResponse {
+  operatorApplication: OperatorApplication | null;
+}
+
 export interface CreateOperatorRequest {
   requestedRegionId: number;
   businessInformation: string;
@@ -16,4 +32,8 @@ export function reapplyForOperator(request: CreateOperatorRequest) {
     method: "POST",
     body: JSON.stringify(request),
   });
+}
+
+export function getMyOperatorApplication(signal?: AbortSignal) {
+  return apiRequest<MyOperatorApplicationResponse>("/api/v1/me/operator-application", { signal });
 }
